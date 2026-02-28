@@ -182,7 +182,7 @@ public class SchedulingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor", "id", doctorId));
 
         int bufferMinutes = doctor.getPreferredBufferTime(); // Greedy buffer allocation parameter
-        int slotsGenerated = 0;
+        int[] slotsGenerated = {0};
 
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
@@ -196,13 +196,13 @@ public class SchedulingService {
                     .ifPresent(schedule -> {
                         // Generate morning slots
                         if (schedule.getMorningStart() != null && schedule.getMorningEnd() != null) {
-                            generateSlotsForPeriod(doctor, date,
+                            slotsGenerated[0] += generateSlotsForPeriod(doctor, date,
                                     schedule.getMorningStart(), schedule.getMorningEnd(),
                                     schedule.getSlotDuration(), bufferMinutes);
                         }
                         // Generate afternoon slots
                         if (schedule.getAfternoonStart() != null && schedule.getAfternoonEnd() != null) {
-                            generateSlotsForPeriod(doctor, date,
+                            slotsGenerated[0] += generateSlotsForPeriod(doctor, date,
                                     schedule.getAfternoonStart(), schedule.getAfternoonEnd(),
                                     schedule.getSlotDuration(), bufferMinutes);
                         }
@@ -211,8 +211,8 @@ public class SchedulingService {
             currentDate = currentDate.plusDays(1);
         }
 
-        log.info("Generated slots for doctor {} from {} to {}", doctorId, startDate, endDate);
-        return slotsGenerated;
+        log.info("Generated {} slots for doctor {} from {} to {}", slotsGenerated[0], doctorId, startDate, endDate);
+        return slotsGenerated[0];
     }
 
     /**
@@ -222,10 +222,11 @@ public class SchedulingService {
      * to prevent rushed consultations. The buffer is a greedy choice
      * that locally optimizes each transition without global optimization.
      */
-    private void generateSlotsForPeriod(Doctor doctor, LocalDate date,
+    private int generateSlotsForPeriod(Doctor doctor, LocalDate date,
                                         LocalTime periodStart, LocalTime periodEnd,
                                         int slotDuration, int bufferMinutes) {
         LocalTime currentTime = periodStart;
+        int count = 0;
 
         while (currentTime.plusMinutes(slotDuration).compareTo(periodEnd) <= 0) {
             // Skip if slot already exists (idempotent generation)
@@ -242,10 +243,12 @@ public class SchedulingService {
                         .build();
 
                 timeSlotRepository.save(slot);
+                count++;
             }
 
             // GREEDY: Advance by slot_duration + buffer (local optimal spacing)
             currentTime = currentTime.plusMinutes(slotDuration + bufferMinutes);
         }
+        return count;
     }
 }
