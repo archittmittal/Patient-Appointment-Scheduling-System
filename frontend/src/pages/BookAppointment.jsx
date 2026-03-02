@@ -7,10 +7,10 @@ const TimeSlot = ({ time, isSelected, isAvailable, onClick }) => (
         onClick={onClick}
         disabled={!isAvailable}
         className={`py-3 px-4 rounded-xl text-sm font-medium transition-all ${!isAvailable
-                ? 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
-                : isSelected
-                    ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary'
-                    : 'bg-white text-gray-700 hover:border-primary/50 hover:text-primary border border-gray-200 cursor-pointer'
+            ? 'bg-gray-50 text-gray-400 cursor-not-allowed border border-gray-100'
+            : isSelected
+                ? 'bg-primary text-white shadow-md shadow-primary/30 border border-primary'
+                : 'bg-white text-gray-700 hover:border-primary/50 hover:text-primary border border-gray-200 cursor-pointer'
             }`}
     >
         {time}
@@ -22,6 +22,7 @@ const BookAppointment = () => {
     const [selectedDate, setSelectedDate] = useState(25);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [isBooked, setIsBooked] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const dates = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -112,8 +113,8 @@ const BookAppointment = () => {
                                     key={date}
                                     onClick={() => setSelectedDate(date)}
                                     className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-sm font-medium transition-colors ${selectedDate === date
-                                            ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                                        : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
                                     {date}
@@ -165,14 +166,34 @@ const BookAppointment = () => {
 
                 <div className="mt-10 pt-6 border-t border-gray-100 flex justify-end">
                     <button
-                        disabled={!selectedDate || !selectedSlot}
-                        onClick={() => setIsBooked(true)}
-                        className={`px-8 py-3.5 rounded-xl font-medium transition-all ${selectedDate && selectedSlot
-                                ? 'bg-primary text-white shadow-sm shadow-primary/30 hover:bg-primary-hover hover:-translate-y-0.5'
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        disabled={!selectedDate || !selectedSlot || isSubmitting}
+                        onClick={async () => {
+                            setIsSubmitting(true);
+                            try {
+                                await fetch('http://localhost:5001/api/appointments/book', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        patientId: 1, // Mock authenticated user
+                                        doctorId: 3, // Mock selected doctor
+                                        date: `2026-10-${String(selectedDate).padStart(2, '0')}`,
+                                        timeSlot: selectedSlot
+                                    })
+                                });
+                                setIsBooked(true);
+                            } catch (err) {
+                                console.error("Failed to book:", err);
+                                alert("Failed to book appointment");
+                            } finally {
+                                setIsSubmitting(false);
+                            }
+                        }}
+                        className={`px-8 py-3.5 rounded-xl font-medium transition-all ${selectedDate && selectedSlot && !isSubmitting
+                            ? 'bg-primary text-white shadow-sm shadow-primary/30 hover:bg-primary-hover hover:-translate-y-0.5'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             }`}
                     >
-                        Confirm Appointment
+                        {isSubmitting ? "Booking..." : "Confirm Appointment"}
                     </button>
                 </div>
             </div>
