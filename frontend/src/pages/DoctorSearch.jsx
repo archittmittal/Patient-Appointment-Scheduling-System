@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Filter, Calendar as CalendarIcon } from 'lucide-react';
 
 const DoctorCard = ({ name, specialty, rating, reviews, location, availableDate, image }) => (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group">
         <div className="flex gap-4">
             <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-                <img src={image} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <img src={image || image_url || `https://ui-avatars.com/api/?name=${name}&background=random`} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
             </div>
             <div className="flex-1">
                 <div className="flex justify-between items-start">
@@ -22,7 +22,7 @@ const DoctorCard = ({ name, specialty, rating, reviews, location, availableDate,
                 <div className="mt-3 space-y-1.5 cursor-default">
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                         <MapPin size={16} />
-                        {location}
+                        {location || location_room}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                         <CalendarIcon size={16} />
@@ -48,44 +48,21 @@ const DoctorSearch = () => {
 
     const filters = ['All', 'Cardiologist', 'Dentist', 'Neurologist', 'General Physician', 'Orthopedic'];
 
-    const dummyDoctors = [
-        {
-            name: "Dr. Sarah Jenkins",
-            specialty: "Cardiologist",
-            rating: "4.9",
-            reviews: "128",
-            location: "Heart Care Pavilion, Block C",
-            availableDate: "Tomorrow, 10:00 AM",
-            image: "https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random"
-        },
-        {
-            name: "Dr. Michael Chen",
-            specialty: "General Physician",
-            rating: "4.8",
-            reviews: "256",
-            location: "Central Clinic, Room 102",
-            availableDate: "Today, 02:30 PM",
-            image: "https://ui-avatars.com/api/?name=Michael+Chen&background=random"
-        },
-        {
-            name: "Dr. Emily Davis",
-            specialty: "Neurologist",
-            rating: "4.7",
-            reviews: "89",
-            location: "Neuro Sciences Center",
-            availableDate: "Oct 26, 09:00 AM",
-            image: "https://ui-avatars.com/api/?name=Emily+Davis&background=random"
-        },
-        {
-            name: "Dr. Robert Smith",
-            specialty: "Orthopedic",
-            rating: "4.9",
-            reviews: "150",
-            location: "Bone & Joint Clinic",
-            availableDate: "Oct 28, 11:15 AM",
-            image: "https://ui-avatars.com/api/?name=Robert+Smith&background=random"
-        }
-    ];
+    const [doctors, setDoctors] = useState([]);
+
+    useEffect(() => {
+        fetch('http://localhost:5001/api/doctors')
+            .then(res => res.json())
+            .then(data => {
+                const mapped = data.map(doc => ({
+                    ...doc,
+                    name: `Dr. ${doc.first_name} ${doc.last_name}`,
+                }));
+                // Combine mapped dynamic data with the static ones for a better UI during dev, or just use dynamic. We'll just use dynamic.
+                setDoctors(mapped);
+            })
+            .catch(err => console.error(err));
+    }, []);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -114,8 +91,8 @@ const DoctorSearch = () => {
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
                         className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeFilter === filter
-                                ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/50 hover:text-primary'
+                            ? 'bg-primary text-white shadow-md shadow-primary/30'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/50 hover:text-primary'
                             }`}
                     >
                         {filter}
@@ -124,8 +101,8 @@ const DoctorSearch = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {dummyDoctors.map(doc => (
-                    <DoctorCard key={doc.name} {...doc} />
+                {doctors.filter(doc => activeFilter === 'All' || doc.specialty === activeFilter).map(doc => (
+                    <DoctorCard key={doc.id || doc.name} {...doc} />
                 ))}
             </div>
         </div>
