@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Users, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const QueueItem = ({ number, name, status, time, isCurrent }) => (
     <div className={`flex items-center p-4 rounded-xl border transition-all ${isCurrent
-            ? 'bg-primary-light/30 border-primary shadow-sm scale-[1.02]'
-            : status === 'Completed'
-                ? 'bg-gray-50 border-gray-100 opacity-75'
-                : 'bg-white border-gray-100 hover:border-gray-300'
+        ? 'bg-primary-light/30 border-primary shadow-sm scale-[1.02]'
+        : status === 'Completed'
+            ? 'bg-gray-50 border-gray-100 opacity-75'
+            : 'bg-white border-gray-100 hover:border-gray-300'
         }`}>
         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0 ${isCurrent ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-gray-100 text-gray-500'
             }`}>
@@ -25,20 +25,33 @@ const QueueItem = ({ number, name, status, time, isCurrent }) => (
 );
 
 const LiveQueue = () => {
-    const currentToken = 14;
-    const yourToken = 18;
-    const estimatedWaitTime = 45; // minutes
+    const [queueData, setQueueData] = useState([]);
+    const [queueInfo, setQueueInfo] = useState({
+        currentToken: 0,
+        yourToken: 0,
+        estimatedWaitTime: 0
+    });
+    const [isLoading, setIsLoading] = useState(true);
 
-    const queueData = [
-        { number: 12, name: "Maria Garcia", status: "Completed", time: "10:15 AM", isCurrent: false },
-        { number: 13, name: "James Smith", status: "Completed", time: "10:30 AM", isCurrent: false },
-        { number: 14, name: "Emma Johnson", status: "In Progress", time: "10:45 AM", isCurrent: true },
-        { number: 15, name: "Robert Davis", status: "Waiting", time: "11:00 AM", isCurrent: false },
-        { number: 16, name: "William Miller", status: "Waiting", time: "11:15 AM", isCurrent: false },
-        { number: 17, name: "Sophia Wilson", status: "Waiting", time: "11:30 AM", isCurrent: false },
-        { number: 18, name: "John Doe (You)", status: "Waiting", time: "11:45 AM", isCurrent: false },
-        { number: 19, name: "Oliver Taylor", status: "Waiting", time: "12:00 PM", isCurrent: false },
-    ];
+    useEffect(() => {
+        // Fetch queue data for appointment ID 1 (hardcoded for now to mock active user)
+        fetch('http://localhost:5001/api/appointments/queue/1')
+            .then(res => res.json())
+            .then(data => {
+                setQueueInfo({
+                    currentToken: data.currentToken,
+                    yourToken: data.queue_number,
+                    estimatedWaitTime: data.estimated_time
+                });
+                setQueueData(data.queueSequence);
+            })
+            .catch(err => console.error("Error fetching queue:", err))
+            .finally(() => setIsLoading(false));
+    }, []);
+
+    if (isLoading) {
+        return <div className="max-w-4xl mx-auto p-10 text-center font-medium text-gray-500">Loading live queue...</div>;
+    }
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500 pb-10">
@@ -61,11 +74,11 @@ const LiveQueue = () => {
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-primary-light font-medium mb-1">Current Token</p>
-                                <h2 className="text-6xl font-bold">{currentToken}</h2>
+                                <h2 className="text-6xl font-bold">{queueInfo.currentToken}</h2>
                             </div>
                             <div className="text-right">
                                 <p className="text-primary-light font-medium mb-1">Your Token</p>
-                                <h2 className="text-4xl font-bold text-white/90">{yourToken}</h2>
+                                <h2 className="text-4xl font-bold text-white/90">{queueInfo.yourToken}</h2>
                             </div>
                         </div>
 
@@ -73,13 +86,13 @@ const LiveQueue = () => {
                             <div>
                                 <p className="text-white/70 text-sm mb-1">Estimated Wait Time</p>
                                 <p className="text-xl font-semibold flex items-center gap-2">
-                                    <Clock size={20} /> ~{estimatedWaitTime} mins
+                                    <Clock size={20} /> ~{queueInfo.estimatedWaitTime} mins
                                 </p>
                             </div>
                             <div>
                                 <p className="text-white/70 text-sm mb-1">People Ahead of You</p>
                                 <p className="text-xl font-semibold flex items-center gap-2">
-                                    <Users size={20} /> {yourToken - currentToken - 1} People
+                                    <Users size={20} /> {Math.max(0, queueInfo.yourToken - queueInfo.currentToken - 1)} People
                                 </p>
                             </div>
                         </div>

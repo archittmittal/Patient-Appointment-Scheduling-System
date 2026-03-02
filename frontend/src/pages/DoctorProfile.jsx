@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone } from 'lucide-react';
 
@@ -25,20 +25,36 @@ const DoctorProfile = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // MOCK DATA based on typical doctor profile
-    const doctor = {
-        name: "Dr. Sarah Jenkins",
-        specialty: "Cardiologist",
-        degree: "MBBS, MD - Cardiology",
-        experience: "15+ Years",
-        rating: "4.9",
-        reviews: "128",
-        patients: "2.5K+",
-        about: "Dr. Sarah Jenkins is a top Cardiologist with over 15 years of experience in performing complex cardiac surgeries and treating various heart conditions. She is known for her patient-centric approach and high success rates.",
-        location: "Heart Care Pavilion, Block C, City Hospital",
-        availability: "Mon - Fri, 09:00 AM - 05:00 PM",
-        image: "https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random&size=256"
-    };
+    const [doctor, setDoctor] = useState(null);
+    const [reviews, setReviews] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        // Fetch doctor details
+        fetch(`http://localhost:5001/api/doctors/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                setDoctor({
+                    ...data,
+                    name: `Dr. ${data.first_name} ${data.last_name}`,
+                    experience: `${data.experience_years}+ Years`,
+                    patients: "2.5K+", // Still mock
+                });
+            })
+            .catch(err => console.error("Error fetching doctor:", err));
+
+        // Fetch doctor reviews
+        fetch(`http://localhost:5001/api/doctors/${id}/reviews`)
+            .then(res => res.json())
+            .then(data => setReviews(data))
+            .catch(err => console.error("Error fetching reviews:", err))
+            .finally(() => setIsLoading(false));
+    }, [id]);
+
+    if (isLoading || !doctor) {
+        return <div className="max-w-5xl mx-auto p-10 text-center font-medium text-gray-500">Loading doctor profile...</div>;
+    }
 
     return (
         <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
@@ -46,7 +62,7 @@ const DoctorProfile = () => {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary-light/40 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3"></div>
 
                 <div className="w-40 h-40 md:w-56 md:h-56 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100 shadow-md">
-                    <img src={doctor.image} alt={doctor.name} className="w-full h-full object-cover" />
+                    <img src={doctor.image_url || `https://ui-avatars.com/api/?name=${doctor.first_name}+${doctor.last_name}&background=random&size=256`} alt={doctor.name} className="w-full h-full object-cover" />
                 </div>
 
                 <div className="flex-1 flex flex-col">
@@ -84,7 +100,7 @@ const DoctorProfile = () => {
                         </div>
                         <div className="bg-gray-50 p-3 rounded-xl">
                             <p className="text-xs text-gray-500 mb-1">Reviews</p>
-                            <p className="font-semibold text-gray-900">{doctor.reviews}</p>
+                            <p className="font-semibold text-gray-900">{doctor.review_count}</p>
                         </div>
                     </div>
 
@@ -135,20 +151,16 @@ const DoctorProfile = () => {
                         </div>
 
                         <div>
-                            <ReviewCard
-                                name="Alice Walker"
-                                rating="5.0"
-                                date="2 days ago"
-                                comment="Dr. Jenkins is incredibly thorough and takes the time to explain everything clearly. Highly recommended."
-                                avatar="https://ui-avatars.com/api/?name=Alice+Walker&background=random"
-                            />
-                            <ReviewCard
-                                name="David Chen"
-                                rating="4.5"
-                                date="1 week ago"
-                                comment="Very professional and the clinic is well-equipped. Had to wait 15 minutes past my time, but the doctor's care was worth it."
-                                avatar="https://ui-avatars.com/api/?name=David+Chen&background=random"
-                            />
+                            {reviews.map(review => (
+                                <ReviewCard
+                                    key={review.id}
+                                    name={review.name}
+                                    rating={review.rating}
+                                    date={review.date}
+                                    comment={review.comment}
+                                    avatar={review.avatar}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -162,7 +174,7 @@ const DoctorProfile = () => {
                             </div>
                             <div>
                                 <h5 className="font-semibold text-gray-900">City Hospital</h5>
-                                <p className="text-sm text-gray-500 mt-1">{doctor.location}</p>
+                                <p className="text-sm text-gray-500 mt-1">{doctor.location_room}</p>
                             </div>
                         </div>
                         <div className="w-full h-48 bg-gray-200 rounded-xl overflow-hidden relative group">

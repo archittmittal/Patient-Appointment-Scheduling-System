@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, MapPin, Activity, FileText, ChevronRight } from 'lucide-react';
 
 const StatCard = ({ title, value, unit, icon: Icon, trend }) => (
@@ -57,11 +57,43 @@ const AppointmentCard = ({ date, time, doctor, specialty, location, status }) =>
 );
 
 const PatientDashboard = () => {
+    const [patient, setPatient] = useState(null);
+    const [appointments, setAppointments] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        // Mocking user id = 1 for fetching
+        const fetchDashboardData = async () => {
+            try {
+                const [patientRes, appointmentsRes] = await Promise.all([
+                    fetch('http://localhost:5001/api/patients/1'),
+                    fetch('http://localhost:5001/api/patients/1/appointments')
+                ]);
+
+                const patientData = await patientRes.json();
+                const appointmentsData = await appointmentsRes.json();
+
+                setPatient(patientData);
+                setAppointments(appointmentsData);
+            } catch (err) {
+                console.error("Dashboard error:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+    }, []);
+
+    if (isLoading || !patient) {
+        return <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Loading dashboard...</div>;
+    }
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500 pb-10">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, John! 👋</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {patient.first_name}! 👋</h1>
                     <p className="text-gray-500 mt-1">Here is your health summary for today.</p>
                 </div>
                 <button className="bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm shadow-primary/30">
@@ -85,22 +117,19 @@ const PatientDashboard = () => {
                         </button>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-6">
-                        <AppointmentCard
-                            doctor="Dr. Sarah Jenkins"
-                            specialty="Cardiologist"
-                            date="Oct 24, 2026"
-                            time="10:00 AM"
-                            location="City Hospital, Room 302"
-                            status="Confirmed"
-                        />
-                        <AppointmentCard
-                            doctor="Dr. Michael Chen"
-                            specialty="General Physician"
-                            date="Nov 02, 2026"
-                            time="02:30 PM"
-                            location="Central Clinic"
-                            status="Pending"
-                        />
+                        {appointments.length > 0 ? appointments.map((apt) => (
+                            <AppointmentCard
+                                key={apt.id}
+                                doctor={`Dr. ${apt.doc_first} ${apt.doc_last}`}
+                                specialty={apt.specialty}
+                                date={new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                time={apt.time_slot}
+                                location={apt.location_room}
+                                status={apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase()}
+                            />
+                        )) : (
+                            <p className="text-gray-500 font-medium">No upcoming appointments.</p>
+                        )}
                     </div>
                 </div>
 
