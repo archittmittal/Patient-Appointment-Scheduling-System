@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PATIENT_MENU = [
@@ -13,6 +13,7 @@ const PATIENT_MENU = [
 
 const DOCTOR_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/doctor-dashboard' },
+    { name: 'Weekly Schedule', icon: CalendarDays, path: '/doctor-schedule' },
     { name: 'My Profile', icon: User, path: '/doctor-profile' },
 ];
 
