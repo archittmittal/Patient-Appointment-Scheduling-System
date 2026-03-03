@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, MapPin, Activity, FileText, ChevronRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const StatCard = ({ title, value, unit, icon: Icon, trend }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between group hover:shadow-md transition-shadow">
@@ -22,7 +24,7 @@ const StatCard = ({ title, value, unit, icon: Icon, trend }) => (
 );
 
 const AppointmentCard = ({ date, time, doctor, specialty, location, status }) => (
-    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors cursor-pointer group">
+    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors cursor-pointer">
         <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
@@ -33,12 +35,10 @@ const AppointmentCard = ({ date, time, doctor, specialty, location, status }) =>
                     <p className="text-sm text-gray-500">{specialty}</p>
                 </div>
             </div>
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                }`}>
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                 {status}
             </span>
         </div>
-
         <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm mt-4 pt-4 border-t border-gray-50">
             <div className="flex items-center gap-2 text-gray-600">
                 <CalendarIcon size={16} className="text-primary" />
@@ -57,35 +57,28 @@ const AppointmentCard = ({ date, time, doctor, specialty, location, status }) =>
 );
 
 const PatientDashboard = () => {
-    const [patient, setPatient] = useState(null);
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const [appointments, setAppointments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Mocking user id = 1 for fetching
-        const fetchDashboardData = async () => {
+        if (!user?.id) return;
+        const fetchData = async () => {
             try {
-                const [patientRes, appointmentsRes] = await Promise.all([
-                    fetch('http://localhost:5001/api/patients/1'),
-                    fetch('http://localhost:5001/api/patients/1/appointments')
-                ]);
-
-                const patientData = await patientRes.json();
-                const appointmentsData = await appointmentsRes.json();
-
-                setPatient(patientData);
-                setAppointments(appointmentsData);
+                const res = await fetch(`http://localhost:5001/api/patients/${user.id}/appointments`);
+                const data = await res.json();
+                setAppointments(data);
             } catch (err) {
-                console.error("Dashboard error:", err);
+                console.error('Dashboard error:', err);
             } finally {
                 setIsLoading(false);
             }
         };
+        fetchData();
+    }, [user?.id]);
 
-        fetchDashboardData();
-    }, []);
-
-    if (isLoading || !patient) {
+    if (isLoading) {
         return <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Loading dashboard...</div>;
     }
 
@@ -93,10 +86,13 @@ const PatientDashboard = () => {
         <div className="space-y-8 animate-in fade-in duration-500 pb-10">
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {patient.first_name}! 👋</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.first_name}!</h1>
                     <p className="text-gray-500 mt-1">Here is your health summary for today.</p>
                 </div>
-                <button className="bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm shadow-primary/30">
+                <button
+                    onClick={() => navigate('/book')}
+                    className="bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm shadow-primary/30"
+                >
                     Book Appointment
                 </button>
             </div>
@@ -128,16 +124,14 @@ const PatientDashboard = () => {
                                 status={apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase()}
                             />
                         )) : (
-                            <p className="text-gray-500 font-medium">No upcoming appointments.</p>
+                            <p className="text-gray-500 font-medium col-span-2">No upcoming appointments.</p>
                         )}
                     </div>
                 </div>
 
                 <div className="space-y-6">
                     <h2 className="text-lg font-bold text-gray-900">Recent Medical History</h2>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary-light/50 rounded-bl-full -z-10 blur-xl"></div>
-
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-6">
                         <div className="relative pl-6 border-l-2 border-primary/20 space-y-8">
                             <div className="relative">
                                 <span className="absolute -left-[31px] bg-white border-2 border-primary w-4 h-4 rounded-full"></span>
@@ -149,10 +143,9 @@ const PatientDashboard = () => {
                                 <span className="absolute -left-[31px] bg-white border-2 border-gray-300 w-4 h-4 rounded-full"></span>
                                 <p className="text-xs text-gray-500 font-medium tracking-wide uppercase">Jul 02, 2026</p>
                                 <h4 className="text-base font-medium text-gray-900 mt-1">Blood Test</h4>
-                                <p className="text-sm text-gray-600 mt-1">Lab Results showing normal hemoglobin levels.</p>
+                                <p className="text-sm text-gray-600 mt-1">Normal hemoglobin levels.</p>
                             </div>
                         </div>
-
                         <button className="w-full py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
                             Download Full Report
                         </button>

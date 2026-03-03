@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     doctor_id INT NOT NULL,
     appointment_date DATE NOT NULL,
     time_slot VARCHAR(20) NOT NULL,
+    symptoms TEXT,
     status ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED') DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(id),
@@ -63,26 +64,35 @@ CREATE TABLE IF NOT EXISTS live_queue (
     FOREIGN KEY (appointment_id) REFERENCES appointments(id)
 );
 
--- Insert Mock Users
-INSERT IGNORE INTO users (id, email, password_hash, role) VALUES 
-(1, 'patient@example.com', 'hashed_pw_placeholder', 'PATIENT'),
-(2, 'dr.sarah@hospital.com', 'hashed_pw_placeholder', 'DOCTOR'),
-(3, 'dr.michael@hospital.com', 'hashed_pw_placeholder', 'DOCTOR');
+-- Insert Mock Users (passwords stored as plain text for dev/educational use)
+INSERT IGNORE INTO users (id, email, password_hash, role) VALUES
+(1, 'patient@example.com', 'patient123', 'PATIENT'),
+(2, 'dr.sarah@hospital.com', 'doctor123', 'DOCTOR'),
+(3, 'dr.michael@hospital.com', 'doctor123', 'DOCTOR'),
+(10, 'admin@hospital.com', 'admin123', 'ADMIN');
 
 -- Insert Mock Patients
 INSERT IGNORE INTO patients (id, first_name, last_name, dob, phone, blood_group, address) VALUES
 (1, 'John', 'Doe', '1990-05-15', '+15551234567', 'O+', '123 Healing St, Apartment 4B, Healthville');
 
 -- Insert Mock Doctors
-INSERT IGNORE INTO doctors (id, first_name, last_name, specialty, degree, experience_years, rating, review_count, about, location_room, image_url) VALUES 
+INSERT IGNORE INTO doctors (id, first_name, last_name, specialty, degree, experience_years, rating, review_count, about, location_room, image_url) VALUES
 (2, 'Sarah', 'Jenkins', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 4.9, 128, 'Top Cardiologist with over 15 years experience.', 'Heart Care Pavilion, Block C', 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random'),
 (3, 'Michael', 'Chen', 'General Physician', 'MBBS', 8, 4.8, 256, 'Expert in general medicine.', 'Central Clinic, Room 102', 'https://ui-avatars.com/api/?name=Michael+Chen&background=random');
 
--- Insert Mock Appointments
-INSERT IGNORE INTO appointments (id, patient_id, doctor_id, appointment_date, time_slot, status) VALUES 
-(1, 1, 2, CURDATE(), '10:00 AM', 'CONFIRMED'),
-(2, 1, 3, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '02:30 PM', 'PENDING');
+-- Insert Mock Appointments (with symptoms)
+INSERT IGNORE INTO appointments (id, patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES
+(1, 1, 2, CURDATE(), '10:00 AM', 'Chest pain and shortness of breath for the past 3 days.', 'CONFIRMED'),
+(2, 1, 3, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '02:30 PM', 'Fever and persistent cough.', 'PENDING');
 
 -- Insert Mock Live Queue (For appointment 1 today)
-INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_time) VALUES 
+INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_time) VALUES
 (1, 18, 'WAITING', 45);
+
+-- -------------------------------------------------------
+-- Run the following ALTER if DB already exists (one-time):
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS symptoms TEXT AFTER time_slot;
+-- UPDATE users SET password_hash = 'patient123' WHERE id = 1;
+-- UPDATE users SET password_hash = 'doctor123' WHERE id IN (2, 3);
+-- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', 'admin123', 'ADMIN');
+-- -------------------------------------------------------
