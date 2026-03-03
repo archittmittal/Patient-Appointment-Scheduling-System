@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API, authedHeaders } from '../config/api';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
@@ -36,7 +37,7 @@ const DoctorProfileEdit = () => {
     // Load current doctor data
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`http://localhost:5001/api/doctors/${user.id}`)
+        fetch(`${API}/api/doctors/${user.id}`)
             .then(res => res.json())
             .then(data => {
                 setProfile({
@@ -88,9 +89,9 @@ const DoctorProfileEdit = () => {
         setSavingProfile(true);
         setProfileMsg(null);
         try {
-            const res = await fetch(`http://localhost:5001/api/doctors/${user.id}`, {
+            const res = await fetch(`${API}/api/doctors/${user.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(profile),
             });
             if (!res.ok) throw new Error('Failed');
@@ -121,9 +122,9 @@ const DoctorProfileEdit = () => {
         setSavingAvail(true);
         setAvailMsg(null);
         try {
-            const res = await fetch(`http://localhost:5001/api/doctors/${user.id}/availability`, {
+            const res = await fetch(`${API}/api/doctors/${user.id}/availability`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify({ availability }),
             });
             if (!res.ok) throw new Error('Failed');

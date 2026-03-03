@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { authenticate } = require('../middleware/authenticate');
 
 // POST /api/appointments/book
-router.post('/book', async (req, res) => {
+router.post('/book', authenticate, async (req, res) => {
     try {
         const { patientId, doctorId, date, timeSlot, symptoms } = req.body;
 
@@ -90,7 +91,7 @@ router.get('/queue/:appointmentId', async (req, res) => {
 });
 
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
-router.patch('/queue/:queueId/status', async (req, res) => {
+router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
     try {
         const { status } = req.body;
         const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];

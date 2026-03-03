@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Stethoscope, Users, X } from 'lucide-react';
+import { API, authedHeaders } from '../config/api';
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
@@ -11,7 +12,7 @@ const AdminUsers = () => {
     const [filterRole, setFilterRole] = useState('ALL');
 
     const fetchUsers = () => {
-        fetch('http://localhost:5001/api/admin/users')
+        fetch(`${API}/api/admin/users`, { headers: authedHeaders() })
             .then(res => res.json())
             .then(data => setUsers(data))
             .catch(err => console.error(err))
@@ -24,7 +25,7 @@ const AdminUsers = () => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
         const endpoint = role === 'DOCTOR' ? `/api/admin/doctors/${id}` : `/api/admin/patients/${id}`;
         try {
-            await fetch(`http://localhost:5001${endpoint}`, { method: 'DELETE' });
+            await fetch(`${API}${endpoint}`, { method: 'DELETE', headers: authedHeaders() });
             setUsers(prev => prev.filter(u => u.id !== id));
         } catch (err) {
             console.error(err);
@@ -38,9 +39,9 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            const res = await fetch('http://localhost:5001/api/admin/doctors', {
+            const res = await fetch(`${API}/api/admin/doctors`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             const data = await res.json();
@@ -60,9 +61,9 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            const res = await fetch('http://localhost:5001/api/admin/patients', {
+            const res = await fetch(`${API}/api/admin/patients`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             const data = await res.json();

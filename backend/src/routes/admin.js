@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
 const db = require('../config/db');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+
+const BCRYPT_ROUNDS = 10;
+
+// All admin routes require authentication + ADMIN role
+router.use(authenticate);
+router.use(requireRole('ADMIN'));
 
 // GET /api/admin/users — all users with profile info
 router.get('/users', async (req, res) => {
@@ -39,11 +47,12 @@ router.post('/doctors', async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, specialty, degree, experience_years, location_room } = req.body;
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         await conn.beginTransaction();
 
         const [userResult] = await conn.query(
             'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
-            [email, password, 'DOCTOR']
+            [email, passwordHash, 'DOCTOR']
         );
         const newId = userResult.insertId;
 
@@ -83,11 +92,12 @@ router.post('/patients', async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, dob, phone, blood_group, address } = req.body;
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         await conn.beginTransaction();
 
         const [userResult] = await conn.query(
             'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
-            [email, password, 'PATIENT']
+            [email, passwordHash, 'PATIENT']
         );
         const newId = userResult.insertId;
 

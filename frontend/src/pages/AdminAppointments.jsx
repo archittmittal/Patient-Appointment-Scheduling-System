@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Calendar, Clock, Filter } from 'lucide-react';
+import { API, authedHeaders } from '../config/api';
 
 const STATUS_STYLES = {
     CONFIRMED: 'bg-green-100 text-green-700',
@@ -15,7 +16,7 @@ const AdminAppointments = () => {
     const [filterStatus, setFilterStatus] = useState('ALL');
 
     useEffect(() => {
-        fetch('http://localhost:5001/api/admin/appointments')
+        fetch(`${API}/api/admin/appointments`, { headers: authedHeaders() })
             .then(res => res.json())
             .then(data => setAppointments(data))
             .catch(err => console.error(err))

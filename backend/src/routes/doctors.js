@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { authenticate } = require('../middleware/authenticate');
 
 // GET /api/doctors — all doctors
 router.get('/', async (req, res) => {
@@ -26,7 +27,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', authenticate, async (req, res) => {
     try {
         const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot } = req.body;
         await db.query(
@@ -72,7 +73,7 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', async (req, res) => {
+router.patch('/:id/availability', authenticate, async (req, res) => {
     try {
         const { availability } = req.body;
         if (!availability || typeof availability !== 'object') {
