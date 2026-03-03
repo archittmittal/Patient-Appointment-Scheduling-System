@@ -12,6 +12,7 @@ import LiveQueue from './pages/LiveQueue';
 import PatientProfile from './pages/PatientProfile';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorProfileEdit from './pages/DoctorProfileEdit';
+import DoctorSchedule from './pages/DoctorSchedule';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
@@ -49,6 +50,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['DOCTOR']}><Layout /></ProtectedRoute>}>
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
             <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
+            <Route path="/doctor-schedule" element={<DoctorSchedule />} />
           </Route>
 
           {/* Admin routes */}
