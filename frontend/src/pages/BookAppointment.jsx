@@ -62,6 +62,7 @@ const BookAppointment = () => {
     const [isBooked, setIsBooked] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [blockedDates, setBlockedDates] = useState(new Set());
 
     useEffect(() => {
         fetch('http://localhost:5001/api/doctors')
@@ -73,8 +74,22 @@ const BookAppointment = () => {
             .catch(err => console.error(err));
     }, []);
 
-    // Reset when doctor changes
-    useEffect(() => { setSelectedSlot(null); setSlotCounts({}); }, [selectedDoctor]);
+    // Reset when doctor changes and fetch their blocked dates
+    useEffect(() => {
+        setSelectedSlot(null);
+        setSlotCounts({});
+        setBlockedDates(new Set());
+        if (!selectedDoctor) return;
+        fetch(`http://localhost:5001/api/doctors/${selectedDoctor}/blocked-dates`)
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    // blocked_date comes as "YYYY-MM-DDT00:00:00.000Z" — normalise to YYYY-MM-DD
+                    setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
+                }
+            })
+            .catch(() => {});
+    }, [selectedDoctor]);
 
     // Fetch current booking counts whenever doctor + date are both set
     useEffect(() => {
@@ -226,19 +241,22 @@ const BookAppointment = () => {
                                 const isPast  = d < new Date(today.getFullYear(), today.getMonth(), today.getDate());
                                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                                 const closed  = !isPast && isDocClosed(dateStr);
-                                const disabled = isPast || closed;
+                                const isBlocked = !isPast && blockedDates.has(dateStr);
+                                const disabled = isPast || closed || isBlocked;
                                 return (
                                     <button
                                         key={date}
                                         disabled={disabled}
                                         onClick={() => setSelectedDate(dateStr)}
-                                        title={closed ? 'Doctor unavailable' : undefined}
+                                        title={closed ? 'Doctor unavailable' : isBlocked ? 'Doctor blocked this date' : undefined}
                                         className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-sm font-medium transition-colors
                                             ${selectedDate === dateStr
                                                 ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                                : disabled
-                                                    ? 'text-gray-300 cursor-not-allowed'
-                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                : isBlocked
+                                                    ? 'bg-red-50 text-red-300 cursor-not-allowed line-through'
+                                                    : disabled
+                                                        ? 'text-gray-300 cursor-not-allowed'
+                                                        : 'text-gray-700 hover:bg-gray-100'
                                             }`}
                                     >
                                         {date}

@@ -135,4 +135,51 @@ router.get('/:id/queue', async (req, res) => {
     }
 });
 
+// GET /api/doctors/:id/blocked-dates — list all blocked dates for a doctor
+router.get('/:id/blocked-dates', async (req, res) => {
+    try {
+        const [rows] = await db.query(
+            'SELECT id, blocked_date, reason FROM doctor_blocked_dates WHERE doctor_id = ? ORDER BY blocked_date ASC',
+            [req.params.id]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// POST /api/doctors/:id/blocked-dates — block a specific date
+router.post('/:id/blocked-dates', async (req, res) => {
+    try {
+        const { date, reason } = req.body;
+        if (!date) return res.status(400).json({ message: 'date is required' });
+        const [result] = await db.query(
+            'INSERT INTO doctor_blocked_dates (doctor_id, blocked_date, reason) VALUES (?, ?, ?)',
+            [req.params.id, date, reason || null]
+        );
+        res.status(201).json({ id: result.insertId, blocked_date: date, reason: reason || null });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: 'This date is already blocked' });
+        }
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// DELETE /api/doctors/:id/blocked-dates/:dateId — unblock a date
+router.delete('/:id/blocked-dates/:dateId', async (req, res) => {
+    try {
+        await db.query(
+            'DELETE FROM doctor_blocked_dates WHERE id = ? AND doctor_id = ?',
+            [req.params.dateId, req.params.id]
+        );
+        res.json({ message: 'Date unblocked' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen } from 'lucide-react';
+import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -32,6 +32,10 @@ const DoctorProfileEdit = () => {
     const [savingAvail, setSavingAvail] = useState(false);
     const [profileMsg, setProfileMsg] = useState(null);  // {type:'success'|'error', text}
     const [availMsg, setAvailMsg]     = useState(null);
+    const [blockedDates, setBlockedDates] = useState([]);
+    const [newBlockDate, setNewBlockDate] = useState('');
+    const [newBlockReason, setNewBlockReason] = useState('');
+    const [blockMsg, setBlockMsg] = useState(null);
 
     // Load current doctor data
     useEffect(() => {
@@ -60,6 +64,16 @@ const DoctorProfileEdit = () => {
             .catch(err => console.error(err))
             .finally(() => setIsLoading(false));
     }, [user?.id]);
+
+    const fetchBlockedDates = () => {
+        if (!user?.id) return;
+        fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates`)
+            .then(r => r.json())
+            .then(data => setBlockedDates(Array.isArray(data) ? data : []))
+            .catch(err => console.error(err));
+    };
+
+    useEffect(() => { fetchBlockedDates(); }, [user?.id]);
 
     // Handle photo file pick — convert to base64
     const handlePhotoChange = (e) => {
@@ -132,6 +146,42 @@ const DoctorProfileEdit = () => {
             showMsg(setAvailMsg, { type: 'error', text: 'Failed to save schedule. Try again.' });
         } finally {
             setSavingAvail(false);
+        }
+    };
+
+    const addBlockedDate = async () => {
+        if (!newBlockDate) {
+            setBlockMsg({ type: 'error', text: 'Please select a date to block.' });
+            return;
+        }
+        setBlockMsg(null);
+        try {
+            const res = await fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: newBlockDate, reason: newBlockReason || null }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.message || 'Failed');
+            }
+            setNewBlockDate('');
+            setNewBlockReason('');
+            fetchBlockedDates();
+            showMsg(setBlockMsg, { type: 'success', text: 'Date blocked successfully.' });
+        } catch (err) {
+            setBlockMsg({ type: 'error', text: err.message });
+        }
+    };
+
+    const removeBlockedDate = async (id) => {
+        try {
+            await fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates/${id}`, {
+                method: 'DELETE',
+            });
+            setBlockedDates(prev => prev.filter(d => d.id !== id));
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -348,6 +398,70 @@ const DoctorProfileEdit = () => {
                         {savingAvail ? 'Saving...' : 'Save Schedule'}
                     </button>
                 </div>
+            </div>
+
+            {/* ── BLOCKED DATES ── */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
+                <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <CalendarX size={20} className="text-red-500" /> Blocked Dates
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">Block specific dates where you are unavailable (vacation, conference, etc.). Patients cannot book on these dates.</p>
+
+                {blockMsg && (
+                    <div className={`mb-5 p-3 rounded-xl flex items-center gap-2 text-sm font-medium ${blockMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        {blockMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                        {blockMsg.text}
+                    </div>
+                )}
+
+                {/* Add new blocked date */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <input
+                        type="date"
+                        value={newBlockDate}
+                        onChange={e => setNewBlockDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white flex-shrink-0"
+                    />
+                    <input
+                        type="text"
+                        value={newBlockReason}
+                        onChange={e => setNewBlockReason(e.target.value)}
+                        placeholder="Reason (optional, e.g. Vacation)"
+                        className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
+                    />
+                    <button
+                        onClick={addBlockedDate}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-red-500 text-white font-semibold text-sm rounded-xl hover:bg-red-600 transition-colors flex-shrink-0"
+                    >
+                        <Plus size={16} /> Block Date
+                    </button>
+                </div>
+
+                {/* Existing blocked dates */}
+                {blockedDates.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">No dates blocked. You are fully available.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {blockedDates.map(d => (
+                            <div key={d.id} className="flex items-center justify-between px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
+                                <div>
+                                    <p className="text-sm font-semibold text-red-700">
+                                        {new Date(d.blocked_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </p>
+                                    {d.reason && <p className="text-xs text-red-500 mt-0.5">{d.reason}</p>}
+                                </div>
+                                <button
+                                    onClick={() => removeBlockedDate(d.id)}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                    title="Unblock this date"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
