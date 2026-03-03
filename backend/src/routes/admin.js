@@ -141,15 +141,100 @@ router.get('/appointments', async (req, res) => {
     }
 });
 
-// GET /api/admin/stats — overview stats
+// GET /api/admin/stats — extended overview stats
 router.get('/stats', async (req, res) => {
     try {
         const [[{ total_doctors }]] = await db.query('SELECT COUNT(*) AS total_doctors FROM doctors');
         const [[{ total_patients }]] = await db.query('SELECT COUNT(*) AS total_patients FROM patients');
-        const [[{ today_appointments }]] = await db.query(
-            "SELECT COUNT(*) AS today_appointments FROM appointments WHERE appointment_date = CURDATE()"
+        const [[{ total_appointments }]] = await db.query('SELECT COUNT(*) AS total_appointments FROM appointments');
+        const [[{ today_total }]] = await db.query(
+            "SELECT COUNT(*) AS today_total FROM appointments WHERE appointment_date = CURDATE()"
         );
-        res.json({ total_doctors, total_patients, today_appointments });
+        const [[{ today_confirmed }]] = await db.query(
+            "SELECT COUNT(*) AS today_confirmed FROM appointments WHERE appointment_date = CURDATE() AND status = 'CONFIRMED'"
+        );
+        const [[{ today_completed }]] = await db.query(
+            "SELECT COUNT(*) AS today_completed FROM appointments WHERE appointment_date = CURDATE() AND status = 'COMPLETED'"
+        );
+        const [[{ today_pending }]] = await db.query(
+            "SELECT COUNT(*) AS today_pending FROM appointments WHERE appointment_date = CURDATE() AND status = 'PENDING'"
+        );
+        const [[{ today_cancelled }]] = await db.query(
+            "SELECT COUNT(*) AS today_cancelled FROM appointments WHERE appointment_date = CURDATE() AND status = 'CANCELLED'"
+        );
+
+        // Top 5 doctors by appointment count today
+        const [top_doctors_today] = await db.query(`
+            SELECT d.id, d.first_name, d.last_name, d.specialty,
+                   COUNT(a.id) AS count
+            FROM doctors d
+            LEFT JOIN appointments a ON d.id = a.doctor_id AND a.appointment_date = CURDATE()
+            GROUP BY d.id
+            ORDER BY count DESC
+            LIMIT 5
+        `);
+
+        res.json({
+            total_doctors, total_patients, total_appointments,
+            today_total, today_confirmed, today_completed, today_pending, today_cancelled,
+            // backward compat alias
+            today_appointments: today_total,
+            top_doctors_today,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/admin/queue-overview — today's live queue grouped by doctor
+router.get('/queue-overview', async (req, res) => {
+    try {
+        // All doctors who have appointments today
+        const [doctors] = await db.query(`
+            SELECT DISTINCT d.id, d.first_name, d.last_name, d.specialty
+            FROM doctors d
+            JOIN appointments a ON a.doctor_id = d.id
+            WHERE a.appointment_date = CURDATE()
+            ORDER BY d.first_name
+        `);
+
+        const result = [];
+
+        for (const doc of doctors) {
+            const [queue] = await db.query(`
+                SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status,
+                       CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+                       a.time_slot
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                JOIN patients p ON a.patient_id = p.id
+                WHERE a.doctor_id = ? AND a.appointment_date = CURDATE()
+                ORDER BY lq.queue_number ASC
+            `, [doc.id]);
+
+            const counts = { WAITING: 0, IN_PROGRESS: 0, COMPLETED: 0, MISSED: 0 };
+            queue.forEach(q => { counts[q.queue_status] = (counts[q.queue_status] || 0) + 1; });
+
+            const [[{ total_today }]] = await db.query(
+                'SELECT COUNT(*) AS total_today FROM appointments WHERE doctor_id = ? AND appointment_date = CURDATE()',
+                [doc.id]
+            );
+
+            result.push({
+                doctor_id: doc.id,
+                doctor_name: `Dr. ${doc.first_name} ${doc.last_name}`,
+                specialty: doc.specialty,
+                total_today: Number(total_today),
+                waiting:     counts.WAITING,
+                in_progress: counts.IN_PROGRESS,
+                completed:   counts.COMPLETED,
+                missed:      counts.MISSED,
+                queue,
+            });
+        }
+
+        res.json(result);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
