@@ -23,6 +23,22 @@ const AdminAppointments = () => {
             .finally(() => setIsLoading(false));
     }, []);
 
+    const cancelAppointment = async (id) => {
+        if (!window.confirm('Cancel this appointment?')) return;
+        try {
+            const res = await fetch(`${API}/api/appointments/${id}/cancel`, { method: 'PATCH' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.message || 'Could not cancel');
+                return;
+            }
+            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a));
+        } catch (err) {
+            console.error('Cancel error:', err);
+            alert('Failed to cancel appointment');
+        }
+    };
+
     const filtered = appointments.filter(a => {
         const matchSearch = search === '' ||
             `${a.patient_first} ${a.patient_last}`.toLowerCase().includes(search.toLowerCase()) ||
@@ -71,6 +87,7 @@ const AdminAppointments = () => {
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Date & Time</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Symptoms</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -103,6 +120,16 @@ const AdminAppointments = () => {
                                         <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${STATUS_STYLES[a.status] || 'bg-gray-100 text-gray-600'}`}>
                                             {a.status?.toLowerCase()}
                                         </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-center">
+                                        {a.status === 'CONFIRMED' && (
+                                            <button
+                                                onClick={() => cancelAppointment(a.id)}
+                                                className="px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
