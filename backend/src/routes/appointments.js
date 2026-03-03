@@ -105,4 +105,46 @@ router.patch('/queue/:queueId/status', async (req, res) => {
     }
 });
 
+// PATCH /api/appointments/:id/cancel — cancel a CONFIRMED/PENDING appointment
+router.patch('/:id/cancel', async (req, res) => {
+    const conn = await db.getConnection();
+    try {
+        const [[appt]] = await conn.query(
+            'SELECT status, appointment_date FROM appointments WHERE id = ?',
+            [req.params.id]
+        );
+
+        if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+        if (!['CONFIRMED', 'PENDING'].includes(appt.status)) {
+            return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
+        }
+
+        await conn.beginTransaction();
+
+        await conn.query(
+            "UPDATE appointments SET status = 'CANCELLED' WHERE id = ?",
+            [req.params.id]
+        );
+
+        // If the appointment is today, remove it from the live queue too
+        const todayStr = new Date().toISOString().split('T')[0];
+        const aptDate = String(appt.appointment_date).split('T')[0];
+        if (aptDate === todayStr) {
+            await conn.query(
+                "UPDATE live_queue SET status = 'MISSED' WHERE appointment_id = ? AND status IN ('WAITING', 'IN_PROGRESS')",
+                [req.params.id]
+            );
+        }
+
+        await conn.commit();
+        res.json({ message: 'Appointment cancelled' });
+    } catch (error) {
+        await conn.rollback();
+        console.error(error);
+        res.status(500).json({ message: 'Server error cancelling appointment' });
+    } finally {
+        conn.release();
+    }
+});
+
 module.exports = router;
