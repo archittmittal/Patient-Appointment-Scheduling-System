@@ -92,12 +92,39 @@ router.get('/queue/:appointmentId', async (req, res) => {
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 router.patch('/queue/:queueId/status', async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, diagnosis, notes, prescription, follow_up_date } = req.body;
         const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ message: 'Invalid status value' });
         }
         await db.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
+
+        // When completing, write consultation notes back to the appointments row
+        if (status === 'COMPLETED') {
+            const [[queueRow]] = await db.query(
+                'SELECT appointment_id FROM live_queue WHERE id = ?',
+                [req.params.queueId]
+            );
+            if (queueRow) {
+                await db.query(
+                    `UPDATE appointments
+                        SET status = 'COMPLETED',
+                            diagnosis    = COALESCE(?, diagnosis),
+                            notes        = COALESCE(?, notes),
+                            prescription = COALESCE(?, prescription),
+                            follow_up_date = COALESCE(?, follow_up_date)
+                     WHERE id = ?`,
+                    [
+                        diagnosis    || null,
+                        notes        || null,
+                        prescription || null,
+                        follow_up_date || null,
+                        queueRow.appointment_id
+                    ]
+                );
+            }
+        }
+
         res.json({ message: 'Queue status updated' });
     } catch (error) {
         console.error(error);

@@ -100,6 +100,7 @@ router.get('/:id/patients', async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT a.id AS appointment_id, a.appointment_date, a.time_slot, a.symptoms, a.status,
+                   a.diagnosis, a.notes, a.prescription, a.follow_up_date,
                    p.id AS patient_id, p.first_name, p.last_name, p.phone, p.blood_group,
                    u.email
             FROM appointments a
