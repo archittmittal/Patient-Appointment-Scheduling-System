@@ -3,7 +3,26 @@ import { Search, MapPin, Star, Filter, Calendar as CalendarIcon } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { API } from '../config/api';
 
-const DoctorCard = ({ id, name, specialty, rating, location_room, image_url }) => {
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// Returns "Today", "Tomorrow", "Mon, Mar 3", or null if unavailable for 7 days
+const getNextAvailableDate = (availability) => {
+    if (!availability) return null;
+    const av = typeof availability === 'string' ? JSON.parse(availability) : availability;
+    const today = new Date();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+        const dayName = DAY_NAMES[d.getDay()];
+        if (av[dayName]?.open) {
+            if (i === 0) return 'Today';
+            if (i === 1) return 'Tomorrow';
+            return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+    }
+    return null;
+};
+
+const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nextAvailable }) => {
     const navigate = useNavigate();
     return (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group">
@@ -33,7 +52,10 @@ const DoctorCard = ({ id, name, specialty, rating, location_room, image_url }) =
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                             <CalendarIcon size={16} />
-                            Next slot: <span className="font-medium text-gray-900">Today</span>
+                            {nextAvailable
+                                ? <>Next slot: <span className="font-medium text-gray-900">{nextAvailable}</span></>
+                                : <span className="text-gray-400 italic">No availability this week</span>
+                            }
                         </div>
                     </div>
                 </div>
@@ -62,8 +84,6 @@ const DoctorSearch = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [doctors, setDoctors] = useState([]);
 
-    const filters = ['All', 'Cardiologist', 'Dentist', 'Neurologist', 'General Physician', 'Orthopedic'];
-
     useEffect(() => {
         fetch(`${API}/api/doctors`)
             .then(res => res.json())
@@ -71,10 +91,14 @@ const DoctorSearch = () => {
                 setDoctors(data.map(doc => ({
                     ...doc,
                     name: `Dr. ${doc.first_name} ${doc.last_name}`,
+                    nextAvailable: getNextAvailableDate(doc.availability),
                 })));
             })
             .catch(err => console.error(err));
     }, []);
+
+    // Build filter list dynamically from loaded doctors; "All" always first
+    const specialties = ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))];
 
     const filtered = doctors.filter(doc => {
         const matchFilter = activeFilter === 'All' || doc.specialty === activeFilter;
@@ -108,7 +132,7 @@ const DoctorSearch = () => {
             </div>
 
             <div className="flex gap-3 overflow-x-auto pb-2">
-                {filters.map(filter => (
+                {specialties.map(filter => (
                     <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
