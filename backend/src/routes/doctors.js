@@ -184,4 +184,69 @@ router.delete('/:id/blocked-dates/:dateId', async (req, res) => {
     }
 });
 
+// GET /api/doctors/:id/weekly-schedule?week=YYYY-MM-DD
+// Returns booked slot counts for each day of the week that starts on the given Monday.
+// Defaults to the current week if no ?week param provided.
+router.get('/:id/weekly-schedule', async (req, res) => {
+    try {
+        const toStr = d => d.toISOString().split('T')[0];
+
+        // Determine week start (Monday)
+        let weekStart;
+        if (req.query.week) {
+            weekStart = new Date(req.query.week);
+        } else {
+            weekStart = new Date();
+            const day = weekStart.getDay(); // 0=Sun, 1=Mon, ...
+            const diff = day === 0 ? -6 : 1 - day;
+            weekStart.setDate(weekStart.getDate() + diff);
+        }
+        weekStart.setHours(0, 0, 0, 0);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+
+        // Booked counts grouped by date + time_slot
+        const [appointments] = await db.query(
+            `SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS date,
+                    time_slot,
+                    COUNT(*) AS booked,
+                    SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed,
+                    SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) AS cancelled
+             FROM appointments
+             WHERE doctor_id = ?
+               AND appointment_date BETWEEN ? AND ?
+             GROUP BY appointment_date, time_slot
+             ORDER BY appointment_date ASC, time_slot ASC`,
+            [req.params.id, toStr(weekStart), toStr(weekEnd)]
+        );
+
+        // Doctor availability + capacity
+        const [[doctor]] = await db.query(
+            'SELECT availability, max_patients_per_slot FROM doctors WHERE id = ?',
+            [req.params.id]
+        );
+
+        // Blocked dates in this range
+        const [blocked] = await db.query(
+            `SELECT DATE_FORMAT(blocked_date, '%Y-%m-%d') AS blocked_date
+             FROM doctor_blocked_dates
+             WHERE doctor_id = ? AND blocked_date BETWEEN ? AND ?`,
+            [req.params.id, toStr(weekStart), toStr(weekEnd)]
+        );
+
+        res.json({
+            week_start:    toStr(weekStart),
+            week_end:      toStr(weekEnd),
+            availability:  doctor?.availability  ?? null,
+            capacity:      doctor?.max_patients_per_slot ?? 15,
+            blocked_dates: blocked.map(b => b.blocked_date),
+            appointments,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
