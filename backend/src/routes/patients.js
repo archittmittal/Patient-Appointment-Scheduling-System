@@ -16,17 +16,34 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// Get a patient's appointments
+// Get a patient's appointments — supports ?type=upcoming|past (default: upcoming)
 router.get('/:id/appointments', async (req, res) => {
     try {
+        const type = req.query.type || 'upcoming';
+
+        let whereClause;
+        let orderClause;
+        if (type === 'past') {
+            // Completed/cancelled OR in the past
+            whereClause = `a.patient_id = ? AND (a.appointment_date < CURDATE() OR a.status IN ('COMPLETED', 'CANCELLED'))`;
+            orderClause = 'ORDER BY a.appointment_date DESC';
+        } else if (type === 'all') {
+            whereClause = `a.patient_id = ?`;
+            orderClause = 'ORDER BY a.appointment_date DESC';
+        } else {
+            // upcoming: today or future, not cancelled/completed
+            whereClause = `a.patient_id = ? AND a.appointment_date >= CURDATE() AND a.status IN ('CONFIRMED', 'PENDING')`;
+            orderClause = 'ORDER BY a.appointment_date ASC';
+        }
+
         const query = `
             SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
                    a.time_slot, a.symptoms, a.status,
                    d.first_name as doc_first, d.last_name as doc_last, d.specialty, d.location_room
             FROM appointments a
             JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.patient_id = ?
-            ORDER BY a.appointment_date ASC
+            WHERE ${whereClause}
+            ${orderClause}
         `;
         const [rows] = await db.query(query, [req.params.id]);
         res.json(rows);
