@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, User, Phone, MapPin, HeartPulse } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -35,7 +36,7 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:5001/api/auth/register', {
+            const res = await fetch(`${API}/api/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
