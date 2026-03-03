@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     time_slot VARCHAR(20) NOT NULL,
     symptoms TEXT,
     status ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED') DEFAULT 'PENDING',
+    diagnosis VARCHAR(255),
+    notes TEXT,
+    prescription TEXT,
+    follow_up_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(id),
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
@@ -92,6 +96,10 @@ INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_t
 -- -------------------------------------------------------
 -- Run the following ALTER if DB already exists (one-time):
 -- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS symptoms TEXT AFTER time_slot;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS diagnosis VARCHAR(255) AFTER status;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT AFTER diagnosis;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS prescription TEXT AFTER notes;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS follow_up_date DATE AFTER prescription;
 -- UPDATE users SET password_hash = 'patient123' WHERE id = 1;
 -- UPDATE users SET password_hash = 'doctor123' WHERE id IN (2, 3);
 -- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', 'admin123', 'ADMIN');
