@@ -24,7 +24,7 @@ const StatCard = ({ title, value, unit, icon: Icon, trend }) => (
     </div>
 );
 
-const AppointmentCard = ({ date, time, doctor, specialty, location, status }) => (
+const AppointmentCard = ({ date, time, doctor, specialty, location, status, onCancel }) => (
     <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors cursor-pointer">
         <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-4">
@@ -36,7 +36,7 @@ const AppointmentCard = ({ date, time, doctor, specialty, location, status }) =>
                     <p className="text-sm text-gray-500">{specialty}</p>
                 </div>
             </div>
-            <span className={`px-3 py-1 text-xs font-medium rounded-full ${status === 'Confirmed' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${status === 'Confirmed' ? 'bg-green-100 text-green-700' : status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
                 {status}
             </span>
         </div>
@@ -54,6 +54,14 @@ const AppointmentCard = ({ date, time, doctor, specialty, location, status }) =>
                 <span>{location}</span>
             </div>
         </div>
+        {onCancel && (
+            <button
+                onClick={onCancel}
+                className="mt-4 w-full py-2 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            >
+                Cancel Appointment
+            </button>
+        )}
     </div>
 );
 
@@ -78,6 +86,22 @@ const PatientDashboard = () => {
         };
         fetchData();
     }, [user?.id]);
+
+    const cancelAppointment = async (id) => {
+        if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+        try {
+            const res = await fetch(`${API}/api/appointments/${id}/cancel`, { method: 'PATCH' });
+            if (!res.ok) {
+                const err = await res.json();
+                alert(err.message || 'Could not cancel appointment');
+                return;
+            }
+            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'CANCELLED' } : a));
+        } catch (err) {
+            console.error('Cancel error:', err);
+            alert('Failed to cancel appointment');
+        }
+    };
 
     if (isLoading) {
         return <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Loading dashboard...</div>;
@@ -123,6 +147,7 @@ const PatientDashboard = () => {
                                 time={apt.time_slot}
                                 location={apt.location_room}
                                 status={apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase()}
+                                onCancel={apt.status === 'CONFIRMED' ? () => cancelAppointment(apt.id) : null}
                             />
                         )) : (
                             <p className="text-gray-500 font-medium col-span-2">No upcoming appointments.</p>
