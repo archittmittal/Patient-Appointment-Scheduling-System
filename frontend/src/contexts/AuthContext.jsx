@@ -13,13 +13,19 @@ export function AuthProvider({ children }) {
     });
 
     function login(userData) {
-        setUser(userData);
-        localStorage.setItem('hs_user', JSON.stringify(userData));
+        // userData may include a `token` field on initial login; store it separately
+        const { token, ...rest } = userData;
+        setUser(rest);
+        localStorage.setItem('hs_user', JSON.stringify(rest));
+        if (token) {
+            localStorage.setItem('hs_token', token);
+        }
     }
 
     function logout() {
         setUser(null);
         localStorage.removeItem('hs_user');
+        localStorage.removeItem('hs_token');
     }
 
     return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Calendar, Stethoscope, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API, authedHeaders } from '../config/api';
 
 const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
     <button
@@ -23,7 +24,7 @@ const AdminDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://localhost:5001/api/admin/stats')
+        fetch(`${API}/api/admin/stats`, { headers: authedHeaders() })
             .then(res => res.json())
             .then(data => setStats(data))
             .catch(err => console.error(err))
