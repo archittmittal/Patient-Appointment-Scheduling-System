@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Users, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
+
+const POLL_INTERVAL = 15_000; // 15 seconds
 
 const QueueItem = ({ number, name, status, time, isCurrent }) => (
     <div className={`flex items-center p-4 rounded-xl border transition-all ${isCurrent
@@ -30,13 +33,15 @@ const LiveQueue = () => {
     const [queueInfo, setQueueInfo] = useState({ currentToken: 0, yourToken: 0, estimatedWaitTime: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [noQueue, setNoQueue] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
+
         const fetchQueue = async () => {
             try {
                 // Get patient's most recent today's appointment
-                const aptRes = await fetch(`http://localhost:5001/api/patients/${user.id}/appointments`);
+                const aptRes = await fetch(`${API}/api/patients/${user.id}/appointments`);
                 const appointments = await aptRes.json();
 
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -48,7 +53,7 @@ const LiveQueue = () => {
                     return;
                 }
 
-                const queueRes = await fetch(`http://localhost:5001/api/appointments/queue/${todayApt.id}`);
+                const queueRes = await fetch(`${API}/api/appointments/queue/${todayApt.id}`);
                 if (!queueRes.ok) {
                     setNoQueue(true);
                     setIsLoading(false);
@@ -62,6 +67,8 @@ const LiveQueue = () => {
                     estimatedWaitTime: data.estimated_time
                 });
                 setQueueData(data.queueSequence || []);
+                setNoQueue(false);
+                setLastUpdated(new Date());
             } catch (err) {
                 console.error('Error fetching queue:', err);
                 setNoQueue(true);
@@ -69,7 +76,10 @@ const LiveQueue = () => {
                 setIsLoading(false);
             }
         };
+
         fetchQueue();
+        const interval = setInterval(fetchQueue, POLL_INTERVAL);
+        return () => clearInterval(interval);
     }, [user?.id]);
 
     if (isLoading) {
@@ -88,15 +98,23 @@ const LiveQueue = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                    Live Queue Tracking
-                    <span className="flex h-3 w-3 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </span>
-                </h1>
-                <p className="text-gray-500 mt-1">Real-time updates for your appointment today.</p>
+            <div className="flex items-start justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                        Live Queue Tracking
+                        <span className="flex h-3 w-3 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                        </span>
+                    </h1>
+                    <p className="text-gray-500 mt-1">Real-time updates for your appointment today.</p>
+                </div>
+                {lastUpdated && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg">
+                        <RefreshCw size={12} />
+                        Updated {lastUpdated.toLocaleTimeString()}
+                    </div>
+                )}
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
