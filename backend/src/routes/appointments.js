@@ -90,18 +90,42 @@ router.get('/queue/:appointmentId', async (req, res) => {
 });
 
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
+// When status is COMPLETED or MISSED, also syncs the parent appointments row so that
+// admin views, patient history, and stats all reflect the real outcome (fixes D4).
 router.patch('/queue/:queueId/status', async (req, res) => {
+    const { status } = req.body;
+    const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    const conn = await db.getConnection();
     try {
-        const { status } = req.body;
-        const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ message: 'Invalid status value' });
+        await conn.beginTransaction();
+
+        // 1. Update the queue entry itself
+        await conn.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
+
+        // 2. For terminal statuses mirror the result onto appointments so both tables stay consistent
+        if (status === 'COMPLETED' || status === 'MISSED') {
+            const appointmentStatus = status === 'COMPLETED' ? 'COMPLETED' : 'CANCELLED';
+            await conn.query(
+                `UPDATE appointments a
+                 JOIN live_queue lq ON lq.appointment_id = a.id
+                 SET a.status = ?
+                 WHERE lq.id = ?`,
+                [appointmentStatus, req.params.queueId]
+            );
         }
-        await db.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
+
+        await conn.commit();
         res.json({ message: 'Queue status updated' });
     } catch (error) {
+        await conn.rollback();
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    } finally {
+        conn.release();
     }
 });
 
