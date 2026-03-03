@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
+
+const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
 
 const STATUS_COLORS = {
     WAITING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -30,18 +33,20 @@ const DoctorDashboard = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('queue');
     const [updatingId, setUpdatingId] = useState(null);
+    const [queueLastUpdated, setQueueLastUpdated] = useState(null);
 
     const fetchData = async () => {
         if (!user?.id) return;
         try {
             const [patientsRes, queueRes] = await Promise.all([
-                fetch(`http://localhost:5001/api/doctors/${user.id}/patients`),
-                fetch(`http://localhost:5001/api/doctors/${user.id}/queue`)
+                fetch(`${API}/api/doctors/${user.id}/patients`),
+                fetch(`${API}/api/doctors/${user.id}/queue`)
             ]);
             const patientsData = await patientsRes.json();
             const queueData = await queueRes.json();
             setPatients(patientsData);
             setQueue(queueData);
+            setQueueLastUpdated(new Date());
         } catch (err) {
             console.error('Doctor dashboard error:', err);
         } finally {
@@ -49,12 +54,29 @@ const DoctorDashboard = () => {
         }
     };
 
+    // Initial full load
     useEffect(() => { fetchData(); }, [user?.id]);
+
+    // Auto-refresh only the queue every 20 s (patients list is static)
+    useEffect(() => {
+        if (!user?.id) return;
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`${API}/api/doctors/${user.id}/queue`);
+                const data = await res.json();
+                setQueue(data);
+                setQueueLastUpdated(new Date());
+            } catch (err) {
+                console.error('Queue auto-refresh error:', err);
+            }
+        }, QUEUE_POLL_INTERVAL);
+        return () => clearInterval(interval);
+    }, [user?.id]);
 
     const updateQueueStatus = async (queueId, newStatus) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`http://localhost:5001/api/appointments/queue/${queueId}/status`, {
+            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
@@ -70,7 +92,7 @@ const DoctorDashboard = () => {
     const markMissed = async (queueId) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`http://localhost:5001/api/appointments/queue/${queueId}/status`, {
+            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'MISSED' })
@@ -120,19 +142,27 @@ const DoctorDashboard = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-4 border-b border-gray-200">
-                <button
-                    onClick={() => setActiveTab('queue')}
-                    className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'queue' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                >
-                    Today's Queue ({queue.length})
-                </button>
-                <button
-                    onClick={() => setActiveTab('patients')}
-                    className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'patients' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-                >
-                    All Patients ({patients.length})
-                </button>
+            <div className="flex items-center justify-between border-b border-gray-200">
+                <div className="flex gap-4">
+                    <button
+                        onClick={() => setActiveTab('queue')}
+                        className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'queue' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Today's Queue ({queue.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('patients')}
+                        className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'patients' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                    >
+                        All Patients ({patients.length})
+                    </button>
+                </div>
+                {activeTab === 'queue' && queueLastUpdated && (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 pb-3">
+                        <RefreshCw size={12} />
+                        Updated {queueLastUpdated.toLocaleTimeString()}
+                    </div>
+                )}
             </div>
 
             {/* Today's Queue */}
