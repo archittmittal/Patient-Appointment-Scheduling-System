@@ -16,6 +16,28 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// PATCH /api/patients/:id — update editable profile fields
+router.patch('/:id', async (req, res) => {
+    try {
+        const { first_name, last_name, phone, address, blood_group } = req.body;
+        await db.query(
+            `UPDATE patients SET
+                first_name  = COALESCE(?, first_name),
+                last_name   = COALESCE(?, last_name),
+                phone       = COALESCE(?, phone),
+                address     = COALESCE(?, address),
+                blood_group = COALESCE(?, blood_group)
+             WHERE id = ?`,
+            [first_name ?? null, last_name ?? null, phone ?? null, address ?? null, blood_group ?? null, req.params.id]
+        );
+        const [rows] = await db.query('SELECT * FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
+        res.json(rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Get a patient's appointments
 router.get('/:id/appointments', async (req, res) => {
     try {
