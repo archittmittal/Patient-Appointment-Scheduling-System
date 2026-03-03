@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const STATUS_COLORS = {
     WAITING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -35,8 +36,8 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         try {
             const [patientsRes, queueRes] = await Promise.all([
-                fetch(`http://localhost:5001/api/doctors/${user.id}/patients`),
-                fetch(`http://localhost:5001/api/doctors/${user.id}/queue`)
+                fetch(`${API}/api/doctors/${user.id}/patients`),
+                fetch(`${API}/api/doctors/${user.id}/queue`)
             ]);
             const patientsData = await patientsRes.json();
             const queueData = await queueRes.json();
@@ -54,7 +55,7 @@ const DoctorDashboard = () => {
     const updateQueueStatus = async (queueId, newStatus) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`http://localhost:5001/api/appointments/queue/${queueId}/status`, {
+            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })
@@ -70,7 +71,7 @@ const DoctorDashboard = () => {
     const markMissed = async (queueId) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`http://localhost:5001/api/appointments/queue/${queueId}/status`, {
+            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'MISSED' })
