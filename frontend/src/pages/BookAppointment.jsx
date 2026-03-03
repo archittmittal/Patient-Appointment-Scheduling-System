@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -315,7 +315,7 @@ const BookAppointment = () => {
                             try {
                                 await fetch(`${API}/api/appointments/book`, {
                                     method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
+                                    headers: authedHeaders(true),
                                     body: JSON.stringify({
                                         patientId: user.id,
                                         doctorId: selectedDoctor,

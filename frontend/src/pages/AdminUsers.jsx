@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Stethoscope, Users, X, Pencil } from 'lucide-react';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
 
@@ -16,7 +16,7 @@ const AdminUsers = () => {
     const [filterRole, setFilterRole] = useState('ALL');
 
     const fetchUsers = () => {
-        fetch(`${API}/api/admin/users`)
+        fetch(`${API}/api/admin/users`, { headers: authedHeaders() })
             .then(res => res.json())
             .then(data => setUsers(data))
             .catch(err => console.error(err))
@@ -29,7 +29,7 @@ const AdminUsers = () => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
         const endpoint = role === 'DOCTOR' ? `/api/admin/doctors/${id}` : `/api/admin/patients/${id}`;
         try {
-            await fetch(`${API}${endpoint}`, { method: 'DELETE' });
+            await fetch(`${API}${endpoint}`, { method: 'DELETE', headers: authedHeaders() });
             setUsers(prev => prev.filter(u => u.id !== id));
         } catch (err) {
             console.error(err);
@@ -68,7 +68,7 @@ const AdminUsers = () => {
         try {
             const res = await fetch(`${API}/api/admin/doctors`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             const data = await res.json();
@@ -86,7 +86,7 @@ const AdminUsers = () => {
         try {
             const res = await fetch(`${API}/api/admin/patients`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             const data = await res.json();
