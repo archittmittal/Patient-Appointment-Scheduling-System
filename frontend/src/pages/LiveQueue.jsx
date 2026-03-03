@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Users, Activity, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const QueueItem = ({ number, name, status, time, isCurrent }) => (
     <div className={`flex items-center p-4 rounded-xl border transition-all ${isCurrent
@@ -36,7 +37,7 @@ const LiveQueue = () => {
         const fetchQueue = async () => {
             try {
                 // Get patient's most recent today's appointment
-                const aptRes = await fetch(`http://localhost:5001/api/patients/${user.id}/appointments`);
+                const aptRes = await fetch(`${API}/api/patients/${user.id}/appointments`);
                 const appointments = await aptRes.json();
 
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -48,7 +49,7 @@ const LiveQueue = () => {
                     return;
                 }
 
-                const queueRes = await fetch(`http://localhost:5001/api/appointments/queue/${todayApt.id}`);
+                const queueRes = await fetch(`${API}/api/appointments/queue/${todayApt.id}`);
                 if (!queueRes.ok) {
                     setNoQueue(true);
                     setIsLoading(false);

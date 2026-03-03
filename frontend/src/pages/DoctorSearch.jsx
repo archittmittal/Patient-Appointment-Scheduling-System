@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API } from '../config/api';
 
 const DoctorCard = ({ id, name, specialty, rating, location_room, image_url }) => {
     const navigate = useNavigate();
@@ -64,7 +65,7 @@ const DoctorSearch = () => {
     const filters = ['All', 'Cardiologist', 'Dentist', 'Neurologist', 'General Physician', 'Orthopedic'];
 
     useEffect(() => {
-        fetch('http://localhost:5001/api/doctors')
+        fetch(`${API}/api/doctors`)
             .then(res => res.json())
             .then(data => {
                 setDoctors(data.map(doc => ({

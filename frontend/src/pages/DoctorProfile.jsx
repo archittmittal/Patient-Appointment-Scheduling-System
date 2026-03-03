@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone } from 'lucide-react';
+import { API } from '../config/api';
 
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
     <div className="border-b border-gray-100 py-6 last:border-0 last:pb-0">
@@ -32,7 +33,7 @@ const DoctorProfile = () => {
     useEffect(() => {
         setIsLoading(true);
         // Fetch doctor details
-        fetch(`http://localhost:5001/api/doctors/${id}`)
+        fetch(`${API}/api/doctors/${id}`)
             .then(res => res.json())
             .then(data => {
                 setDoctor({
@@ -45,7 +46,7 @@ const DoctorProfile = () => {
             .catch(err => console.error("Error fetching doctor:", err));
 
         // Fetch doctor reviews
-        fetch(`http://localhost:5001/api/doctors/${id}/reviews`)
+        fetch(`${API}/api/doctors/${id}/reviews`)
             .then(res => res.json())
             .then(data => setReviews(data))
             .catch(err => console.error("Error fetching reviews:", err))

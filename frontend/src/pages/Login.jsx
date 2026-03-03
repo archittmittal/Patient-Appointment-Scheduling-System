@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, HeartPulse } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const ROLE_HOME = {
     PATIENT: '/patient-dashboard',
@@ -22,7 +23,7 @@ const Login = () => {
         setError('');
         setLoading(true);
         try {
-            const res = await fetch('http://localhost:5001/api/auth/login', {
+            const res = await fetch(`${API}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),

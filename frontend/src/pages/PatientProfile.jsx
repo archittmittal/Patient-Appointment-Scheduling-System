@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, Shield, CreditCard, Bell, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const ProfileMenu = ({ icon: Icon, title, description, isActive }) => (
     <button className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${isActive
@@ -23,7 +24,7 @@ const PatientProfile = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`http://localhost:5001/api/patients/${user.id}`)
+        fetch(`${API}/api/patients/${user.id}`)
             .then(res => res.json())
             .then(data => setProfile(data))
             .catch(err => console.error(err));
