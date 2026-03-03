@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Phone, Mail, MapPin, Shield, CreditCard, Bell, Settings } from 'lucide-react';
+import { User, Phone, Mail, MapPin, Shield, CreditCard, Bell, Settings, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+const inputClass = "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white";
 
 const ProfileMenu = ({ icon: Icon, title, description, isActive }) => (
     <button className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${isActive
@@ -18,12 +23,16 @@ const ProfileMenu = ({ icon: Icon, title, description, isActive }) => (
 );
 
 const PatientProfile = () => {
-    const { user } = useAuth();
+    const { user, login } = useAuth();
     const [profile, setProfile] = useState(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [form, setForm] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [saveMsg, setSaveMsg] = useState(null); // {type:'success'|'error', text}
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`http://localhost:5001/api/patients/${user.id}`)
+        fetch(`${API}/api/patients/${user.id}`)
             .then(res => res.json())
             .then(data => setProfile(data))
             .catch(err => console.error(err));
@@ -39,6 +48,55 @@ const PatientProfile = () => {
         const age = new Date().getFullYear() - d.getFullYear();
         return `${d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} (${age} Yrs)`;
     };
+
+    const startEdit = () => {
+        setForm({
+            first_name:  profile?.first_name  || '',
+            last_name:   profile?.last_name   || '',
+            phone:       profile?.phone       || '',
+            address:     profile?.address     || '',
+            blood_group: profile?.blood_group || '',
+        });
+        setSaveMsg(null);
+        setIsEditing(true);
+    };
+
+    const cancelEdit = () => { setIsEditing(false); setSaveMsg(null); };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSaveMsg(null);
+        try {
+            const res = await fetch(`${API}/api/patients/${user.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(form),
+            });
+            if (!res.ok) throw new Error('Failed');
+            const updated = await res.json();
+            setProfile(updated);
+            login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
+            setIsEditing(false);
+            setSaveMsg({ type: 'success', text: 'Profile updated successfully!' });
+            setTimeout(() => setSaveMsg(null), 3000);
+        } catch {
+            setSaveMsg({ type: 'error', text: 'Failed to save. Please try again.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const Field = ({ label, icon: Icon, value, editContent }) => (
+        <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1">{label}</label>
+            {isEditing && editContent ? editContent : (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
+                    {Icon && <Icon size={18} className="text-gray-400 flex-shrink-0" />}
+                    <span>{value || '—'}</span>
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-10">
@@ -76,49 +134,91 @@ const PatientProfile = () => {
                     <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
                         <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                             <h3 className="text-xl font-bold text-gray-900">Personal Information</h3>
+                            {!isEditing ? (
+                                <button
+                                    onClick={startEdit}
+                                    className="px-4 py-2 text-sm font-medium text-primary border border-primary/30 rounded-xl hover:bg-primary-light transition-colors"
+                                >
+                                    Edit Profile
+                                </button>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <button onClick={cancelEdit} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center gap-1">
+                                        <X size={14} /> Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={saving}
+                                        className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-hover transition-colors flex items-center gap-1 disabled:opacity-60"
+                                    >
+                                        <Save size={14} /> {saving ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
+                        {saveMsg && (
+                            <div className={`mb-4 p-3 rounded-xl text-sm font-medium ${saveMsg.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                {saveMsg.text}
+                            </div>
+                        )}
+
                         <div className="grid md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Full Name</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
-                                    <User size={18} className="text-gray-400" />
-                                    {fullName}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Date of Birth</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
-                                    <User size={18} className="text-gray-400" />
-                                    {profile ? formatDOB(profile.dob) : '—'}
-                                </div>
-                            </div>
+                            <Field
+                                label="First Name"
+                                icon={User}
+                                value={profile?.first_name}
+                                editContent={
+                                    <input className={inputClass} value={form.first_name} onChange={e => setForm(p => ({ ...p, first_name: e.target.value }))} />
+                                }
+                            />
+                            <Field
+                                label="Last Name"
+                                icon={User}
+                                value={profile?.last_name}
+                                editContent={
+                                    <input className={inputClass} value={form.last_name} onChange={e => setForm(p => ({ ...p, last_name: e.target.value }))} />
+                                }
+                            />
+                            <Field
+                                label="Date of Birth"
+                                icon={User}
+                                value={profile ? formatDOB(profile.dob) : null}
+                            />
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Email Address</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
-                                    <Mail size={18} className="text-gray-400" />
-                                    {user?.email}
-                                </div>
+                                <Field
+                                    label="Email Address"
+                                    icon={Mail}
+                                    value={user?.email}
+                                />
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Phone Number</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
-                                    <Phone size={18} className="text-gray-400" />
-                                    {profile?.phone || '—'}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Blood Group</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-red-600 font-bold border border-gray-100">
-                                    {profile?.blood_group || '—'}
-                                </div>
-                            </div>
+                            <Field
+                                label="Phone Number"
+                                icon={Phone}
+                                value={profile?.phone}
+                                editContent={
+                                    <input className={inputClass} type="tel" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+                                }
+                            />
+                            <Field
+                                label="Blood Group"
+                                value={profile?.blood_group}
+                                editContent={
+                                    <select className={inputClass} value={form.blood_group} onChange={e => setForm(p => ({ ...p, blood_group: e.target.value }))}>
+                                        <option value="">Select</option>
+                                        {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                                    </select>
+                                }
+                            />
                             <div className="md:col-span-2">
-                                <label className="block text-sm font-semibold text-gray-900 mb-1">Address</label>
-                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-gray-700 border border-gray-100">
-                                    <MapPin size={18} className="text-gray-400 flex-shrink-0" />
-                                    {profile?.address || '—'}
-                                </div>
+                                <Field
+                                    label="Address"
+                                    icon={MapPin}
+                                    value={profile?.address}
+                                    editContent={
+                                        <input className={inputClass} value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+                                    }
+                                />
                             </div>
                         </div>
                     </div>
