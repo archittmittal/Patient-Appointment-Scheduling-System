@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { authenticate } = require('../middleware/authenticate');
 
 // POST /api/appointments/book
-router.post('/book', async (req, res) => {
+router.post('/book', authenticate, async (req, res) => {
     try {
         const { patientId, doctorId, date, timeSlot, symptoms } = req.body;
 
@@ -92,7 +93,7 @@ router.get('/queue/:appointmentId', async (req, res) => {
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
-router.patch('/queue/:queueId/status', async (req, res) => {
+router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
     const { status } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
     if (!validStatuses.includes(status)) {

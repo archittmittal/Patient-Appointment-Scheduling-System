@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
@@ -105,7 +105,7 @@ const DoctorProfileEdit = () => {
         try {
             const res = await fetch(`${API}/api/doctors/${user.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(profile),
             });
             if (!res.ok) throw new Error('Failed');
@@ -138,7 +138,7 @@ const DoctorProfileEdit = () => {
         try {
             const res = await fetch(`${API}/api/doctors/${user.id}/availability`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify({ availability }),
             });
             if (!res.ok) throw new Error('Failed');

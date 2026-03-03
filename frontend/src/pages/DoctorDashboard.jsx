@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
 
@@ -78,7 +78,7 @@ const DoctorDashboard = () => {
         try {
             await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify({ status: newStatus })
             });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
@@ -94,7 +94,7 @@ const DoctorDashboard = () => {
         try {
             await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify({ status: 'MISSED' })
             });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: 'MISSED' } : q));

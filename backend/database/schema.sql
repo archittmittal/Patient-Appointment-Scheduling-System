@@ -74,12 +74,12 @@ CREATE TABLE IF NOT EXISTS doctor_blocked_dates (
     FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
 );
 
--- Insert Mock Users (passwords stored as plain text for dev/educational use)
+-- Insert Mock Users (passwords are bcrypt hashes — plain-text values: patient123, doctor123, admin123)
 INSERT IGNORE INTO users (id, email, password_hash, role) VALUES
-(1, 'patient@example.com', 'patient123', 'PATIENT'),
-(2, 'dr.sarah@hospital.com', 'doctor123', 'DOCTOR'),
-(3, 'dr.michael@hospital.com', 'doctor123', 'DOCTOR'),
-(10, 'admin@hospital.com', 'admin123', 'ADMIN');
+(1,  'patient@example.com',        '$2b$10$pr3yTOhaCSWoCCKx6dh5zuHdBjIb5OiArA8HmGrZY9pS23x3rw17W', 'PATIENT'),
+(2,  'dr.sarah@hospital.com',      '$2b$10$jlF3vybJbXMc7y5DESbqXOLOtL2i86bPyWA6AefbPhq1lGRwh/DPG', 'DOCTOR'),
+(3,  'dr.michael@hospital.com',    '$2b$10$jlF3vybJbXMc7y5DESbqXOLOtL2i86bPyWA6AefbPhq1lGRwh/DPG', 'DOCTOR'),
+(10, 'admin@hospital.com',         '$2b$10$6b1GuRKjy.ASXaKM.t/XVOYEJDrTxNSbe8AuM414NtK.YbgbaGfQe', 'ADMIN');
 
 -- Insert Mock Patients
 INSERT IGNORE INTO patients (id, first_name, last_name, dob, phone, blood_group, address) VALUES
@@ -100,10 +100,10 @@ INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_t
 (1, 18, 'WAITING', 45);
 
 -- -------------------------------------------------------
--- Run the following ALTER if DB already exists (one-time):
+-- Run the following ALTERs if DB already exists (one-time migration):
 -- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS symptoms TEXT AFTER time_slot;
 -- CREATE TABLE IF NOT EXISTS doctor_blocked_dates (id INT AUTO_INCREMENT PRIMARY KEY, doctor_id INT NOT NULL, blocked_date DATE NOT NULL, reason VARCHAR(255), UNIQUE KEY unique_doctor_date (doctor_id, blocked_date), FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE);
--- UPDATE users SET password_hash = 'patient123' WHERE id = 1;
--- UPDATE users SET password_hash = 'doctor123' WHERE id IN (2, 3);
--- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', 'admin123', 'ADMIN');
+-- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', '$2b$10$6b1GuRKjy.ASXaKM.t/XVOYEJDrTxNSbe8AuM414NtK.YbgbaGfQe', 'ADMIN');
+-- UPDATE users SET password_hash = '$2b$10$pr3yTOhaCSWoCCKx6dh5zuHdBjIb5OiArA8HmGrZY9pS23x3rw17W' WHERE id = 1;
+-- UPDATE users SET password_hash = '$2b$10$jlF3vybJbXMc7y5DESbqXOLOtL2i86bPyWA6AefbPhq1lGRwh/DPG' WHERE id IN (2, 3);
 -- -------------------------------------------------------

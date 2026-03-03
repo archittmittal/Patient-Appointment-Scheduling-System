@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { JWT_SECRET } = require('../middleware/authenticate');
+
+const BCRYPT_ROUNDS = 10;
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
@@ -10,16 +15,18 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required' });
         }
 
-        const [users] = await db.query(
-            'SELECT * FROM users WHERE email = ? AND password_hash = ?',
-            [email, password]
-        );
-
+        // Fetch user by email only; compare password separately (never compare in SQL)
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (users.length === 0) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         const user = users[0];
+        const passwordMatch = await bcrypt.compare(password, user.password_hash);
+        if (!passwordMatch) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+
         let firstName = 'Admin';
         let lastName = '';
 
@@ -31,7 +38,20 @@ router.post('/login', async (req, res) => {
             if (rows.length > 0) { firstName = rows[0].first_name; lastName = rows[0].last_name; }
         }
 
-        res.json({ id: user.id, email: user.email, role: user.role, first_name: firstName, last_name: lastName });
+        const token = jwt.sign(
+            { id: user.id, email: user.email, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '8h' }
+        );
+
+        res.json({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            first_name: firstName,
+            last_name: lastName,
+            token,
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -53,11 +73,13 @@ router.post('/register', async (req, res) => {
             return res.status(409).json({ message: 'An account with this email already exists' });
         }
 
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
         await conn.beginTransaction();
 
         const [userResult] = await conn.query(
             'INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)',
-            [email, password, 'PATIENT']
+            [email, passwordHash, 'PATIENT']
         );
         const newId = userResult.insertId;
 
