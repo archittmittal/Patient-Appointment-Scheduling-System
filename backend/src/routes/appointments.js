@@ -94,7 +94,7 @@ router.get('/queue/:appointmentId', async (req, res) => {
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
-    const { status } = req.body;
+    const { status, diagnosis, notes, prescription, follow_up_date } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
@@ -108,14 +108,36 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
         await conn.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
 
         // 2. For terminal statuses mirror the result onto appointments so both tables stay consistent
-        if (status === 'COMPLETED' || status === 'MISSED') {
-            const appointmentStatus = status === 'COMPLETED' ? 'COMPLETED' : 'CANCELLED';
+        if (status === 'COMPLETED') {
+            const [[queueRow]] = await conn.query(
+                'SELECT appointment_id FROM live_queue WHERE id = ?',
+                [req.params.queueId]
+            );
+            if (queueRow) {
+                await conn.query(
+                    `UPDATE appointments
+                        SET status = 'COMPLETED',
+                            diagnosis    = COALESCE(?, diagnosis),
+                            notes        = COALESCE(?, notes),
+                            prescription = COALESCE(?, prescription),
+                            follow_up_date = COALESCE(?, follow_up_date)
+                     WHERE id = ?`,
+                    [
+                        diagnosis    || null,
+                        notes        || null,
+                        prescription || null,
+                        follow_up_date || null,
+                        queueRow.appointment_id
+                    ]
+                );
+            }
+        } else if (status === 'MISSED') {
             await conn.query(
                 `UPDATE appointments a
                  JOIN live_queue lq ON lq.appointment_id = a.id
-                 SET a.status = ?
+                 SET a.status = 'CANCELLED'
                  WHERE lq.id = ?`,
-                [appointmentStatus, req.params.queueId]
+                [req.params.queueId]
             );
         }
 
