@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 
-// Get a patient's simple profile (Mocking John Doe id=1 for now)
+// Get a patient's simple profile
 router.get('/:id', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
@@ -20,12 +20,14 @@ router.get('/:id', async (req, res) => {
 router.get('/:id/appointments', async (req, res) => {
     try {
         const query = `
-      SELECT a.*, d.first_name as doc_first, d.last_name as doc_last, d.specialty, d.location_room 
-      FROM appointments a 
-      JOIN doctors d ON a.doctor_id = d.id 
-      WHERE a.patient_id = ?
-      ORDER BY a.appointment_date ASC
-    `;
+            SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
+                   a.time_slot, a.symptoms, a.status,
+                   d.first_name as doc_first, d.last_name as doc_last, d.specialty, d.location_room
+            FROM appointments a
+            JOIN doctors d ON a.doctor_id = d.id
+            WHERE a.patient_id = ?
+            ORDER BY a.appointment_date ASC
+        `;
         const [rows] = await db.query(query, [req.params.id]);
         res.json(rows);
     } catch (error) {

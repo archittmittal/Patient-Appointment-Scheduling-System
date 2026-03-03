@@ -127,20 +127,38 @@ const DoctorProfile = () => {
                             {doctor.about}
                         </p>
 
-                        <h4 className="font-bold text-gray-900 mt-8 mb-4">Working Time</h4>
+                        <h4 className="font-bold text-gray-900 mt-8 mb-4">Working Hours</h4>
                         <div className="space-y-3">
-                            <div className="flex items-center justify-between text-sm p-3 bg-gray-50 rounded-lg">
-                                <span className="text-gray-600 font-medium">Monday - Friday</span>
-                                <span className="text-gray-900 font-semibold">09:00 AM - 05:00 PM</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm p-3 bg-gray-50 rounded-lg">
-                                <span className="text-gray-600 font-medium">Saturday</span>
-                                <span className="text-gray-900 font-semibold">10:00 AM - 02:00 PM</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm p-3 bg-red-50 rounded-lg">
-                                <span className="text-red-600 font-medium">Sunday</span>
-                                <span className="text-red-700 font-semibold">Closed</span>
-                            </div>
+                            {doctor.availability
+                                ? Object.entries(
+                                    typeof doctor.availability === 'string'
+                                        ? JSON.parse(doctor.availability)
+                                        : doctor.availability
+                                  ).map(([day, slot]) => (
+                                    <div key={day} className={`flex items-center justify-between text-sm p-3 rounded-lg ${slot.open ? 'bg-gray-50' : 'bg-red-50'}`}>
+                                        <span className={`font-medium capitalize ${slot.open ? 'text-gray-600' : 'text-red-600'}`}>{day}</span>
+                                        <span className={`font-semibold ${slot.open ? 'text-gray-900' : 'text-red-700'}`}>
+                                            {slot.open ? `${slot.from} – ${slot.to}` : 'Closed'}
+                                        </span>
+                                    </div>
+                                ))
+                                : (
+                                    <>
+                                        <div className="flex items-center justify-between text-sm p-3 bg-gray-50 rounded-lg">
+                                            <span className="text-gray-600 font-medium">Monday – Friday</span>
+                                            <span className="text-gray-900 font-semibold">09:00 – 17:00</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm p-3 bg-gray-50 rounded-lg">
+                                            <span className="text-gray-600 font-medium">Saturday</span>
+                                            <span className="text-gray-900 font-semibold">10:00 – 14:00</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm p-3 bg-red-50 rounded-lg">
+                                            <span className="text-red-600 font-medium">Sunday</span>
+                                            <span className="text-red-700 font-semibold">Closed</span>
+                                        </div>
+                                    </>
+                                )
+                            }
                         </div>
                     </div>
 

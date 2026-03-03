@@ -1,71 +1,90 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Filter, Calendar as CalendarIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const DoctorCard = ({ name, specialty, rating, reviews, location, availableDate, image }) => (
-    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-        <div className="flex gap-4">
-            <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
-                <img src={image || image_url || `https://ui-avatars.com/api/?name=${name}&background=random`} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            </div>
-            <div className="flex-1">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">{name}</h3>
-                        <p className="text-primary font-medium text-sm">{specialty}</p>
+const DoctorCard = ({ id, name, specialty, rating, location_room, image_url }) => {
+    const navigate = useNavigate();
+    return (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+            <div className="flex gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                    <img
+                        src={image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`}
+                        alt={name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                </div>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">{name}</h3>
+                            <p className="text-primary font-medium text-sm">{specialty}</p>
+                        </div>
+                        <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg text-sm font-medium">
+                            <Star size={16} className="fill-yellow-500 text-yellow-500" />
+                            {rating}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg text-sm font-medium">
-                        <Star size={16} className="fill-yellow-500 text-yellow-500" />
-                        {rating}
+                    <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <MapPin size={16} />
+                            {location_room || 'Location not set'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <CalendarIcon size={16} />
+                            Next slot: <span className="font-medium text-gray-900">Today</span>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="mt-3 space-y-1.5 cursor-default">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <MapPin size={16} />
-                        {location || location_room}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <CalendarIcon size={16} />
-                        Next slot: <span className="font-medium text-gray-900">{availableDate}</span>
-                    </div>
-                </div>
+            <div className="mt-6 flex gap-3">
+                <button
+                    onClick={() => navigate(`/doctors/${id}`)}
+                    className="flex-1 py-2.5 border border-primary text-primary hover:bg-primary-light rounded-xl font-medium transition-colors"
+                >
+                    View Profile
+                </button>
+                <button
+                    onClick={() => navigate('/book')}
+                    className="flex-1 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl font-medium shadow-sm transition-colors"
+                >
+                    Book Visit
+                </button>
             </div>
         </div>
-
-        <div className="mt-6 flex gap-3">
-            <button className="flex-1 py-2.5 border border-primary text-primary hover:bg-primary-light rounded-xl font-medium transition-colors">
-                View Profile
-            </button>
-            <button className="flex-1 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl font-medium shadow-sm transition-colors">
-                Book Visit
-            </button>
-        </div>
-    </div>
-);
+    );
+};
 
 const DoctorSearch = () => {
     const [activeFilter, setActiveFilter] = useState('All');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [doctors, setDoctors] = useState([]);
 
     const filters = ['All', 'Cardiologist', 'Dentist', 'Neurologist', 'General Physician', 'Orthopedic'];
-
-    const [doctors, setDoctors] = useState([]);
 
     useEffect(() => {
         fetch('http://localhost:5001/api/doctors')
             .then(res => res.json())
             .then(data => {
-                const mapped = data.map(doc => ({
+                setDoctors(data.map(doc => ({
                     ...doc,
                     name: `Dr. ${doc.first_name} ${doc.last_name}`,
-                }));
-                // Combine mapped dynamic data with the static ones for a better UI during dev, or just use dynamic. We'll just use dynamic.
-                setDoctors(mapped);
+                })));
             })
             .catch(err => console.error(err));
     }, []);
 
+    const filtered = doctors.filter(doc => {
+        const matchFilter = activeFilter === 'All' || doc.specialty === activeFilter;
+        const matchSearch = searchQuery === '' ||
+            doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchFilter && matchSearch;
+    });
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+        <div className="space-y-8 pb-10">
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Find a Doctor</h1>
                 <p className="text-gray-500 mt-1">Search for specialists and book appointments easily.</p>
@@ -76,7 +95,9 @@ const DoctorSearch = () => {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
                         type="text"
-                        placeholder="Search doctors, clinics, hospitals, etc."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        placeholder="Search doctors by name or specialty..."
                         className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-primary transition-all shadow-sm"
                     />
                 </div>
@@ -85,7 +106,7 @@ const DoctorSearch = () => {
                 </button>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto pb-2">
                 {filters.map(filter => (
                     <button
                         key={filter}
@@ -101,9 +122,11 @@ const DoctorSearch = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {doctors.filter(doc => activeFilter === 'All' || doc.specialty === activeFilter).map(doc => (
-                    <DoctorCard key={doc.id || doc.name} {...doc} />
-                ))}
+                {filtered.length > 0 ? (
+                    filtered.map(doc => <DoctorCard key={doc.id} {...doc} />)
+                ) : (
+                    <p className="text-gray-400 col-span-3 text-center py-10">No doctors found.</p>
+                )}
             </div>
         </div>
     );
