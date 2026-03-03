@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     time_slot VARCHAR(20) NOT NULL,
     symptoms TEXT,
     status ENUM('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED') DEFAULT 'PENDING',
+    diagnosis VARCHAR(255),
+    notes TEXT,
+    prescription TEXT,
+    follow_up_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(id),
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
@@ -106,4 +110,8 @@ INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_t
 -- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', '$2b$10$6b1GuRKjy.ASXaKM.t/XVOYEJDrTxNSbe8AuM414NtK.YbgbaGfQe', 'ADMIN');
 -- UPDATE users SET password_hash = '$2b$10$pr3yTOhaCSWoCCKx6dh5zuHdBjIb5OiArA8HmGrZY9pS23x3rw17W' WHERE id = 1;
 -- UPDATE users SET password_hash = '$2b$10$jlF3vybJbXMc7y5DESbqXOLOtL2i86bPyWA6AefbPhq1lGRwh/DPG' WHERE id IN (2, 3);
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS diagnosis VARCHAR(255) AFTER status;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT AFTER diagnosis;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS prescription TEXT AFTER notes;
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS follow_up_date DATE AFTER prescription;
 -- -------------------------------------------------------

@@ -1,29 +1,111 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
 
 const STATUS_COLORS = {
-    WAITING: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+    WAITING:     'bg-yellow-100 text-yellow-700 border-yellow-200',
     IN_PROGRESS: 'bg-blue-100 text-blue-700 border-blue-200',
-    COMPLETED: 'bg-green-100 text-green-700 border-green-200',
-    MISSED: 'bg-red-100 text-red-700 border-red-200',
+    COMPLETED:   'bg-green-100 text-green-700 border-green-200',
+    MISSED:      'bg-red-100 text-red-700 border-red-200',
 };
 
-const NEXT_STATUS = {
-    WAITING: 'IN_PROGRESS',
-    IN_PROGRESS: 'COMPLETED',
-    COMPLETED: null,
-    MISSED: null,
-};
+const EMPTY_NOTES = { diagnosis: '', notes: '', prescription: '', follow_up_date: '' };
 
-const NEXT_LABEL = {
-    WAITING: 'Start',
-    IN_PROGRESS: 'Complete',
-    COMPLETED: null,
-    MISSED: null,
+const NotesModal = ({ item, onSave, onClose, saving }) => {
+    const [form, setForm] = useState(EMPTY_NOTES);
+    const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+    return (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
+                <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900">Complete Consultation</h3>
+                        <p className="text-sm text-gray-500">{item.first_name} {item.last_name}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                <div className="p-5 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <span className="flex items-center gap-1.5"><FileText size={14} /> Diagnosis</span>
+                        </label>
+                        <input
+                            name="diagnosis"
+                            value={form.diagnosis}
+                            onChange={change}
+                            placeholder="e.g. Hypertension stage 1"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <span className="flex items-center gap-1.5"><Pill size={14} /> Prescription</span>
+                        </label>
+                        <textarea
+                            name="prescription"
+                            value={form.prescription}
+                            onChange={change}
+                            rows={3}
+                            placeholder="Medications, dosage, instructions..."
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <span className="flex items-center gap-1.5"><AlertCircle size={14} /> Doctor's Notes</span>
+                        </label>
+                        <textarea
+                            name="notes"
+                            value={form.notes}
+                            onChange={change}
+                            rows={3}
+                            placeholder="Observations, recommendations..."
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <span className="flex items-center gap-1.5"><CalendarCheck size={14} /> Follow-up Date (optional)</span>
+                        </label>
+                        <input
+                            type="date"
+                            name="follow_up_date"
+                            value={form.follow_up_date}
+                            onChange={change}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 px-5 pb-5">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => onSave(form)}
+                        disabled={saving}
+                        className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-hover transition-colors disabled:opacity-60"
+                    >
+                        {saving ? 'Saving...' : 'Complete & Save'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const DoctorDashboard = () => {
@@ -34,6 +116,7 @@ const DoctorDashboard = () => {
     const [activeTab, setActiveTab] = useState('queue');
     const [updatingId, setUpdatingId] = useState(null);
     const [queueLastUpdated, setQueueLastUpdated] = useState(null);
+    const [notesModal, setNotesModal] = useState(null); // { queueId, item }
 
     const fetchData = async () => {
         if (!user?.id) return;
@@ -73,13 +156,13 @@ const DoctorDashboard = () => {
         return () => clearInterval(interval);
     }, [user?.id]);
 
-    const updateQueueStatus = async (queueId, newStatus) => {
+    const updateQueueStatus = async (queueId, newStatus, extra = {}) => {
         setUpdatingId(queueId);
         try {
             await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: authedHeaders(true),
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus, ...extra })
             });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
         } catch (err) {
@@ -87,6 +170,18 @@ const DoctorDashboard = () => {
         } finally {
             setUpdatingId(null);
         }
+    };
+
+    const handleCompleteClick = (item) => {
+        setNotesModal({ queueId: item.queue_id, item });
+    };
+
+    const handleNotesSave = async (form) => {
+        if (!notesModal) return;
+        await updateQueueStatus(notesModal.queueId, 'COMPLETED', form);
+        setNotesModal(null);
+        // Refresh patients list so notes appear in All Patients tab
+        fetchData();
     };
 
     const markMissed = async (queueId) => {
@@ -111,6 +206,15 @@ const DoctorDashboard = () => {
 
     return (
         <div className="space-y-8 pb-10">
+            {notesModal && (
+                <NotesModal
+                    item={notesModal.item}
+                    saving={updatingId === notesModal.queueId}
+                    onSave={handleNotesSave}
+                    onClose={() => setNotesModal(null)}
+                />
+            )}
+
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Dr. {user?.first_name} {user?.last_name}'s Dashboard</h1>
                 <p className="text-gray-500 mt-1">Manage your patients and today's queue.</p>
@@ -194,13 +298,22 @@ const DoctorDashboard = () => {
                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full border capitalize ${STATUS_COLORS[item.queue_status]}`}>
                                             {item.queue_status?.toLowerCase().replace('_', ' ')}
                                         </span>
-                                        {NEXT_STATUS[item.queue_status] && (
+                                        {item.queue_status === 'WAITING' && (
                                             <button
                                                 disabled={updatingId === item.queue_id}
-                                                onClick={() => updateQueueStatus(item.queue_id, NEXT_STATUS[item.queue_status])}
+                                                onClick={() => updateQueueStatus(item.queue_id, 'IN_PROGRESS')}
                                                 className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
                                             >
-                                                {updatingId === item.queue_id ? '...' : NEXT_LABEL[item.queue_status]}
+                                                {updatingId === item.queue_id ? '...' : 'Start'}
+                                            </button>
+                                        )}
+                                        {item.queue_status === 'IN_PROGRESS' && (
+                                            <button
+                                                disabled={updatingId === item.queue_id}
+                                                onClick={() => handleCompleteClick(item)}
+                                                className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                            >
+                                                {updatingId === item.queue_id ? '...' : 'Complete'}
                                             </button>
                                         )}
                                         {item.queue_status === 'WAITING' && (
@@ -248,12 +361,41 @@ const DoctorDashboard = () => {
                                             {patient.status?.toLowerCase()}
                                         </span>
                                     </div>
+
                                     {patient.symptoms && (
                                         <div className="mt-3 ml-16 p-3 bg-amber-50 border border-amber-100 rounded-xl">
                                             <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
-                                                <AlertCircle size={12} /> Pre-diagnosed Symptoms
+                                                <AlertCircle size={12} /> Symptoms
                                             </p>
                                             <p className="text-sm text-amber-800">{patient.symptoms}</p>
+                                        </div>
+                                    )}
+
+                                    {(patient.diagnosis || patient.notes || patient.prescription || patient.follow_up_date) && (
+                                        <div className="mt-3 ml-16 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
+                                            <p className="text-xs font-semibold text-blue-700 flex items-center gap-1">
+                                                <FileText size={12} /> Consultation Summary
+                                            </p>
+                                            {patient.diagnosis && (
+                                                <p className="text-sm text-blue-800">
+                                                    <span className="font-medium">Diagnosis:</span> {patient.diagnosis}
+                                                </p>
+                                            )}
+                                            {patient.prescription && (
+                                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
+                                                    <span className="font-medium">Prescription:</span> {patient.prescription}
+                                                </p>
+                                            )}
+                                            {patient.notes && (
+                                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
+                                                    <span className="font-medium">Notes:</span> {patient.notes}
+                                                </p>
+                                            )}
+                                            {patient.follow_up_date && (
+                                                <p className="text-sm text-blue-800">
+                                                    <span className="font-medium">Follow-up:</span> {new Date(patient.follow_up_date).toLocaleDateString()}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>
