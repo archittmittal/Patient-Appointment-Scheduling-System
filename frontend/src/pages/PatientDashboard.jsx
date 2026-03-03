@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, MapPin, Activity, FileText, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const StatCard = ({ title, value, unit, icon: Icon, trend }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between group hover:shadow-md transition-shadow">
@@ -66,7 +67,7 @@ const PatientDashboard = () => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const res = await fetch(`http://localhost:5001/api/patients/${user.id}/appointments`);
+                const res = await fetch(`${API}/api/patients/${user.id}/appointments`);
                 const data = await res.json();
                 setAppointments(data);
             } catch (err) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API } from '../config/api';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -65,7 +66,7 @@ const BookAppointment = () => {
     const [blockedDates, setBlockedDates] = useState(new Set());
 
     useEffect(() => {
-        fetch('http://localhost:5001/api/doctors')
+        fetch(`${API}/api/doctors`)
             .then(res => res.json())
             .then(data => {
                 setDoctors(data);
@@ -95,7 +96,7 @@ const BookAppointment = () => {
     useEffect(() => {
         if (!selectedDoctor || !selectedDate) return;
         setSelectedSlot(null);
-        fetch(`http://localhost:5001/api/doctors/${selectedDoctor}/slot-counts?date=${selectedDate}`)
+        fetch(`${API}/api/doctors/${selectedDoctor}/slot-counts?date=${selectedDate}`)
             .then(res => res.json())
             .then(data => setSlotCounts(data))
             .catch(() => setSlotCounts({}));
@@ -312,7 +313,7 @@ const BookAppointment = () => {
                         onClick={async () => {
                             setIsSubmitting(true);
                             try {
-                                await fetch('http://localhost:5001/api/appointments/book', {
+                                await fetch(`${API}/api/appointments/book`, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
