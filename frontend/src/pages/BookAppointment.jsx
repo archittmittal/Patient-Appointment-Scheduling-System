@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -65,6 +65,11 @@ const BookAppointment = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [blockedDates, setBlockedDates] = useState(new Set());
     const [bookingResult, setBookingResult] = useState(null);
+    
+    // Issue #41: Waitlist state
+    const [waitlistJoining, setWaitlistJoining] = useState(false);
+    const [waitlistJoined, setWaitlistJoined] = useState(false);
+    const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
 
     useEffect(() => {
         fetch(`${API}/api/doctors`)
@@ -97,11 +102,42 @@ const BookAppointment = () => {
     useEffect(() => {
         if (!selectedDoctor || !selectedDate) return;
         setSelectedSlot(null);
+        setWaitlistJoined(false); // Reset waitlist state when date changes
         fetch(`${API}/api/doctors/${selectedDoctor}/slot-counts?date=${selectedDate}`)
             .then(res => res.json())
             .then(data => setSlotCounts(data))
             .catch(() => setSlotCounts({}));
     }, [selectedDoctor, selectedDate]);
+
+    // Issue #41: Join waitlist handler
+    const handleJoinWaitlist = async () => {
+        if (!selectedDoctor || !selectedDate) return;
+        setWaitlistJoining(true);
+        try {
+            const res = await fetch(`${API}/api/appointments/waitlist/join`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({
+                    doctorId: selectedDoctor,
+                    preferredDate: selectedDate,
+                    timePreference: waitlistTimePreference,
+                    maxNoticeHours: 24,
+                    reason: symptoms || 'Looking for earlier availability'
+                })
+            });
+            if (res.ok) {
+                setWaitlistJoined(true);
+            } else {
+                const data = await res.json();
+                alert(data.message || 'Failed to join waitlist');
+            }
+        } catch (err) {
+            console.error('Join waitlist error:', err);
+            alert('Failed to join waitlist');
+        } finally {
+            setWaitlistJoining(false);
+        }
+    };
 
     const year  = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -335,6 +371,54 @@ const BookAppointment = () => {
                         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
                     />
                 </div>
+
+                {/* Issue #41: Waitlist Option */}
+                {selectedDate && selectedDoctor && !waitlistJoined && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex items-start gap-3">
+                            <Bell className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-amber-800">Want an earlier slot?</h4>
+                                <p className="text-sm text-amber-700 mt-1">
+                                    Join the waitlist and we'll notify you if someone cancels their appointment.
+                                </p>
+                                <div className="flex items-center gap-3 mt-3">
+                                    <select
+                                        value={waitlistTimePreference}
+                                        onChange={e => setWaitlistTimePreference(e.target.value)}
+                                        className="text-sm border border-amber-300 rounded-lg px-2 py-1.5 bg-white text-amber-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                    >
+                                        <option value="ANY">Any time</option>
+                                        <option value="MORNING">Morning only</option>
+                                        <option value="AFTERNOON">Afternoon only</option>
+                                        <option value="EVENING">Evening only</option>
+                                    </select>
+                                    <button
+                                        onClick={handleJoinWaitlist}
+                                        disabled={waitlistJoining}
+                                        className="px-4 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {waitlistJoining ? 'Joining...' : 'Join Waitlist'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {waitlistJoined && (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="text-green-600" size={20} />
+                            <div>
+                                <h4 className="font-semibold text-green-800">Added to Waitlist!</h4>
+                                <p className="text-sm text-green-700">
+                                    We'll notify you if a slot becomes available for this date.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="mt-6 flex justify-end">
                     <button
