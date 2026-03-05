@@ -23,6 +23,7 @@ import WalkinRegistration from './pages/WalkinRegistration'; // Issue #42
 import ExpressCheckin from './pages/ExpressCheckin';
 import BatchAppointments from './pages/BatchAppointments';
 import PrepChecklist from './pages/PrepChecklist';
+import MultiDoctorJourney from './pages/MultiDoctorJourney';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -57,6 +58,7 @@ function App() {
             <Route path="/batch-appointments" element={<BatchAppointments />} />
             <Route path="/prep-checklist" element={<PrepChecklist />} />
             <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
+            <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
           </Route>
 
           {/* Doctor routes */}
