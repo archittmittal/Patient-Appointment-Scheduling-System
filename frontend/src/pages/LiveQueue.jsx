@@ -64,7 +64,10 @@ const LiveQueue = () => {
                 setQueueInfo({
                     currentToken: data.currentToken,
                     yourToken: data.queue_number,
-                    estimatedWaitTime: data.estimated_time
+                    // Use AI-predicted wait time if available, fallback to legacy estimate
+                    estimatedWaitTime: data.estimatedWaitMins || data.estimated_time,
+                    patientsAhead: data.patientsAhead || 0,
+                    predictedDuration: data.predictedDuration || 15
                 });
                 setQueueData(data.queueSequence || []);
                 setNoQueue(false);
@@ -136,11 +139,12 @@ const LiveQueue = () => {
                                 <p className="text-xl font-semibold flex items-center gap-2">
                                     <Clock size={20} /> ~{queueInfo.estimatedWaitTime} mins
                                 </p>
+                                <p className="text-white/50 text-xs mt-1">AI-powered prediction</p>
                             </div>
                             <div>
                                 <p className="text-white/70 text-sm mb-1">People Ahead of You</p>
                                 <p className="text-xl font-semibold flex items-center gap-2">
-                                    <Users size={20} /> {Math.max(0, queueInfo.yourToken - (queueInfo.currentToken || 0) - 1)} People
+                                    <Users size={20} /> {queueInfo.patientsAhead ?? Math.max(0, queueInfo.yourToken - (queueInfo.currentToken || 0) - 1)} People
                                 </p>
                             </div>
                         </div>

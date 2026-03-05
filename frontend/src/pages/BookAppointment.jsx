@@ -64,6 +64,7 @@ const BookAppointment = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [blockedDates, setBlockedDates] = useState(new Set());
+    const [bookingResult, setBookingResult] = useState(null);
 
     useEffect(() => {
         fetch(`${API}/api/doctors`)
@@ -130,9 +131,37 @@ const BookAppointment = () => {
                     <CheckCircle2 size={48} />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">Appointment Confirmed!</h2>
-                <p className="text-gray-500 text-center max-w-md mb-8">
+                <p className="text-gray-500 text-center max-w-md mb-4">
                     Your appointment with Dr. {selectedDoctorObj?.first_name} {selectedDoctorObj?.last_name} is confirmed for {selectedDate} at {selectedSlot}.
                 </p>
+                
+                {/* AI Prediction Info */}
+                {bookingResult && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 max-w-md w-full">
+                        <p className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                            <Clock size={16} /> AI-Powered Estimates
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p className="text-blue-600">Predicted Duration</p>
+                                <p className="font-semibold text-blue-900">~{bookingResult.predictedDuration || 15} mins</p>
+                            </div>
+                            {bookingResult.queueNumber && (
+                                <div>
+                                    <p className="text-blue-600">Queue Position</p>
+                                    <p className="font-semibold text-blue-900">#{bookingResult.queueNumber}</p>
+                                </div>
+                            )}
+                            {bookingResult.estimatedWait !== undefined && bookingResult.estimatedWait !== null && (
+                                <div className="col-span-2">
+                                    <p className="text-blue-600">Estimated Wait (if today)</p>
+                                    <p className="font-semibold text-blue-900">~{bookingResult.estimatedWait} mins</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                
                 <div className="flex gap-4">
                     <button onClick={() => navigate('/queue')} className="px-6 py-3 bg-primary text-white font-medium rounded-xl shadow-sm hover:bg-primary-hover transition-colors">
                         Track Live Queue
@@ -313,7 +342,7 @@ const BookAppointment = () => {
                         onClick={async () => {
                             setIsSubmitting(true);
                             try {
-                                await fetch(`${API}/api/appointments/book`, {
+                                const response = await fetch(`${API}/api/appointments/book`, {
                                     method: 'POST',
                                     headers: authedHeaders(true),
                                     body: JSON.stringify({
@@ -324,6 +353,8 @@ const BookAppointment = () => {
                                         symptoms: symptoms || null,
                                     })
                                 });
+                                const result = await response.json();
+                                setBookingResult(result);
                                 setIsBooked(true);
                             } catch (err) {
                                 console.error('Failed to book:', err);
