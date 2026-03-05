@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const feedbackService = require('../services/feedbackService');
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * Submit feedback for an appointment

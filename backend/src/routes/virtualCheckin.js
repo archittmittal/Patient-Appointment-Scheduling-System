@@ -6,13 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const virtualCheckinService = require('../services/virtualCheckinService');
-const auth = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * POST /api/virtual-checkin/:appointmentId/checkin
  * Virtual check-in for an appointment
  */
-router.post('/:appointmentId/checkin', auth, async (req, res) => {
+router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -35,7 +35,7 @@ router.post('/:appointmentId/checkin', auth, async (req, res) => {
  * POST /api/virtual-checkin/:appointmentId/status
  * Update status (en_route, arrived, running_late)
  */
-router.post('/:appointmentId/status', auth, async (req, res) => {
+router.post('/:appointmentId/status', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -59,7 +59,7 @@ router.post('/:appointmentId/status', auth, async (req, res) => {
  * GET /api/virtual-checkin/:appointmentId/status
  * Get waiting room status for a patient
  */
-router.get('/:appointmentId/status', auth, async (req, res) => {
+router.get('/:appointmentId/status', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -81,7 +81,7 @@ router.get('/:appointmentId/status', auth, async (req, res) => {
  * POST /api/virtual-checkin/:appointmentId/ping
  * Keep session alive (heartbeat)
  */
-router.post('/:appointmentId/ping', auth, async (req, res) => {
+router.post('/:appointmentId/ping', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -98,7 +98,7 @@ router.post('/:appointmentId/ping', auth, async (req, res) => {
  * DELETE /api/virtual-checkin/:appointmentId/checkin
  * Cancel virtual check-in
  */
-router.delete('/:appointmentId/checkin', auth, async (req, res) => {
+router.delete('/:appointmentId/checkin', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -115,7 +115,7 @@ router.delete('/:appointmentId/checkin', auth, async (req, res) => {
  * GET /api/virtual-checkin/doctor/:doctorId/queue
  * Get virtual queue for doctor (clinic view)
  */
-router.get('/doctor/:doctorId/queue', auth, async (req, res) => {
+router.get('/doctor/:doctorId/queue', authenticate, async (req, res) => {
     try {
         const { doctorId } = req.params;
         const queue = await virtualCheckinService.getVirtualQueueForDoctor(doctorId);
@@ -130,7 +130,7 @@ router.get('/doctor/:doctorId/queue', auth, async (req, res) => {
  * GET /api/virtual-checkin/notifications
  * Get pending check-in notifications for clinic staff
  */
-router.get('/notifications', auth, async (req, res) => {
+router.get('/notifications', authenticate, async (req, res) => {
     try {
         const doctorId = req.query.doctorId || null;
         const notifications = await virtualCheckinService.getPendingNotifications(doctorId);
@@ -145,7 +145,7 @@ router.get('/notifications', auth, async (req, res) => {
  * POST /api/virtual-checkin/notifications/:notificationId/acknowledge
  * Acknowledge a notification
  */
-router.post('/notifications/:notificationId/acknowledge', auth, async (req, res) => {
+router.post('/notifications/:notificationId/acknowledge', authenticate, async (req, res) => {
     try {
         const { notificationId } = req.params;
         const userId = req.user.id;

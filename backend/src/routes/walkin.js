@@ -6,13 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const walkinPriorityService = require('../services/walkinPriorityService');
-const auth = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * POST /api/walkin/register
  * Register a new walk-in patient
  */
-router.post('/register', auth, async (req, res) => {
+router.post('/register', authenticate, async (req, res) => {
     try {
         const patientId = req.user.id;
         const { doctorId, specialtyId, urgencyLevel, reason, symptoms, vitalSigns } = req.body;
@@ -37,7 +37,7 @@ router.post('/register', auth, async (req, res) => {
  * GET /api/walkin/queue/:doctorId
  * Get walk-in queue for a doctor
  */
-router.get('/queue/:doctorId', auth, async (req, res) => {
+router.get('/queue/:doctorId', authenticate, async (req, res) => {
     try {
         const { doctorId } = req.params;
         const queue = await walkinPriorityService.getWalkinQueue(doctorId);
@@ -52,7 +52,7 @@ router.get('/queue/:doctorId', auth, async (req, res) => {
  * GET /api/walkin/next/:doctorId
  * Get next walk-in patient to call
  */
-router.get('/next/:doctorId', auth, async (req, res) => {
+router.get('/next/:doctorId', authenticate, async (req, res) => {
     try {
         const { doctorId } = req.params;
         const next = await walkinPriorityService.getNextWalkin(doctorId);
@@ -67,7 +67,7 @@ router.get('/next/:doctorId', auth, async (req, res) => {
  * POST /api/walkin/:walkinId/call
  * Call a walk-in patient
  */
-router.post('/:walkinId/call', auth, async (req, res) => {
+router.post('/:walkinId/call', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
         const doctorId = req.body.doctorId || req.user.id;
@@ -84,7 +84,7 @@ router.post('/:walkinId/call', auth, async (req, res) => {
  * POST /api/walkin/:walkinId/complete
  * Complete a walk-in consultation
  */
-router.post('/:walkinId/complete', auth, async (req, res) => {
+router.post('/:walkinId/complete', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
         const result = await walkinPriorityService.completeWalkin(walkinId);
@@ -99,7 +99,7 @@ router.post('/:walkinId/complete', auth, async (req, res) => {
  * PUT /api/walkin/:walkinId/urgency
  * Update urgency level
  */
-router.put('/:walkinId/urgency', auth, async (req, res) => {
+router.put('/:walkinId/urgency', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
         const { urgencyLevel, reason } = req.body;
@@ -116,7 +116,7 @@ router.put('/:walkinId/urgency', auth, async (req, res) => {
  * GET /api/walkin/stats
  * Get walk-in statistics
  */
-router.get('/stats', auth, async (req, res) => {
+router.get('/stats', authenticate, async (req, res) => {
     try {
         const doctorId = req.query.doctorId || null;
         const stats = await walkinPriorityService.getWalkinStats(doctorId);
@@ -131,7 +131,7 @@ router.get('/stats', auth, async (req, res) => {
  * DELETE /api/walkin/:walkinId
  * Cancel/remove a walk-in from queue
  */
-router.delete('/:walkinId', auth, async (req, res) => {
+router.delete('/:walkinId', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
         const { reason } = req.body;
