@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Layers, Calendar, Clock, Users, ChevronRight, Search,
-    Syringe, Stethoscope, ClipboardCheck, Flask, Pill,
+    Syringe, Stethoscope, ClipboardCheck, FlaskConical, Pill,
     User, MapPin, CheckCircle2, AlertCircle, Sparkles,
     ArrowRight, Filter, X, Plus
 } from 'lucide-react';
@@ -19,7 +19,7 @@ const BATCH_TYPE_CONFIG = {
     VACCINATION: { icon: Syringe, color: 'emerald', label: 'Vaccination' },
     ROUTINE_CHECKUP: { icon: Stethoscope, color: 'blue', label: 'Check-up' },
     FOLLOWUP: { icon: ClipboardCheck, color: 'violet', label: 'Follow-up' },
-    LAB_REVIEW: { icon: Flask, color: 'amber', label: 'Lab Review' },
+    LAB_REVIEW: { icon: FlaskConical, color: 'amber', label: 'Lab Review' },
     PRESCRIPTION_REFILL: { icon: Pill, color: 'pink', label: 'Rx Refill' }
 };
 
