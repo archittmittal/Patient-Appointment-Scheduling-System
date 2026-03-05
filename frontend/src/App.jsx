@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
+import PrepChecklist from './pages/PrepChecklist';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -44,6 +45,8 @@ function App() {
             <Route path="/book" element={<BookAppointment />} />
             <Route path="/queue" element={<LiveQueue />} />
             <Route path="/profile" element={<PatientProfile />} />
+            <Route path="/prep-checklist" element={<PrepChecklist />} />
+            <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
           </Route>
 
           {/* Doctor routes */}
