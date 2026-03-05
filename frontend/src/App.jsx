@@ -20,6 +20,7 @@ import Register from './pages/Register';
 import NotificationSettings from './pages/NotificationSettings';
 import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; // Issue #39
 import WalkinRegistration from './pages/WalkinRegistration'; // Issue #42
+import ExpressCheckin from './pages/ExpressCheckin';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -50,6 +51,7 @@ function App() {
             <Route path="/notifications/settings" element={<NotificationSettings />} />
             <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
             <Route path="/walkin" element={<WalkinRegistration />} />
+            <Route path="/express-checkin" element={<ExpressCheckin />} />
           </Route>
 
           {/* Doctor routes */}
