@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const lateArrivalService = require('../services/lateArrivalService');
-const authenticate = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * Check late status for an appointment

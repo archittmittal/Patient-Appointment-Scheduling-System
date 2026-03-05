@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const peakHoursService = require('../services/peakHoursService');
-const auth = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * GET /api/analytics/doctor/:doctorId/peak-hours
@@ -96,7 +96,7 @@ router.get('/doctor/:doctorId/hourly-stats', async (req, res) => {
  * GET /api/analytics/clinic
  * Get clinic-wide analytics (admin only)
  */
-router.get('/clinic', auth, async (req, res) => {
+router.get('/clinic', authenticate, async (req, res) => {
     try {
         const daysBack = parseInt(req.query.days) || 30;
 

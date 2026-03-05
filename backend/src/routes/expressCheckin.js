@@ -6,13 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const expressCheckinService = require('../services/expressCheckinService');
-const auth = require('../middleware/authenticate');
+const { authenticate } = require('../middleware/authenticate');
 
 /**
  * GET /api/express-checkin/eligibility/:appointmentId
  * Check if patient is eligible for express check-in
  */
-router.get('/eligibility/:appointmentId', auth, async (req, res) => {
+router.get('/eligibility/:appointmentId', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -29,7 +29,7 @@ router.get('/eligibility/:appointmentId', auth, async (req, res) => {
  * POST /api/express-checkin/generate-token/:appointmentId
  * Generate QR code token for check-in
  */
-router.post('/generate-token/:appointmentId', auth, async (req, res) => {
+router.post('/generate-token/:appointmentId', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -66,7 +66,7 @@ router.post('/scan', async (req, res) => {
  * POST /api/express-checkin/one-tap/:appointmentId
  * One-tap check-in for eligible patients
  */
-router.post('/one-tap/:appointmentId', auth, async (req, res) => {
+router.post('/one-tap/:appointmentId', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
@@ -83,7 +83,7 @@ router.post('/one-tap/:appointmentId', auth, async (req, res) => {
  * GET /api/express-checkin/prefilled-info
  * Get pre-filled patient information for check-in
  */
-router.get('/prefilled-info', auth, async (req, res) => {
+router.get('/prefilled-info', authenticate, async (req, res) => {
     try {
         const patientId = req.user.id;
 
@@ -99,7 +99,7 @@ router.get('/prefilled-info', auth, async (req, res) => {
  * GET /api/express-checkin/today
  * Get today's appointments eligible for express check-in
  */
-router.get('/today', auth, async (req, res) => {
+router.get('/today', authenticate, async (req, res) => {
     try {
         const patientId = req.user.id;
 
