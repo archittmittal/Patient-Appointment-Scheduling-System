@@ -18,6 +18,7 @@ import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
 import NotificationSettings from './pages/NotificationSettings';
+import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; // Issue #39
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ function App() {
             <Route path="/queue" element={<LiveQueue />} />
             <Route path="/profile" element={<PatientProfile />} />
             <Route path="/notifications/settings" element={<NotificationSettings />} />
+            <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
           </Route>
 
           {/* Doctor routes */}

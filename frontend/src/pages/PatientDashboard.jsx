@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -24,10 +24,16 @@ const StatCard = ({ title, value, icon: Icon, sub }) => (
     </div>
 );
 
-const AppointmentCard = ({ apt }) => {
+const AppointmentCard = ({ apt, navigate }) => {
     const doctor = `Dr. ${apt.doc_first} ${apt.doc_last}`;
     const statusLabel = apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase();
     const dateStr = new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    
+    // Check if appointment is today
+    const today = new Date().toISOString().split('T')[0];
+    const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
+    const isToday = today === aptDate;
+    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING'].includes(apt.status);
 
     return (
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors">
@@ -61,6 +67,16 @@ const AppointmentCard = ({ apt }) => {
                     </div>
                 )}
             </div>
+            {/* Issue #39: Virtual Check-in Button */}
+            {canVirtualCheckin && (
+                <button
+                    onClick={() => navigate(`/virtual-waiting/${apt.id}`)}
+                    className="w-full mt-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 hover:shadow-md hover:shadow-emerald-500/20 transition-all"
+                >
+                    <Wifi size={14} />
+                    Virtual Check-in
+                </button>
+            )}
         </div>
     );
 };
@@ -223,7 +239,7 @@ const PatientDashboard = () => {
                     {displayed.length > 0 ? (
                         <div className="grid sm:grid-cols-2 gap-4">
                             {displayed.map((apt) => (
-                                <AppointmentCard key={apt.id} apt={apt} />
+                                <AppointmentCard key={apt.id} apt={apt} navigate={navigate} />
                             ))}
                         </div>
                     ) : (
