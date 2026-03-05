@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
+import LateArrival from './pages/LateArrival';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ function App() {
             <Route path="/book" element={<BookAppointment />} />
             <Route path="/queue" element={<LiveQueue />} />
             <Route path="/profile" element={<PatientProfile />} />
+            <Route path="/late-arrival" element={<LateArrival />} />
           </Route>
 
           {/* Doctor routes */}
