@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PATIENT_MENU = [
@@ -9,6 +9,7 @@ const PATIENT_MENU = [
     { name: 'Book Appointment', icon: Calendar, path: '/book' },
     { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
     { name: 'Batch Appointments', icon: Layers, path: '/batch-appointments' },
+    { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
     { name: 'Live Queue', icon: Activity, path: '/queue' },
     { name: 'Profile', icon: User, path: '/profile' },
 ];

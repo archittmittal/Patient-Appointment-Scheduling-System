@@ -22,6 +22,7 @@ import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; // Issue #39
 import WalkinRegistration from './pages/WalkinRegistration'; // Issue #42
 import ExpressCheckin from './pages/ExpressCheckin';
 import BatchAppointments from './pages/BatchAppointments';
+import PrepChecklist from './pages/PrepChecklist';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -54,6 +55,8 @@ function App() {
             <Route path="/walkin" element={<WalkinRegistration />} />
             <Route path="/express-checkin" element={<ExpressCheckin />} />
             <Route path="/batch-appointments" element={<BatchAppointments />} />
+            <Route path="/prep-checklist" element={<PrepChecklist />} />
+            <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
           </Route>
 
           {/* Doctor routes */}

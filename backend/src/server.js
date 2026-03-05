@@ -13,6 +13,7 @@ const analyticsRoutes = require('./routes/analytics'); // Issue #44
 const walkinRoutes = require('./routes/walkin'); // Issue #42
 const expressCheckinRoutes = require('./routes/expressCheckin'); // Issue #45
 const batchingRoutes = require('./routes/batching');
+const prepChecklistRoutes = require('./routes/prepChecklist');
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use('/api/analytics', analyticsRoutes); // Issue #44
 app.use('/api/walkin', walkinRoutes); // Issue #42
 app.use('/api/express-checkin', expressCheckinRoutes); // Issue #45
 app.use('/api/batching', batchingRoutes);
+app.use('/api/prep', prepChecklistRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
