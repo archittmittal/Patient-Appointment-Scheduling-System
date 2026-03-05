@@ -1,9 +1,109 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const POLL_INTERVAL = 15_000; // 15 seconds
+
+// Issue #37: Smart Arrival Card Component
+const SmartArrivalCard = ({ arrivalData }) => {
+    if (!arrivalData) return null;
+    
+    const { 
+        optimalArrivalTime, 
+        earliestArrival, 
+        latestArrival, 
+        message, 
+        confidence,
+        patientsAhead,
+        estimatedWaitMins
+    } = arrivalData;
+
+    // Convert 24h time to 12h format for display
+    const formatTo12Hour = (time24) => {
+        if (!time24) return '';
+        const [hours, mins] = time24.split(':').map(Number);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const hour12 = hours % 12 || 12;
+        return `${hour12}:${String(mins).padStart(2, '0')} ${ampm}`;
+    };
+
+    const getConfidenceColor = (score) => {
+        if (score >= 70) return 'text-green-600 bg-green-100';
+        if (score >= 50) return 'text-yellow-600 bg-yellow-100';
+        return 'text-orange-600 bg-orange-100';
+    };
+
+    const getConfidenceLabel = (score) => {
+        if (score >= 70) return 'High';
+        if (score >= 50) return 'Medium';
+        return 'Low';
+    };
+
+    return (
+        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl p-6 border border-emerald-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="p-2 bg-emerald-100 rounded-xl">
+                    <Sparkles className="text-emerald-600" size={20} />
+                </div>
+                <h4 className="font-bold text-emerald-900">Smart Arrival Time</h4>
+                <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${getConfidenceColor(confidence)}`}>
+                    {getConfidenceLabel(confidence)} Confidence
+                </span>
+            </div>
+
+            {/* Main Arrival Time Display */}
+            <div className="bg-white rounded-2xl p-5 mb-4 text-center shadow-sm">
+                <p className="text-sm text-gray-500 mb-1">Optimal Arrival Time</p>
+                <div className="text-4xl font-bold text-emerald-600 mb-2">
+                    {formatTo12Hour(optimalArrivalTime)}
+                </div>
+                <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
+                    <span>Earliest: {formatTo12Hour(earliestArrival)}</span>
+                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                    <span>Latest: {formatTo12Hour(latestArrival)}</span>
+                </div>
+            </div>
+
+            {/* AI Message */}
+            <div className="bg-white/60 rounded-xl p-4 mb-4">
+                <p className="text-sm text-emerald-800 leading-relaxed">
+                    <Navigation size={14} className="inline mr-1.5 text-emerald-600" />
+                    {message}
+                </p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/60 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-emerald-600">{patientsAhead}</p>
+                    <p className="text-xs text-gray-500">Patients Ahead</p>
+                </div>
+                <div className="bg-white/60 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-bold text-emerald-600">~{estimatedWaitMins}m</p>
+                    <p className="text-xs text-gray-500">Est. Wait</p>
+                </div>
+            </div>
+
+            {/* Confidence Bar */}
+            <div className="mt-4">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span>Prediction Accuracy</span>
+                    <span>{confidence}%</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                        className={`h-full rounded-full transition-all duration-500 ${
+                            confidence >= 70 ? 'bg-emerald-500' : 
+                            confidence >= 50 ? 'bg-yellow-500' : 'bg-orange-500'
+                        }`}
+                        style={{ width: `${confidence}%` }}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const QueueItem = ({ number, name, status, time, isCurrent }) => (
     <div className={`flex items-center p-4 rounded-xl border transition-all ${isCurrent
@@ -34,6 +134,10 @@ const LiveQueue = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [noQueue, setNoQueue] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [todayAppointmentId, setTodayAppointmentId] = useState(null);
+    
+    // Issue #37: Smart arrival state
+    const [smartArrival, setSmartArrival] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -53,6 +157,8 @@ const LiveQueue = () => {
                     return;
                 }
 
+                setTodayAppointmentId(todayApt.id);
+
                 const queueRes = await fetch(`${API}/api/appointments/queue/${todayApt.id}`);
                 if (!queueRes.ok) {
                     setNoQueue(true);
@@ -69,6 +175,19 @@ const LiveQueue = () => {
                 setQueueData(data.queueSequence || []);
                 setNoQueue(false);
                 setLastUpdated(new Date());
+
+                // Issue #37: Fetch smart arrival time
+                try {
+                    const smartRes = await fetch(`${API}/api/appointments/${todayApt.id}/smart-arrival`, {
+                        headers: authedHeaders()
+                    });
+                    if (smartRes.ok) {
+                        const smartData = await smartRes.json();
+                        setSmartArrival(smartData);
+                    }
+                } catch (err) {
+                    console.error('Smart arrival fetch error:', err);
+                }
             } catch (err) {
                 console.error('Error fetching queue:', err);
                 setNoQueue(true);
@@ -164,6 +283,9 @@ const LiveQueue = () => {
                 </div>
 
                 <div className="space-y-6">
+                    {/* Issue #37: Smart Arrival Time Card */}
+                    {smartArrival && <SmartArrivalCard arrivalData={smartArrival} />}
+                    
                     <div className="bg-orange-50 rounded-3xl p-6 border border-orange-100">
                         <div className="flex items-start gap-4">
                             <div className="bg-orange-100 p-3 rounded-full text-orange-600">
