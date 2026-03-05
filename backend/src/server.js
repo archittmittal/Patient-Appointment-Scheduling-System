@@ -14,6 +14,7 @@ const walkinRoutes = require('./routes/walkin'); // Issue #42
 const expressCheckinRoutes = require('./routes/expressCheckin'); // Issue #45
 const batchingRoutes = require('./routes/batching');
 const prepChecklistRoutes = require('./routes/prepChecklist');
+const multiDoctorRoutes = require('./routes/multiDoctor');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/walkin', walkinRoutes); // Issue #42
 app.use('/api/express-checkin', expressCheckinRoutes); // Issue #45
 app.use('/api/batching', batchingRoutes);
 app.use('/api/prep', prepChecklistRoutes);
+app.use('/api/multi-doctor', multiDoctorRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
