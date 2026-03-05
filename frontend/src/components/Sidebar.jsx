@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PATIENT_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/patient-dashboard' },
     { name: 'Find a Doctor', icon: Users, path: '/doctors' },
     { name: 'Book Appointment', icon: Calendar, path: '/book' },
+    { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
     { name: 'Live Queue', icon: Activity, path: '/queue' },
     { name: 'Profile', icon: User, path: '/profile' },
 ];
