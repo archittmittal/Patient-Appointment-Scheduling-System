@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -117,23 +117,89 @@ const DoctorDashboard = () => {
     const [updatingId, setUpdatingId] = useState(null);
     const [queueLastUpdated, setQueueLastUpdated] = useState(null);
     const [notesModal, setNotesModal] = useState(null); // { queueId, item }
+    
+    // Issue #40: Delay propagation state
+    const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0, reason: '' });
+    const [showDelayModal, setShowDelayModal] = useState(false);
+    const [delayForm, setDelayForm] = useState({ minutes: 15, reason: '' });
+    const [settingDelay, setSettingDelay] = useState(false);
 
     const fetchData = async () => {
         if (!user?.id) return;
         try {
-            const [patientsRes, queueRes] = await Promise.all([
+            const [patientsRes, queueRes, delayRes] = await Promise.all([
                 fetch(`${API}/api/doctors/${user.id}/patients`),
-                fetch(`${API}/api/doctors/${user.id}/queue`)
+                fetch(`${API}/api/doctors/${user.id}/queue`),
+                fetch(`${API}/api/doctors/${user.id}/delay-status`)
             ]);
             const patientsData = await patientsRes.json();
             const queueData = await queueRes.json();
             setPatients(patientsData);
             setQueue(queueData);
             setQueueLastUpdated(new Date());
+            
+            // Issue #40: Update delay status
+            if (delayRes.ok) {
+                const delayData = await delayRes.json();
+                setDelayInfo({
+                    isDelayed: delayData.isDelayed || false,
+                    delayMins: delayData.delayMins || 0,
+                    reason: delayData.reason || ''
+                });
+            }
         } catch (err) {
             console.error('Doctor dashboard error:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    // Issue #40: Set delay for all waiting patients
+    const handleSetDelay = async () => {
+        if (!user?.id) return;
+        setSettingDelay(true);
+        try {
+            const res = await fetch(`${API}/api/doctors/${user.id}/delay`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({
+                    delayMins: delayForm.minutes,
+                    reason: delayForm.reason || 'Running behind schedule'
+                })
+            });
+            if (res.ok) {
+                setDelayInfo({
+                    isDelayed: true,
+                    delayMins: delayForm.minutes,
+                    reason: delayForm.reason || 'Running behind schedule'
+                });
+                setShowDelayModal(false);
+                setDelayForm({ minutes: 15, reason: '' });
+            }
+        } catch (err) {
+            console.error('Set delay error:', err);
+        } finally {
+            setSettingDelay(false);
+        }
+    };
+
+    // Issue #40: Clear delay
+    const handleClearDelay = async () => {
+        if (!user?.id) return;
+        setSettingDelay(true);
+        try {
+            const res = await fetch(`${API}/api/doctors/${user.id}/delay`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({ delayMins: 0, reason: '' })
+            });
+            if (res.ok) {
+                setDelayInfo({ isDelayed: false, delayMins: 0, reason: '' });
+            }
+        } catch (err) {
+            console.error('Clear delay error:', err);
+        } finally {
+            setSettingDelay(false);
         }
     };
 
@@ -215,13 +281,97 @@ const DoctorDashboard = () => {
                 />
             )}
 
+            {/* Issue #40: Delay Modal */}
+            {showDelayModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Set Running Delay</h3>
+                                <p className="text-sm text-gray-500">Notify all waiting patients</p>
+                            </div>
+                            <button onClick={() => setShowDelayModal(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Delay Duration</label>
+                                <div className="flex gap-2">
+                                    {[10, 15, 20, 30, 45, 60].map(mins => (
+                                        <button
+                                            key={mins}
+                                            onClick={() => setDelayForm(f => ({ ...f, minutes: mins }))}
+                                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                                delayForm.minutes === mins 
+                                                    ? 'bg-amber-500 text-white' 
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {mins}m
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+                                <input
+                                    type="text"
+                                    value={delayForm.reason}
+                                    onChange={e => setDelayForm(f => ({ ...f, reason: e.target.value }))}
+                                    placeholder="e.g., Emergency case, Previous appointment extended"
+                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 px-5 pb-5">
+                            <button
+                                onClick={() => setShowDelayModal(false)}
+                                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSetDelay}
+                                disabled={settingDelay}
+                                className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors disabled:opacity-60"
+                            >
+                                {settingDelay ? 'Setting...' : 'Set Delay'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div>
                 <h1 className="text-2xl font-bold text-gray-900">Dr. {user?.first_name} {user?.last_name}'s Dashboard</h1>
                 <p className="text-gray-500 mt-1">Manage your patients and today's queue.</p>
             </div>
 
+            {/* Issue #40: Delay Alert Banner */}
+            {delayInfo.isDelayed && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-100 rounded-xl">
+                            <AlertTriangle className="text-amber-600" size={20} />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-amber-800">Running {delayInfo.delayMins} minutes behind</p>
+                            {delayInfo.reason && <p className="text-sm text-amber-600">{delayInfo.reason}</p>}
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClearDelay}
+                        disabled={settingDelay}
+                        className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 rounded-xl hover:bg-amber-200 transition-colors disabled:opacity-60"
+                    >
+                        {settingDelay ? 'Clearing...' : 'Clear Delay'}
+                    </button>
+                </div>
+            )}
+
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-4 gap-6">
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Users size={20} /></div>
@@ -242,6 +392,27 @@ const DoctorDashboard = () => {
                         <p className="text-sm font-medium text-gray-500">In Progress</p>
                     </div>
                     <h3 className="text-3xl font-bold text-gray-800">{queue.filter(q => q.queue_status === 'IN_PROGRESS').length}</h3>
+                </div>
+                {/* Issue #40: Delay Management Card */}
+                <div 
+                    onClick={() => !delayInfo.isDelayed && setShowDelayModal(true)}
+                    className={`rounded-2xl p-6 border shadow-sm cursor-pointer transition-all ${
+                        delayInfo.isDelayed 
+                            ? 'bg-amber-50 border-amber-200' 
+                            : 'bg-white border-gray-100 hover:border-amber-300 hover:shadow-md'
+                    }`}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className={`p-2 rounded-xl ${delayInfo.isDelayed ? 'bg-amber-100 text-amber-600' : 'bg-gray-50 text-gray-600'}`}>
+                            <Clock size={20} />
+                        </div>
+                        <p className="text-sm font-medium text-gray-500">
+                            {delayInfo.isDelayed ? 'Current Delay' : 'Set Delay'}
+                        </p>
+                    </div>
+                    <h3 className={`text-3xl font-bold ${delayInfo.isDelayed ? 'text-amber-600' : 'text-gray-400'}`}>
+                        {delayInfo.isDelayed ? `${delayInfo.delayMins}m` : '—'}
+                    </h3>
                 </div>
             </div>
 
