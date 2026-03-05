@@ -9,7 +9,7 @@ import {
     ClipboardCheck, CheckCircle2, Circle, AlertTriangle, Clock,
     Calendar, User, ChevronRight, Sparkles, ArrowRight,
     ChevronDown, ChevronUp, Star, Bell, ArrowLeft,
-    Stethoscope, Heart, Eye, Syringe, Flask, Pill
+    Stethoscope, Heart, Eye, Syringe, FlaskConical, Pill
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
