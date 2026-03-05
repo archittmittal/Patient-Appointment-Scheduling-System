@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
 
@@ -27,6 +27,26 @@ const QueueItem = ({ number, name, status, time, isCurrent }) => (
     </div>
 );
 
+// Delay Alert Banner Component
+const DelayBanner = ({ delayMins, reason }) => {
+    if (!delayMins || delayMins < 5) return null;
+    
+    return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+            <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
+            <div>
+                <p className="font-medium text-amber-800">
+                    Doctor Running ~{delayMins} Minutes Behind Schedule
+                </p>
+                {reason && <p className="text-sm text-amber-600 mt-1">{reason}</p>}
+                <p className="text-xs text-amber-500 mt-2">
+                    Your estimated wait time has been adjusted accordingly.
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const LiveQueue = () => {
     const { user } = useAuth();
     const [queueData, setQueueData] = useState([]);
@@ -34,6 +54,7 @@ const LiveQueue = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [noQueue, setNoQueue] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0 });
 
     useEffect(() => {
         if (!user?.id) return;
@@ -64,11 +85,30 @@ const LiveQueue = () => {
                 setQueueInfo({
                     currentToken: data.currentToken,
                     yourToken: data.queue_number,
-                    estimatedWaitTime: data.estimated_time
+                    estimatedWaitTime: data.estimatedWaitMins || data.estimated_time,
+                    patientsAhead: data.patientsAhead || 0,
+                    doctorId: data.doctor_id
                 });
                 setQueueData(data.queueSequence || []);
                 setNoQueue(false);
                 setLastUpdated(new Date());
+
+                // Fetch delay status for the doctor (Issue #40)
+                if (data.doctor_id) {
+                    try {
+                        const delayRes = await fetch(`${API}/api/doctors/${data.doctor_id}/delay-status`);
+                        if (delayRes.ok) {
+                            const delayData = await delayRes.json();
+                            setDelayInfo({
+                                isDelayed: delayData.isDelayed || delayData.effectiveDelay > 5,
+                                delayMins: delayData.effectiveDelay || delayData.delayMins || 0,
+                                reason: delayData.manualDelay?.reason || ''
+                            });
+                        }
+                    } catch (delayErr) {
+                        console.error('Error fetching delay status:', delayErr);
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching queue:', err);
                 setNoQueue(true);
@@ -116,6 +156,9 @@ const LiveQueue = () => {
                     </div>
                 )}
             </div>
+
+            {/* Delay Alert Banner - Issue #40 */}
+            <DelayBanner delayMins={delayInfo.delayMins} reason={delayInfo.reason} />
 
             <div className="grid md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-6">
