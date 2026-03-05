@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
+import BatchAppointments from './pages/BatchAppointments';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ function App() {
             <Route path="/book" element={<BookAppointment />} />
             <Route path="/queue" element={<LiveQueue />} />
             <Route path="/profile" element={<PatientProfile />} />
+            <Route path="/batch-appointments" element={<BatchAppointments />} />
           </Route>
 
           {/* Doctor routes */}
