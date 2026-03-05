@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const waitlistService = require('../services/waitlistService');
 
 // GET /api/doctors — all doctors
 router.get('/', async (req, res) => {
@@ -246,6 +247,66 @@ router.get('/:id/weekly-schedule', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// ==================== Issue #41: Waitlist Endpoints (Doctor Side) ====================
+
+// GET /api/doctors/:id/waitlist - Get waitlist for this doctor
+router.get('/:id/waitlist', authenticate, async (req, res) => {
+    try {
+        const { date } = req.query;
+        const entries = await waitlistService.getDoctorWaitlist(parseInt(req.params.id), date);
+        res.json(entries);
+    } catch (error) {
+        console.error('Get doctor waitlist error:', error);
+        res.status(500).json({ message: 'Server error fetching waitlist' });
+    }
+});
+
+// GET /api/doctors/:id/autofill-settings - Get auto-fill settings
+router.get('/:id/autofill-settings', authenticate, async (req, res) => {
+    try {
+        const settings = await waitlistService.getAutoFillSettings(parseInt(req.params.id));
+        res.json(settings);
+    } catch (error) {
+        console.error('Get autofill settings error:', error);
+        res.status(500).json({ message: 'Server error fetching settings' });
+    }
+});
+
+// PUT /api/doctors/:id/autofill-settings - Update auto-fill settings
+router.put('/:id/autofill-settings', authenticate, async (req, res) => {
+    try {
+        const { enabled, offerWindowMins, minNoticeHours, maxOffersPerSlot, priorityMode } = req.body;
+        
+        await waitlistService.updateAutoFillSettings(parseInt(req.params.id), {
+            enabled,
+            offerWindowMins,
+            minNoticeHours,
+            maxOffersPerSlot,
+            priorityMode
+        });
+        
+        res.json({ message: 'Settings updated' });
+    } catch (error) {
+        console.error('Update autofill settings error:', error);
+        res.status(500).json({ message: 'Server error updating settings' });
+    }
+});
+
+// GET /api/doctors/:id/autofill-analytics - Get auto-fill analytics
+router.get('/:id/autofill-analytics', authenticate, async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const end = endDate || new Date().toISOString().split('T')[0];
+        
+        const analytics = await waitlistService.getAutoFillAnalytics(parseInt(req.params.id), start, end);
+        res.json(analytics);
+    } catch (error) {
+        console.error('Get autofill analytics error:', error);
+        res.status(500).json({ message: 'Server error fetching analytics' });
     }
 });
 

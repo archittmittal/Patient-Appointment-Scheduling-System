@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const waitlistService = require('../services/waitlistService');
 
 // POST /api/appointments/book
 router.post('/book', authenticate, async (req, res) => {
@@ -132,6 +133,10 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 );
             }
         } else if (status === 'MISSED') {
+            const [[queueRow]] = await conn.query(
+                'SELECT appointment_id FROM live_queue WHERE id = ?',
+                [req.params.queueId]
+            );
             await conn.query(
                 `UPDATE appointments a
                  JOIN live_queue lq ON lq.appointment_id = a.id
@@ -139,6 +144,12 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                  WHERE lq.id = ?`,
                 [req.params.queueId]
             );
+            
+            // Issue #41: Trigger auto-fill for no-show
+            if (queueRow) {
+                waitlistService.handleSlotRelease(queueRow.appointment_id, 'NO_SHOW')
+                    .catch(err => console.error('Auto-fill error:', err));
+            }
         }
 
         await conn.commit();
@@ -184,6 +195,11 @@ router.patch('/:id/cancel', async (req, res) => {
         }
 
         await conn.commit();
+        
+        // Issue #41: Trigger auto-fill for cancellation
+        waitlistService.handleSlotRelease(parseInt(req.params.id), 'CANCELLATION')
+            .catch(err => console.error('Auto-fill error:', err));
+        
         res.json({ message: 'Appointment cancelled' });
     } catch (error) {
         await conn.rollback();
@@ -191,6 +207,167 @@ router.patch('/:id/cancel', async (req, res) => {
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {
         conn.release();
+    }
+});
+
+// ==================== Issue #41: Waitlist Endpoints ====================
+
+// POST /api/appointments/waitlist/join - Join waitlist for a doctor
+router.post('/waitlist/join', authenticate, async (req, res) => {
+    try {
+        const { doctorId, preferredDate, timePreference, maxNoticeHours, reason } = req.body;
+        
+        // Get patient ID from user
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+        
+        if (!patient) {
+            return res.status(400).json({ message: 'Patient profile not found' });
+        }
+
+        const result = await waitlistService.joinWaitlist(patient.id, doctorId, {
+            preferredDate,
+            timePreference,
+            maxNoticeHours,
+            reason
+        });
+
+        if (!result.success) {
+            return res.status(400).json({ message: result.error });
+        }
+
+        res.status(201).json(result);
+    } catch (error) {
+        console.error('Join waitlist error:', error);
+        res.status(500).json({ message: 'Server error joining waitlist' });
+    }
+});
+
+// DELETE /api/appointments/waitlist/:id - Leave waitlist
+router.delete('/waitlist/:id', authenticate, async (req, res) => {
+    try {
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (!patient) {
+            return res.status(400).json({ message: 'Patient profile not found' });
+        }
+
+        const result = await waitlistService.leaveWaitlist(parseInt(req.params.id), patient.id);
+        
+        if (!result.success) {
+            return res.status(404).json({ message: 'Waitlist entry not found' });
+        }
+
+        res.json({ message: 'Removed from waitlist' });
+    } catch (error) {
+        console.error('Leave waitlist error:', error);
+        res.status(500).json({ message: 'Server error leaving waitlist' });
+    }
+});
+
+// GET /api/appointments/waitlist/my - Get patient's waitlist entries
+router.get('/waitlist/my', authenticate, async (req, res) => {
+    try {
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (!patient) {
+            return res.json([]);
+        }
+
+        const entries = await waitlistService.getPatientWaitlist(patient.id);
+        res.json(entries);
+    } catch (error) {
+        console.error('Get patient waitlist error:', error);
+        res.status(500).json({ message: 'Server error fetching waitlist' });
+    }
+});
+
+// GET /api/appointments/waitlist/offers - Get pending slot offers for patient
+router.get('/waitlist/offers', authenticate, async (req, res) => {
+    try {
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (!patient) {
+            return res.json([]);
+        }
+
+        const offers = await waitlistService.getPatientOffers(patient.id);
+        res.json(offers);
+    } catch (error) {
+        console.error('Get offers error:', error);
+        res.status(500).json({ message: 'Server error fetching offers' });
+    }
+});
+
+// POST /api/appointments/waitlist/offers/:id/accept - Accept a slot offer
+router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
+    try {
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (!patient) {
+            return res.status(400).json({ message: 'Patient profile not found' });
+        }
+
+        const result = await waitlistService.acceptSlotOffer(parseInt(req.params.id), patient.id);
+        
+        if (!result.success) {
+            return res.status(400).json({ message: result.error });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Accept offer error:', error);
+        res.status(500).json({ message: 'Server error accepting offer' });
+    }
+});
+
+// POST /api/appointments/waitlist/offers/:id/decline - Decline a slot offer
+router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
+    try {
+        const [[patient]] = await db.query(
+            'SELECT id FROM patients WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (!patient) {
+            return res.status(400).json({ message: 'Patient profile not found' });
+        }
+
+        const result = await waitlistService.declineSlotOffer(parseInt(req.params.id), patient.id);
+        
+        if (!result.success) {
+            return res.status(400).json({ message: result.error });
+        }
+
+        res.json({ message: 'Offer declined' });
+    } catch (error) {
+        console.error('Decline offer error:', error);
+        res.status(500).json({ message: 'Server error declining offer' });
+    }
+});
+
+// POST /api/appointments/waitlist/cleanup - Clean up expired entries (admin/cron)
+router.post('/waitlist/cleanup', async (req, res) => {
+    try {
+        const result = await waitlistService.cleanupExpired();
+        res.json({ message: 'Cleanup complete', ...result });
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        res.status(500).json({ message: 'Server error during cleanup' });
     }
 });
 
