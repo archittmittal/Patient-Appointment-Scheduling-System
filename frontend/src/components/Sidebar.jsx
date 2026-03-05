@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PATIENT_MENU = [
@@ -13,12 +13,14 @@ const PATIENT_MENU = [
     { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
     { name: 'Live Queue', icon: Activity, path: '/queue' },
     { name: 'Late Arrival Help', icon: AlarmClock, path: '/late-arrival' },
+    { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
     { name: 'Profile', icon: User, path: '/profile' },
 ];
 
 const DOCTOR_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/doctor-dashboard' },
     { name: 'Weekly Schedule', icon: CalendarDays, path: '/doctor-schedule' },
+    { name: 'Feedback Analytics', icon: BarChart3, path: '/doctor-feedback' },
     { name: 'My Profile', icon: User, path: '/doctor-profile' },
 ];
 
