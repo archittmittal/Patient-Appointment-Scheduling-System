@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone } from 'lucide-react';
 import { API } from '../config/api';
+import PeakHoursAnalytics from '../components/PeakHoursAnalytics'; // Issue #44
 
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
     <div className="border-b border-gray-100 py-6 last:border-0 last:pb-0">
@@ -185,6 +186,9 @@ const DoctorProfile = () => {
                 </div>
 
                 <div className="space-y-6">
+                    {/* Issue #44: Peak Hours Analytics */}
+                    <PeakHoursAnalytics doctorId={id} />
+                    
                     <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">Location</h3>
                         <div className="flex items-start gap-3 mb-6">
