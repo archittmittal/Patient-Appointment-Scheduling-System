@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const {
+    calculateCurrentDelay,
+    propagateDelayToQueue,
+    setManualDelay,
+    getDelayStatus,
+    checkAndPropagateDelay,
+    getDelayAnalytics
+} = require('../services/delayPropagation');
 
 // GET /api/doctors — all doctors
 router.get('/', async (req, res) => {
@@ -246,6 +254,86 @@ router.get('/:id/weekly-schedule', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// ============================================
+// DELAY PROPAGATION ROUTES (Issue #40)
+// ============================================
+
+// GET /api/doctors/:id/delay-status — get current delay status for a doctor
+router.get('/:id/delay-status', async (req, res) => {
+    try {
+        const doctorId = req.params.id;
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+        
+        const delayStatus = await getDelayStatus(doctorId, date);
+        
+        res.json({
+            doctorId,
+            date,
+            ...delayStatus
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching delay status' });
+    }
+});
+
+// POST /api/doctors/:id/delay — set manual delay
+router.post('/:id/delay', authenticate, async (req, res) => {
+    try {
+        const doctorId = req.params.id;
+        const { delayMins, reason } = req.body;
+        const date = req.body.date || new Date().toISOString().split('T')[0];
+        
+        if (delayMins === undefined || delayMins < 0) {
+            return res.status(400).json({ message: 'Valid delayMins required' });
+        }
+
+        const result = await setManualDelay(doctorId, date, delayMins, reason || '');
+        
+        res.json({
+            message: result.success ? 'Delay set and propagated' : 'Failed to set delay',
+            ...result
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error setting delay' });
+    }
+});
+
+// GET /api/doctors/:id/delay/check — check and auto-propagate delay
+router.get('/:id/delay/check', async (req, res) => {
+    try {
+        const doctorId = req.params.id;
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+        
+        const result = await checkAndPropagateDelay(doctorId, date);
+        
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error checking delay' });
+    }
+});
+
+// GET /api/doctors/:id/delay/analytics — get delay analytics
+router.get('/:id/delay/analytics', authenticate, async (req, res) => {
+    try {
+        const doctorId = req.params.id;
+        const days = parseInt(req.query.days) || 30;
+        
+        const analytics = await getDelayAnalytics(doctorId, days);
+        
+        res.json({
+            doctorId,
+            period: `${days} days`,
+            ...analytics
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching analytics' });
     }
 });
 
