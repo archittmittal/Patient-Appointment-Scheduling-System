@@ -17,6 +17,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
+import NotificationSettings from './pages/NotificationSettings';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ function App() {
             <Route path="/book" element={<BookAppointment />} />
             <Route path="/queue" element={<LiveQueue />} />
             <Route path="/profile" element={<PatientProfile />} />
+            <Route path="/notifications/settings" element={<NotificationSettings />} />
           </Route>
 
           {/* Doctor routes */}
@@ -51,6 +53,7 @@ function App() {
             <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
             <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
             <Route path="/doctor-schedule" element={<DoctorSchedule />} />
+            <Route path="/notifications/settings" element={<NotificationSettings />} />
           </Route>
 
           {/* Admin routes */}
@@ -58,6 +61,7 @@ function App() {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-users" element={<AdminUsers />} />
             <Route path="/admin-appointments" element={<AdminAppointments />} />
+            <Route path="/notifications/settings" element={<NotificationSettings />} />
           </Route>
         </Routes>
       </Router>
