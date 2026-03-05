@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const STATUS_STYLES = {
     CONFIRMED: 'bg-green-100 text-green-700',
@@ -72,18 +72,35 @@ const PatientDashboard = () => {
     const [past, setPast] = useState([]);
     const [activeTab, setActiveTab] = useState('upcoming');
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Issue #41: Waitlist state
+    const [waitlist, setWaitlist] = useState([]);
+    const [offers, setOffers] = useState([]);
+    const [processingOffer, setProcessingOffer] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [upRes, pastRes] = await Promise.all([
+                const [upRes, pastRes, waitlistRes, offersRes] = await Promise.all([
                     fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`),
                     fetch(`${API}/api/patients/${user.id}/appointments?type=past`),
+                    fetch(`${API}/api/appointments/waitlist/my`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/appointments/waitlist/offers`, { headers: authedHeaders() }),
                 ]);
                 const [upData, pastData] = await Promise.all([upRes.json(), pastRes.json()]);
                 setUpcoming(Array.isArray(upData) ? upData : []);
                 setPast(Array.isArray(pastData) ? pastData : []);
+                
+                // Issue #41: Set waitlist data
+                if (waitlistRes.ok) {
+                    const waitlistData = await waitlistRes.json();
+                    setWaitlist(Array.isArray(waitlistData) ? waitlistData : []);
+                }
+                if (offersRes.ok) {
+                    const offersData = await offersRes.json();
+                    setOffers(Array.isArray(offersData) ? offersData : []);
+                }
             } catch (err) {
                 console.error('Dashboard error:', err);
             } finally {
@@ -92,6 +109,58 @@ const PatientDashboard = () => {
         };
         fetchData();
     }, [user?.id]);
+
+    // Issue #41: Accept slot offer
+    const handleAcceptOffer = async (offerId) => {
+        setProcessingOffer(offerId);
+        try {
+            const res = await fetch(`${API}/api/appointments/waitlist/offers/${offerId}/accept`, {
+                method: 'POST',
+                headers: authedHeaders()
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setOffers(prev => prev.filter(o => o.id !== offerId));
+                // Refresh appointments
+                const upRes = await fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`);
+                const upData = await upRes.json();
+                setUpcoming(Array.isArray(upData) ? upData : []);
+            }
+        } catch (err) {
+            console.error('Accept offer error:', err);
+        } finally {
+            setProcessingOffer(null);
+        }
+    };
+
+    // Issue #41: Decline slot offer
+    const handleDeclineOffer = async (offerId) => {
+        setProcessingOffer(offerId);
+        try {
+            await fetch(`${API}/api/appointments/waitlist/offers/${offerId}/decline`, {
+                method: 'POST',
+                headers: authedHeaders()
+            });
+            setOffers(prev => prev.filter(o => o.id !== offerId));
+        } catch (err) {
+            console.error('Decline offer error:', err);
+        } finally {
+            setProcessingOffer(null);
+        }
+    };
+
+    // Issue #41: Leave waitlist
+    const handleLeaveWaitlist = async (waitlistId) => {
+        try {
+            await fetch(`${API}/api/appointments/waitlist/${waitlistId}`, {
+                method: 'DELETE',
+                headers: authedHeaders()
+            });
+            setWaitlist(prev => prev.filter(w => w.id !== waitlistId));
+        } catch (err) {
+            console.error('Leave waitlist error:', err);
+        }
+    };
 
     // Real derived stats
     const completedCount = past.filter(a => a.status === 'COMPLETED').length;
@@ -179,6 +248,75 @@ const PatientDashboard = () => {
 
                 {/* Medical history sidebar — real past appointments */}
                 <div className="space-y-4">
+                    {/* Issue #41: Slot Offers Alert */}
+                    {offers.length > 0 && (
+                        <div className="bg-green-50 rounded-2xl border border-green-200 p-4 animate-pulse-slow">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Bell className="text-green-600" size={18} />
+                                <h3 className="font-bold text-green-800">Slot Available!</h3>
+                            </div>
+                            {offers.map(offer => (
+                                <div key={offer.id} className="bg-white rounded-xl p-3 mb-2 last:mb-0 border border-green-100">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        Dr. {offer.doctor_first_name} {offer.doctor_last_name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">{offer.specialization}</p>
+                                    <p className="text-sm text-gray-700 mt-1">
+                                        {new Date(offer.offered_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {offer.offered_time?.slice(0, 5)}
+                                    </p>
+                                    <p className="text-xs text-orange-600 font-medium mt-1">
+                                        Expires in {offer.minutes_remaining} mins
+                                    </p>
+                                    <div className="flex gap-2 mt-2">
+                                        <button
+                                            onClick={() => handleAcceptOffer(offer.id)}
+                                            disabled={processingOffer === offer.id}
+                                            className="flex-1 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                        >
+                                            {processingOffer === offer.id ? '...' : 'Accept'}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeclineOffer(offer.id)}
+                                            disabled={processingOffer === offer.id}
+                                            className="flex-1 py-1.5 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                                        >
+                                            Decline
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Issue #41: Active Waitlists */}
+                    {waitlist.length > 0 && (
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <ListPlus className="text-primary" size={18} />
+                                <h3 className="font-bold text-gray-900">My Waitlists</h3>
+                            </div>
+                            {waitlist.map(entry => (
+                                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            Dr. {entry.doctor_first_name} {entry.doctor_last_name}
+                                        </p>
+                                        <p className="text-xs text-gray-500">
+                                            {new Date(entry.preferred_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Position #{entry.queue_position}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleLeaveWaitlist(entry.id)}
+                                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                        title="Leave waitlist"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <h2 className="text-lg font-bold text-gray-900">Recent History</h2>
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                         {past.length === 0 ? (
