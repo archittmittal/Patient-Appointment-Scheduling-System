@@ -16,6 +16,7 @@ const batchingRoutes = require('./routes/batching');
 const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/batching', batchingRoutes);
 app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -25,6 +25,7 @@ import BatchAppointments from './pages/BatchAppointments';
 import PrepChecklist from './pages/PrepChecklist';
 import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
+import FeedbackAnalytics from './pages/FeedbackAnalytics';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -61,6 +62,7 @@ function App() {
             <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
             <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
             <Route path="/late-arrival" element={<LateArrival />} />
+            <Route path="/feedback" element={<FeedbackAnalytics />} />
           </Route>
 
           {/* Doctor routes */}
@@ -69,6 +71,7 @@ function App() {
             <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
             <Route path="/doctor-schedule" element={<DoctorSchedule />} />
             <Route path="/notifications/settings" element={<NotificationSettings />} />
+            <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
           </Route>
 
           {/* Admin routes */}
