@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const smartArrivalService = require('../services/smartArrivalService');
 
 // POST /api/appointments/book
 router.post('/book', authenticate, async (req, res) => {
@@ -191,6 +192,44 @@ router.patch('/:id/cancel', async (req, res) => {
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {
         conn.release();
+    }
+});
+
+// ==================== Issue #37: Smart Arrival Time ====================
+
+// GET /api/appointments/:id/smart-arrival - Get optimal arrival time
+router.get('/:id/smart-arrival', authenticate, async (req, res) => {
+    try {
+        const { buffer, transit } = req.query;
+        
+        const result = await smartArrivalService.calculateSmartArrival(
+            parseInt(req.params.id),
+            {
+                bufferMinutes: buffer ? parseInt(buffer) : 10,
+                includeTransit: !!transit,
+                transitMinutes: transit ? parseInt(transit) : 0
+            }
+        );
+
+        if (result.error) {
+            return res.status(404).json({ message: result.error });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Smart arrival error:', error);
+        res.status(500).json({ message: 'Server error calculating arrival time' });
+    }
+});
+
+// GET /api/appointments/doctor/:doctorId/smart-arrivals - Get all smart arrivals for a doctor today
+router.get('/doctor/:doctorId/smart-arrivals', authenticate, async (req, res) => {
+    try {
+        const results = await smartArrivalService.getBatchSmartArrivals(parseInt(req.params.doctorId));
+        res.json(results);
+    } catch (error) {
+        console.error('Batch smart arrivals error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
