@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, UserCircle, X, CheckCheck, Settings } from 'lucide-react';
+import { Bell, UserCircle, X, CheckCheck, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
@@ -16,16 +16,18 @@ const NOTIFICATION_ICONS = {
 };
 
 const Navbar = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const name = user ? `${user.first_name} ${user.last_name}`.trim() : '';
     const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : '';
     
     // Issue #38: Notification state
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showUserMenu, setShowUserMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const dropdownRef = useRef(null);
+    const userMenuRef = useRef(null);
 
     // Fetch notifications and unread count
     useEffect(() => {
@@ -63,10 +65,18 @@ const Navbar = () => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setShowNotifications(false);
             }
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+                setShowUserMenu(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     const markAllAsRead = async () => {
         try {
@@ -181,12 +191,35 @@ const Navbar = () => {
                     )}
                 </div>
 
-                <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-                    <UserCircle size={36} className="text-gray-400" />
-                    <div className="hidden md:block">
-                        <p className="text-sm font-medium text-gray-700">{name}</p>
-                        <p className="text-xs text-gray-500">{roleLabel}</p>
-                    </div>
+                <div className="relative" ref={userMenuRef}>
+                    <button 
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                    >
+                        <UserCircle size={36} className="text-gray-400" />
+                        <div className="hidden md:block text-left">
+                            <p className="text-sm font-medium text-gray-700">{name}</p>
+                            <p className="text-xs text-gray-500">{roleLabel}</p>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* User Menu Dropdown */}
+                    {showUserMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                            <div className="p-3 border-b border-gray-100 md:hidden">
+                                <p className="text-sm font-medium text-gray-700">{name}</p>
+                                <p className="text-xs text-gray-500">{roleLabel}</p>
+                            </div>
+                            <button 
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                                <LogOut size={18} />
+                                <span className="font-medium">Logout</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
