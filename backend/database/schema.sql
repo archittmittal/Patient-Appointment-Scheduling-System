@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS doctors (
     about TEXT,
     location_room VARCHAR(100),
     image_url VARCHAR(255),
+    availability JSON,
+    max_patients_per_slot INT DEFAULT 15,
     FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -52,6 +54,8 @@ CREATE TABLE IF NOT EXISTS appointments (
     notes TEXT,
     prescription TEXT,
     follow_up_date DATE,
+    predicted_duration_mins INT DEFAULT 15,
+    is_follow_up BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(id),
     FOREIGN KEY (doctor_id) REFERENCES doctors(id)
@@ -64,6 +68,7 @@ CREATE TABLE IF NOT EXISTS live_queue (
     queue_number INT NOT NULL,
     status ENUM('WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED') DEFAULT 'WAITING',
     estimated_time INT DEFAULT 0, -- represented in minutes
+    predicted_duration INT DEFAULT 15,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (appointment_id) REFERENCES appointments(id)
 );
@@ -105,13 +110,15 @@ INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_t
 
 -- -------------------------------------------------------
 -- Run the following ALTERs if DB already exists (one-time migration):
--- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS symptoms TEXT AFTER time_slot;
--- CREATE TABLE IF NOT EXISTS doctor_blocked_dates (id INT AUTO_INCREMENT PRIMARY KEY, doctor_id INT NOT NULL, blocked_date DATE NOT NULL, reason VARCHAR(255), UNIQUE KEY unique_doctor_date (doctor_id, blocked_date), FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE);
--- INSERT IGNORE INTO users (id, email, password_hash, role) VALUES (10, 'admin@hospital.com', '$2b$10$6b1GuRKjy.ASXaKM.t/XVOYEJDrTxNSbe8AuM414NtK.YbgbaGfQe', 'ADMIN');
--- UPDATE users SET password_hash = '$2b$10$pr3yTOhaCSWoCCKx6dh5zuHdBjIb5OiArA8HmGrZY9pS23x3rw17W' WHERE id = 1;
--- UPDATE users SET password_hash = '$2b$10$jlF3vybJbXMc7y5DESbqXOLOtL2i86bPyWA6AefbPhq1lGRwh/DPG' WHERE id IN (2, 3);
--- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS diagnosis VARCHAR(255) AFTER status;
--- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS notes TEXT AFTER diagnosis;
--- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS prescription TEXT AFTER notes;
--- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS follow_up_date DATE AFTER prescription;
+-- ALTER TABLE appointments ADD COLUMN symptoms TEXT AFTER time_slot;
+-- ALTER TABLE appointments ADD COLUMN diagnosis VARCHAR(255) AFTER status;
+-- ALTER TABLE appointments ADD COLUMN notes TEXT AFTER diagnosis;
+-- ALTER TABLE appointments ADD COLUMN prescription TEXT AFTER notes;
+-- ALTER TABLE appointments ADD COLUMN follow_up_date DATE AFTER prescription;
+-- ALTER TABLE appointments ADD COLUMN predicted_duration_mins INT DEFAULT 15;
+-- ALTER TABLE appointments ADD COLUMN is_follow_up BOOLEAN DEFAULT FALSE;
+-- ALTER TABLE doctors ADD COLUMN availability JSON;
+-- ALTER TABLE doctors ADD COLUMN max_patients_per_slot INT DEFAULT 15;
+-- ALTER TABLE live_queue ADD COLUMN predicted_duration INT DEFAULT 15;
+-- CREATE TABLE IF NOT EXISTS doctor_blocked_dates (...);
 -- -------------------------------------------------------
