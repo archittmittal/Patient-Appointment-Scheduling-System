@@ -225,14 +225,17 @@ const DoctorDashboard = () => {
     const updateQueueStatus = async (queueId, newStatus, extra = {}) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
+            const res = await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
                 method: 'PATCH',
                 headers: authedHeaders(true),
                 body: JSON.stringify({ status: newStatus, ...extra })
             });
+            if (!res.ok) throw new Error('Failed to update status on server');
+            
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
         } catch (err) {
             console.error('Queue update error:', err);
+            alert('Failed to update patient status. Please try again.');
         } finally {
             setUpdatingId(null);
         }

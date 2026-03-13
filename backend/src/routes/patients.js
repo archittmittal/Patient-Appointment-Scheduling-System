@@ -60,7 +60,7 @@ router.get('/:id/appointments', async (req, res) => {
 
         const query = `
             SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
-                   a.time_slot, a.symptoms, a.status,
+                   a.time_slot, a.symptoms, a.status, a.prescription, a.diagnosis, a.notes, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
                    d.first_name as doc_first, d.last_name as doc_last, d.specialty, d.location_room
             FROM appointments a
             JOIN doctors d ON a.doctor_id = d.id
