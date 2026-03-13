@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi, FileText, Pill, Activity } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -18,13 +18,15 @@ const StatCard = ({ title, value, icon: Icon, sub }) => (
             <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
             {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
         </div>
-        <div className="p-3 bg-primary-light/50 text-primary rounded-xl group-hover:scale-110 transition-transform">
-            <Icon size={24} />
-        </div>
+        {Icon && (
+            <div className="p-3 bg-primary-light/50 text-primary rounded-xl group-hover:scale-110 transition-transform">
+                <Icon size={24} />
+            </div>
+        )}
     </div>
 );
 
-const AppointmentCard = ({ apt, navigate }) => {
+const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const doctor = `Dr. ${apt.doc_first} ${apt.doc_last}`;
     const statusLabel = apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase();
     const dateStr = new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -77,6 +79,16 @@ const AppointmentCard = ({ apt, navigate }) => {
                     Virtual Check-in
                 </button>
             )}
+            {/* View Report Button */}
+            {apt.status === 'COMPLETED' && (apt.diagnosis || apt.prescription || apt.notes) && (
+                <button
+                    onClick={() => onViewReport(apt)}
+                    className="w-full mt-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
+                >
+                    <FileText size={14} />
+                    View Report & Prescription
+                </button>
+            )}
         </div>
     );
 };
@@ -93,6 +105,7 @@ const PatientDashboard = () => {
     const [waitlist, setWaitlist] = useState([]);
     const [offers, setOffers] = useState([]);
     const [processingOffer, setProcessingOffer] = useState(null);
+    const [selectedReportApt, setSelectedReportApt] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -239,7 +252,7 @@ const PatientDashboard = () => {
                     {displayed.length > 0 ? (
                         <div className="grid sm:grid-cols-2 gap-4">
                             {displayed.map((apt) => (
-                                <AppointmentCard key={apt.id} apt={apt} navigate={navigate} />
+                                <AppointmentCard key={apt.id} apt={apt} navigate={navigate} onViewReport={setSelectedReportApt} />
                             ))}
                         </div>
                     ) : (
@@ -367,6 +380,86 @@ const PatientDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Report/Prescription Modal */}
+            {selectedReportApt && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">Consultation Report</h3>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Dr. {selectedReportApt.doc_first} {selectedReportApt.doc_last} • {new Date(selectedReportApt.appointment_date).toLocaleDateString()}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedReportApt(null)}
+                                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            {selectedReportApt.diagnosis && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                                        <Activity size={16} className="text-primary" /> Diagnosis
+                                    </h4>
+                                    <p className="text-gray-700 bg-gray-50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-gray-100">
+                                        {selectedReportApt.diagnosis}
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedReportApt.prescription && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                                        <Pill size={16} className="text-primary" /> Prescription
+                                    </h4>
+                                    <p className="text-gray-700 bg-blue-50/50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-blue-100">
+                                        {selectedReportApt.prescription}
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedReportApt.notes && (
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
+                                        <FileText size={16} className="text-primary" /> Doctor's Notes
+                                    </h4>
+                                    <p className="text-gray-700 bg-gray-50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-gray-100">
+                                        {selectedReportApt.notes}
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedReportApt.follow_up_date && (
+                                <div className="flex items-center gap-3 bg-amber-50 text-amber-800 p-4 rounded-xl border border-amber-100">
+                                    <CalendarIcon size={20} className="text-amber-500" />
+                                    <div>
+                                        <p className="text-sm font-medium">Follow-up Recommended</p>
+                                        <p className="text-xs text-amber-700">Please schedule your next visit on or around {new Date(selectedReportApt.follow_up_date).toLocaleDateString()}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => navigate('/book')}
+                                        className="ml-auto px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-lg transition-colors"
+                                    >
+                                        Book Now
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                            <button
+                                onClick={() => setSelectedReportApt(null)}
+                                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold rounded-xl transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
