@@ -43,33 +43,33 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-300">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center text-primary mb-4">
                     <HeartPulse size={48} strokeWidth={1.5} />
                 </div>
-                <h2 className="text-center text-3xl font-extrabold text-gray-900 tracking-tight">
+                <h2 className="text-center text-3xl font-extrabold text-[var(--text-base)] tracking-tight">
                     Welcome to HealthSync
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
+                <p className="mt-2 text-center text-sm text-gray-500">
                     Sign in to access your portal
                 </p>
-                <p className="mt-1 text-center text-sm text-gray-500">
+                <p className="mt-1 text-center text-sm text-gray-400">
                     New patient?{' '}
                     <Link to="/register" className="font-semibold text-primary hover:underline">Create an account</Link>
                 </p>
             </div>
 
             <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100">
+                <div className="bg-[var(--bg-navbar)] py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-[var(--border-base)]">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                        <div className="mb-4 p-3 bg-red-50/10 border border-red-200/20 text-red-500 rounded-lg text-sm">
                             {error}
                         </div>
                     )}
                     <form className="space-y-6" onSubmit={handleLogin}>
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="email" className="block text-sm font-medium text-[var(--text-base)] opacity-80">
                                 Email address
                             </label>
                             <div className="mt-1 relative rounded-md shadow-sm">
@@ -82,14 +82,14 @@ const Login = () => {
                                     required
                                     value={email}
                                     onChange={e => setEmail(e.target.value)}
-                                    className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-2.5 bg-gray-50 border transition-colors outline-none"
+                                    className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-[var(--border-base)] rounded-lg py-2.5 bg-[var(--bg-base)] text-[var(--text-base)] border transition-colors outline-none"
                                     placeholder="you@example.com"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                            <label htmlFor="password" className="block text-sm font-medium text-[var(--text-base)] opacity-80">
                                 Password
                             </label>
                             <div className="mt-1 relative rounded-md shadow-sm">
@@ -102,7 +102,7 @@ const Login = () => {
                                     required
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
-                                    className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 rounded-lg py-2.5 bg-gray-50 border transition-colors outline-none"
+                                    className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-[var(--border-base)] rounded-lg py-2.5 bg-[var(--bg-base)] text-[var(--text-base)] border transition-colors outline-none"
                                     placeholder="••••••••"
                                 />
                             </div>
@@ -119,8 +119,8 @@ const Login = () => {
                         </div>
                     </form>
 
-                    <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-500 space-y-1">
-                        <p className="font-semibold text-gray-600 mb-2">Test Credentials</p>
+                    <div className="mt-6 p-4 bg-[var(--bg-base)] rounded-xl border border-[var(--border-base)] text-xs text-gray-500 space-y-1">
+                        <p className="font-semibold text-[var(--text-base)] opacity-80 mb-2">Test Credentials</p>
                         <p>Patient: patient@example.com / patient123</p>
                         <p>Doctor (Sarah): dr.sarah@hospital.com / doctor123</p>
                         <p>Doctor (Michael): dr.michael@hospital.com / doctor123</p>

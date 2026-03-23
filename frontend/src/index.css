@@ -5,10 +5,36 @@
   --color-primary: #13a4ec;
   --color-primary-hover: #0f8ecf;
   --color-primary-light: #e0f2fe;
+
+  --color-bg-base: white;
+  --color-text-base: #111827;
+  --color-bg-sidebar: white;
+  --color-bg-navbar: white;
+  --color-border-base: #f3f4f6;
 }
 
 @layer base {
+  :root {
+    --bg-base: white;
+    --text-base: #111827;
+    --bg-sidebar: white;
+    --bg-navbar: white;
+    --border-base: #f3f4f6;
+  }
+
+  .dark {
+    --bg-base: #0f172a;
+    --text-base: #f8fafc;
+    --bg-sidebar: #1e293b;
+    --bg-navbar: #1e293b;
+    --border-base: #334155;
+
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: var(--bg-base);
+    color: var(--text-base);
+    @apply transition-colors duration-300;
   }
 }
