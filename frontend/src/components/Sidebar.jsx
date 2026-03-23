@@ -44,7 +44,7 @@ const Sidebar = () => {
     };
 
     return (
-        <div className="w-64 h-screen bg-white shadow-xl flex flex-col border-r border-gray-100 flex-shrink-0">
+        <div className="w-64 h-screen bg-[var(--bg-sidebar)] shadow-xl flex flex-col border-r border-[var(--border-base)] flex-shrink-0 transition-colors duration-300">
             <div className="p-6">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">HealthSync</h1>
                 <p className="text-sm text-gray-500 mt-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
@@ -57,8 +57,8 @@ const Sidebar = () => {
                         to={item.path}
                         className={({ isActive }) =>
                             `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                                ? 'bg-primary-light text-primary font-medium scale-[1.02] shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                ? 'bg-primary/20 text-primary font-medium scale-[1.02] shadow-sm'
+                                : 'text-[var(--text-base)] opacity-70 hover:opacity-100 hover:bg-[var(--bg-base)]'
                             }`
                         }
                     >
@@ -68,10 +68,10 @@ const Sidebar = () => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-100">
+            <div className="p-4 border-t border-[var(--border-base)]">
                 <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50/10 rounded-xl transition-colors"
                 >
                     <LogOut size={20} />
                     Logout

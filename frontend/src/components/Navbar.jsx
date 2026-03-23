@@ -3,6 +3,7 @@ import { Bell, UserCircle, X, CheckCheck, Settings, LogOut, ChevronDown } from '
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import ThemeToggle from './ThemeToggle';
 
 const NOTIFICATION_ICONS = {
     QUEUE_UPDATE: '📊',
@@ -104,12 +105,13 @@ const Navbar = () => {
     };
 
     return (
-        <header className="h-20 bg-white shadow-sm border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
+        <header className="h-20 bg-[var(--bg-navbar)] shadow-sm border-b border-[var(--border-base)] flex items-center justify-between px-8 sticky top-0 z-10 transition-colors duration-300">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-800 tracking-tight">HealthSync</h2>
+                <h2 className="text-2xl font-semibold text-[var(--text-base)] tracking-tight">HealthSync</h2>
             </div>
 
             <div className="flex items-center gap-6">
+                <ThemeToggle />
                 {/* Issue #38: Notification Bell with Dropdown */}
                 <div className="relative" ref={dropdownRef}>
                     <button 
@@ -126,9 +128,9 @@ const Navbar = () => {
 
                     {/* Notification Dropdown */}
                     {showNotifications && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                                <h3 className="font-bold text-gray-900">Notifications</h3>
+                        <div className="absolute right-0 mt-2 w-80 bg-[var(--bg-navbar)] rounded-2xl shadow-xl border border-[var(--border-base)] overflow-hidden z-50">
+                            <div className="flex items-center justify-between p-4 border-b border-[var(--border-base)]">
+                                <h3 className="font-bold text-[var(--text-base)]">Notifications</h3>
                                 <div className="flex items-center gap-2">
                                     {unreadCount > 0 && (
                                         <button 
@@ -194,11 +196,11 @@ const Navbar = () => {
                 <div className="relative" ref={userMenuRef}>
                     <button 
                         onClick={() => setShowUserMenu(!showUserMenu)}
-                        className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                        className="flex items-center gap-3 pl-4 border-l border-[var(--border-base)] hover:bg-[var(--bg-base)] rounded-lg p-2 transition-colors"
                     >
                         <UserCircle size={36} className="text-gray-400" />
                         <div className="hidden md:block text-left">
-                            <p className="text-sm font-medium text-gray-700">{name}</p>
+                            <p className="text-sm font-medium text-[var(--text-base)]">{name}</p>
                             <p className="text-xs text-gray-500">{roleLabel}</p>
                         </div>
                         <ChevronDown size={16} className={`text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
@@ -206,14 +208,14 @@ const Navbar = () => {
 
                     {/* User Menu Dropdown */}
                     {showUserMenu && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                            <div className="p-3 border-b border-gray-100 md:hidden">
-                                <p className="text-sm font-medium text-gray-700">{name}</p>
+                        <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-navbar)] rounded-xl shadow-xl border border-[var(--border-base)] overflow-hidden z-50">
+                            <div className="p-3 border-b border-[var(--border-base)] md:hidden">
+                                <p className="text-sm font-medium text-[var(--text-base)]">{name}</p>
                                 <p className="text-xs text-gray-500">{roleLabel}</p>
                             </div>
                             <button 
                                 onClick={handleLogout}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors"
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50/10 transition-colors"
                             >
                                 <LogOut size={18} />
                                 <span className="font-medium">Logout</span>
