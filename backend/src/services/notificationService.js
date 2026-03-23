@@ -115,7 +115,8 @@ function getPreferenceField(type) {
         'APPOINTMENT_REMINDER': 'appointment_reminders',
         'DELAY_ALERT': 'delay_alerts',
         'WAITLIST_OFFER': 'waitlist_offers',
-        'CANCELLATION': 'cancellation_confirm'
+        'CANCELLATION': 'cancellation_confirm',
+        'MISSED': 'queue_updates'
     };
     return mapping[type] || null;
 }
@@ -461,6 +462,17 @@ async function notifyCancellation(userId, doctorName, date) {
     });
 }
 
+/**
+ * Notify about missed turn and repositioning
+ */
+async function notifyMissed(userId, doctorName, position, shift) {
+    return sendNotification(userId, 'MISSED', {
+        doctor_name: doctorName,
+        position,
+        shift
+    }, { priority: 'HIGH' });
+}
+
 module.exports = {
     getUserPreferences,
     updatePreferences,
@@ -475,5 +487,6 @@ module.exports = {
     notifyAppointmentReminder,
     notifyDelay,
     notifyWaitlistOffer,
-    notifyCancellation
+    notifyCancellation,
+    notifyMissed
 };

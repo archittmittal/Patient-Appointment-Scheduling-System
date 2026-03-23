@@ -25,7 +25,7 @@ const createJourney = async (patientId, appointments) => {
         const [journeyResult] = await connection.execute(`
             INSERT INTO multi_doctor_journeys 
             (patient_id, total_stops, status, created_at)
-            VALUES (?, ?, 'pending', NOW())
+            VALUES (?, ?, 'PENDING', NOW())
         `, [patientId, appointments.length]);
 
         const journeyId = journeyResult.insertId;
@@ -66,7 +66,7 @@ const createJourney = async (patientId, appointments) => {
             const [stopResult] = await connection.execute(`
                 INSERT INTO journey_stops 
                 (journey_id, doctor_id, stop_order, reason, status, estimated_duration_mins)
-                VALUES (?, ?, ?, ?, 'pending', ?)
+                VALUES (?, ?, ?, ?, 'PENDING', ?)
             `, [
                 journeyId,
                 apt.doctorId,
@@ -83,7 +83,7 @@ const createJourney = async (patientId, appointments) => {
                 specialty: doctor.specialty,
                 floor: doctor.floor_number,
                 building: doctor.building,
-                status: 'pending'
+                status: 'PENDING'
             });
         }
 
@@ -93,7 +93,7 @@ const createJourney = async (patientId, appointments) => {
             journeyId,
             patientId,
             totalStops: appointments.length,
-            status: 'pending',
+            status: 'PENDING',
             stops: journeyStops,
             message: 'Multi-doctor journey created successfully'
         };
@@ -112,10 +112,10 @@ const createJourney = async (patientId, appointments) => {
 const getPatientJourneys = async (patientId) => {
     const sql = `
         SELECT j.*, 
-            (SELECT COUNT(*) FROM journey_stops WHERE journey_id = j.id AND status = 'completed') as completed_stops
+            (SELECT COUNT(*) FROM journey_stops WHERE journey_id = j.id AND status = 'COMPLETED') as completed_stops
         FROM multi_doctor_journeys j
         WHERE j.patient_id = ?
-        AND j.status IN ('pending', 'in_progress')
+        AND j.status IN ('PENDING', 'IN_PROGRESS')
         ORDER BY j.created_at DESC
     `;
 
@@ -227,12 +227,12 @@ const updateStopStatus = async (stopId, status, notes) => {
     // Check if journey is complete
     const [remaining] = await db.execute(`
         SELECT COUNT(*) as count FROM journey_stops
-        WHERE journey_id = ? AND status NOT IN ('completed', 'skipped')
+        WHERE journey_id = ? AND status NOT IN ('COMPLETED', 'SKIPPED')
     `, [stop.journey_id]);
 
     if (remaining[0].count === 0) {
         await db.execute(`
-            UPDATE multi_doctor_journeys SET status = 'completed', completed_at = NOW()
+            UPDATE multi_doctor_journeys SET status = 'COMPLETED', completed_at = NOW()
             WHERE id = ?
         `, [stop.journey_id]);
     } else if (status === 'in_progress') {
