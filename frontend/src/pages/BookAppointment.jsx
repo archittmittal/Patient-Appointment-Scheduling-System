@@ -424,8 +424,20 @@ const BookAppointment = () => {
                     <button
                         disabled={!selectedDate || !selectedSlot || !selectedDoctor || isSubmitting}
                         onClick={async () => {
+                            // Date validation
+                            const [y, m, d] = selectedDate.split('-').map(Number);
+                            const selDate = new Date(y, m - 1, d);
+                            const todayAtMidnight = new Date();
+                            todayAtMidnight.setHours(0, 0, 0, 0);
+
+                            if (selDate < todayAtMidnight) {
+                                alert('Cannot book for a past date.');
+                                return;
+                            }
+
                             setIsSubmitting(true);
                             try {
+                                console.log('Booking appointment:', { patientId: user.id, doctorId: selectedDoctor, date: selectedDate, timeSlot: selectedSlot });
                                 const response = await fetch(`${API}/api/appointments/book`, {
                                     method: 'POST',
                                     headers: authedHeaders(true),
@@ -438,11 +450,17 @@ const BookAppointment = () => {
                                     })
                                 });
                                 const result = await response.json();
-                                setBookingResult(result);
-                                setIsBooked(true);
+                                console.log('Booking response:', result);
+                                
+                                if (response.ok) {
+                                    setBookingResult(result);
+                                    setIsBooked(true);
+                                } else {
+                                    alert(result.message || 'Booking failed');
+                                }
                             } catch (err) {
                                 console.error('Failed to book:', err);
-                                alert('Failed to book appointment');
+                                alert('Failed to book appointment due to network error');
                             } finally {
                                 setIsSubmitting(false);
                             }

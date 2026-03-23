@@ -3,13 +3,9 @@
 
 USE hospital_system;
 
--- 1. Add consultation timing columns to appointments
-ALTER TABLE appointments 
-ADD COLUMN IF NOT EXISTS consultation_start TIMESTAMP NULL,
-ADD COLUMN IF NOT EXISTS consultation_end TIMESTAMP NULL,
-ADD COLUMN IF NOT EXISTS actual_duration_mins INT NULL,
-ADD COLUMN IF NOT EXISTS predicted_duration_mins INT DEFAULT 15,
-ADD COLUMN IF NOT EXISTS is_follow_up BOOLEAN DEFAULT FALSE;
+-- 1. Timing columns already in appointments
+-- consultation_start, consultation_end, actual_duration_mins, predicted_duration_mins, is_follow_up
+-- are already present in some versions of the schema. Skipping add.
 
 -- 2. Consultation History Table - stores completed consultation data for ML training
 CREATE TABLE IF NOT EXISTS consultation_history (
@@ -102,6 +98,5 @@ INSERT IGNORE INTO symptom_complexity (keyword, complexity_score, avg_extra_mins
 INSERT IGNORE INTO doctor_avg_times (doctor_id, avg_duration_mins, total_consultations)
 SELECT id, 15.00, 0 FROM doctors;
 
--- 6. Add estimated_duration to live_queue for better tracking
-ALTER TABLE live_queue
-ADD COLUMN IF NOT EXISTS predicted_duration INT DEFAULT 15;
+-- 6. Add estimated_duration to live_queue already exists
+-- predicted_duration already in live_queue. Skipping.
