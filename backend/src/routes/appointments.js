@@ -14,7 +14,12 @@ const smartArrivalService = require('../services/smartArrivalService');
 // POST /api/appointments/book
 router.post('/book', authenticate, async (req, res) => {
     try {
-        const { patientId, doctorId, date, timeSlot, symptoms } = req.body;
+        const { doctorId, date, timeSlot, symptoms } = req.body;
+        const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
+
+        if (!patientId) {
+            return res.status(400).json({ message: 'Patient ID is required' });
+        }
 
         // Predict consultation duration using AI model
         const prediction = await predictConsultationDuration({
@@ -149,6 +154,8 @@ router.get('/queue/:appointmentId', async (req, res) => {
     }
 });
 
+const notificationService = require('../services/notificationService');
+
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
@@ -164,14 +171,22 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // Get appointment details for duration tracking
+        // Get appointment details for duration tracking and notifications
         const [[queueRow]] = await conn.query(`
-            SELECT lq.appointment_id, a.doctor_id, a.patient_id, a.symptoms, 
-                   a.appointment_date, a.consultation_start, a.is_follow_up
+            SELECT lq.appointment_id, lq.queue_number, a.doctor_id, a.patient_id, a.symptoms, 
+                   a.appointment_date, a.consultation_start, a.is_follow_up,
+                   d.first_name AS doc_first, d.last_name AS doc_last, d.location_room
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
+            JOIN doctors d ON a.doctor_id = d.id
             WHERE lq.id = ?
         `, [req.params.queueId]);
+
+        if (!queueRow) {
+            throw new Error('Queue entry not found');
+        }
+
+        const doctorName = `Dr. ${queueRow.doc_first} ${queueRow.doc_last}`;
 
         // 1. Update the queue entry itself
         await conn.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
@@ -183,6 +198,32 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 'UPDATE appointments SET consultation_start = NOW() WHERE id = ?',
                 [queueRow.appointment_id]
             );
+
+            // Notify CURRENT patient that it's their turn
+            notificationService.notifyYourTurn(
+                queueRow.patient_id, 
+                doctorName, 
+                queueRow.location_room
+            ).catch(err => console.error('Your Turn Notification Error:', err));
+
+            // Notify NEXT patient that the doctor is now seeing the patient before them
+            const [[nextPatient]] = await conn.query(`
+                SELECT a.patient_id, lq.queue_number, lq.estimated_time
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number > ? AND lq.status = 'WAITING'
+                ORDER BY lq.queue_number ASC LIMIT 1
+            `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number]);
+
+            if (nextPatient) {
+                notificationService.notifyTurnApproaching(
+                    nextPatient.patient_id,
+                    nextPatient.queue_number,
+                    doctorName,
+                    nextPatient.estimated_time || 0
+                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+            }
+
         } else if (status === 'COMPLETED') {
             // Record consultation end time and calculate duration
             const [[consultStart]] = await conn.query(
@@ -219,6 +260,23 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 ]
             );
 
+            // Notify NEXT patient that they are next
+            const [[nextPatient]] = await conn.query(`
+                SELECT a.patient_id, lq.queue_number, lq.estimated_time
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number = ?
+            `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number + 1]);
+
+            if (nextPatient) {
+                notificationService.notifyTurnApproaching(
+                    nextPatient.patient_id,
+                    nextPatient.queue_number,
+                    doctorName,
+                    nextPatient.estimated_time || 0
+                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+            }
+
             // Record duration for AI training (don't await, run in background)
             recordConsultationDuration({
                 appointmentId: queueRow.appointment_id,
@@ -234,27 +292,48 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 .catch(err => console.error('Failed to recalculate estimates:', err));
 
         } else if (status === 'MISSED') {
-            const [[queueRow]] = await conn.query(
-                'SELECT appointment_id FROM live_queue WHERE id = ?',
-                [req.params.queueId]
-            );
-            await conn.query(
-                `UPDATE appointments a
-                 JOIN live_queue lq ON lq.appointment_id = a.id
-                 SET a.status = 'CANCELLED'
-                 WHERE lq.id = ?`,
-                [req.params.queueId]
-            );
+            // Find the maximum queue number for waiting patients
+            const [[{ maxQ }]] = await conn.query(`
+                SELECT MAX(lq.queue_number) AS maxQ 
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status IN ('WAITING', 'IN_PROGRESS')
+            `, [queueRow.doctor_id, queueRow.appointment_date]);
             
+            // Re-insert 5 positions down or at the end of the queue, whichever is strictly closer
+            const shiftCount = 5;
+            const targetQ = Math.min(queueRow.queue_number + shiftCount, (maxQ || queueRow.queue_number));
+
+            // Shift patients between current and target forward in the line
+            if (targetQ > queueRow.queue_number) {
+                await conn.query(`
+                    UPDATE live_queue lq
+                    JOIN appointments a ON lq.appointment_id = a.id
+                    SET lq.queue_number = lq.queue_number - 1 
+                    WHERE a.doctor_id = ? AND a.appointment_date = ? 
+                      AND lq.queue_number > ? AND lq.queue_number <= ? 
+                      AND lq.status IN ('WAITING', 'IN_PROGRESS')
+                 `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number, targetQ]);
+            }
+
+            // Move the missed patient to the new position and set them back to WAITING
+            await conn.query(`
+                UPDATE live_queue 
+                SET queue_number = ?, status = 'WAITING' 
+                WHERE id = ?
+            `, [targetQ, req.params.queueId]);
+            
+            // Notify the missed patient
+            notificationService.notifyMissed(
+                queueRow.patient_id,
+                doctorName,
+                targetQ,
+                targetQ - queueRow.queue_number
+            ).catch(err => console.error('Missed Notification Error:', err));
+
             // Recalculate estimates for remaining queue
             recalculateQueueEstimates(queueRow.doctor_id, queueRow.appointment_date)
                 .catch(err => console.error('Failed to recalculate estimates:', err));
-
-            // Issue #41: Trigger auto-fill for no-show
-            if (queueRow) {
-                waitlistService.handleSlotRelease(queueRow.appointment_id, 'NO_SHOW')
-                    .catch(err => console.error('Auto-fill error:', err));
-            }
         }
 
         await conn.commit();
