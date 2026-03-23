@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, Shield, CreditCard, Bell, Settings, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
-import { Pill, Activity, Calendar as CalendarIcon, ChevronRight, FileText } from 'lucide-react';
+import { Pill, Activity, Calendar as CalendarIcon, ChevronRight, FileText, Download, Printer } from 'lucide-react';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -32,6 +32,7 @@ const PatientProfile = () => {
     const [saveMsg, setSaveMsg] = useState(null); // {type:'success'|'error', text}
     const [pastVisits, setPastVisits] = useState([]);
     const [latestFollowup, setLatestFollowup] = useState(null);
+    const [activeVisit, setActiveVisit] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
@@ -114,6 +115,84 @@ const PatientProfile = () => {
             )}
         </div>
     );
+
+    const PrescriptionModal = ({ visit, onClose }) => {
+        if (!visit) return null;
+        const date = new Date(visit.appointment_date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 animate-in fade-in duration-300">
+                <div className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                    {/* Retro Letterhead Header */}
+                    <div className="p-8 bg-gradient-to-r from-primary to-blue-700 text-white relative">
+                        <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+                            <X size={20} />
+                        </button>
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-lg">
+                                <Activity size={28} />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black tracking-tight">HS MEDICAL CENTER</h2>
+                                <p className="text-white/70 text-xs font-bold uppercase tracking-widest">Digital Prescription & Consultation Report</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-y-2 gap-x-6 text-sm text-white/90 font-medium">
+                            <span className="flex items-center gap-1.5"><CalendarIcon size={14} /> {date}</span>
+                            <span className="flex items-center gap-1.5"><User size={14} /> Dr. {visit.doc_first} {visit.doc_last} ({visit.specialty})</span>
+                        </div>
+                    </div>
+
+                    <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1 bg-[url('https://www.transparenttextures.com/patterns/notebook.png')]">
+                        <section className="space-y-3">
+                            <h4 className="text-xs font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div> Diagnosis & Observations
+                            </h4>
+                            <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 italic text-gray-800 leading-relaxed shadow-sm">
+                                {visit.diagnosis || 'No specific diagnosis recorded.'}
+                            </div>
+                        </section>
+
+                        <section className="space-y-3">
+                            <h4 className="text-xs font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div> Medication & Rx
+                            </h4>
+                            <div className="p-6 bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-inner">
+                                <div className="whitespace-pre-wrap font-mono text-sm text-gray-700 leading-relaxed">
+                                    {visit.prescription || 'No medications prescribed.'}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="space-y-3">
+                            <h4 className="text-xs font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div> Clinical Notes
+                            </h4>
+                            <p className="text-gray-600 text-sm leading-relaxed px-1">
+                                {visit.notes || 'Routine follow-up advised.'}
+                            </p>
+                        </section>
+
+                        <div className="pt-8 border-t border-gray-100 flex justify-between items-end">
+                            <div className="space-y-1">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Digitally Signed By</p>
+                                <p className="font-serif italic text-xl text-gray-800">Dr. {visit.doc_first} {visit.doc_last}</p>
+                                <p className="text-xs text-primary font-bold">{visit.specialty}</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button className="p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 transition-colors">
+                                    <Printer size={18} />
+                                </button>
+                                <button className="px-5 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 flex items-center gap-2 hover:scale-[1.02] transition-all">
+                                    <Download size={16} /> Download PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-10">
@@ -307,10 +386,10 @@ const PatientProfile = () => {
                                                 </div>
                                             </div>
                                             <button 
-                                                onClick={() => window.location.href = '/dashboard'}
-                                                className="p-2 text-gray-400 hover:text-primary hover:bg-white rounded-full transition-all"
+                                                onClick={() => setActiveVisit(visit)}
+                                                className="px-4 py-2 bg-white text-primary text-xs font-bold rounded-xl border border-primary/20 shadow-sm hover:bg-primary hover:text-white transition-all"
                                             >
-                                                <ChevronRight size={20} />
+                                                View Report
                                             </button>
                                         </div>
                                     </div>
@@ -326,6 +405,8 @@ const PatientProfile = () => {
                     )}
                 </div>
             </div>
+            
+            <PrescriptionModal visit={activeVisit} onClose={() => setActiveVisit(null)} />
         </div>
     );
 };
