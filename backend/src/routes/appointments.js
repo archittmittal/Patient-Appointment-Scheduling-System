@@ -31,7 +31,7 @@ router.post('/book', authenticate, async (req, res) => {
 
         const [result] = await db.query(
             'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp]
+            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp]
         );
 
         // Add to live queue only if appointment is today
@@ -294,22 +294,25 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
         } else if (status === 'MISSED') {
             // Find the maximum queue number for waiting patients
             const [[{ maxQ }]] = await conn.query(`
-                SELECT MAX(queue_number) AS maxQ 
-                FROM live_queue 
-                WHERE doctor_id = ? AND appointment_date = ? AND status IN ('WAITING', 'IN_PROGRESS')
+                SELECT MAX(lq.queue_number) AS maxQ 
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status IN ('WAITING', 'IN_PROGRESS')
             `, [queueRow.doctor_id, queueRow.appointment_date]);
             
             // Re-insert 5 positions down or at the end of the queue, whichever is strictly closer
-            const targetQ = Math.min(queueRow.queue_number + 5, (maxQ || queueRow.queue_number));
+            const shiftCount = 5;
+            const targetQ = Math.min(queueRow.queue_number + shiftCount, (maxQ || queueRow.queue_number));
 
             // Shift patients between current and target forward in the line
             if (targetQ > queueRow.queue_number) {
                 await conn.query(`
-                    UPDATE live_queue 
-                    SET queue_number = queue_number - 1 
-                    WHERE doctor_id = ? AND appointment_date = ? 
-                      AND queue_number > ? AND queue_number <= ? 
-                      AND status IN ('WAITING', 'IN_PROGRESS')
+                    UPDATE live_queue lq
+                    JOIN appointments a ON lq.appointment_id = a.id
+                    SET lq.queue_number = lq.queue_number - 1 
+                    WHERE a.doctor_id = ? AND a.appointment_date = ? 
+                      AND lq.queue_number > ? AND lq.queue_number <= ? 
+                      AND lq.status IN ('WAITING', 'IN_PROGRESS')
                  `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number, targetQ]);
             }
 
@@ -320,6 +323,14 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 WHERE id = ?
             `, [targetQ, req.params.queueId]);
             
+            // Notify the missed patient
+            notificationService.notifyMissed(
+                queueRow.patient_id,
+                doctorName,
+                targetQ,
+                targetQ - queueRow.queue_number
+            ).catch(err => console.error('Missed Notification Error:', err));
+
             // Recalculate estimates for remaining queue
             recalculateQueueEstimates(queueRow.doctor_id, queueRow.appointment_date)
                 .catch(err => console.error('Failed to recalculate estimates:', err));

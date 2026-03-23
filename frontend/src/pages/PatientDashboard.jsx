@@ -11,8 +11,11 @@ const STATUS_STYLES = {
     CANCELLED: 'bg-red-100 text-red-700',
 };
 
-const StatCard = ({ title, value, icon: Icon, sub }) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between group hover:shadow-md transition-shadow">
+const StatCard = ({ title, value, icon: Icon, sub, onClick }) => (
+    <div 
+        onClick={onClick}
+        className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between group transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:border-primary/30 active:scale-95' : ''}`}
+    >
         <div>
             <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
             <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
@@ -106,6 +109,7 @@ const PatientDashboard = () => {
     const [offers, setOffers] = useState([]);
     const [processingOffer, setProcessingOffer] = useState(null);
     const [selectedReportApt, setSelectedReportApt] = useState(null);
+    const [statModal, setStatModal] = useState(null); // 'doctors' | 'completed'
 
     useEffect(() => {
         if (!user?.id) return;
@@ -195,9 +199,15 @@ const PatientDashboard = () => {
     const completedCount = past.filter(a => a.status === 'COMPLETED').length;
     const uniqueDoctors = new Set([...upcoming, ...past].map(a => `${a.doc_first} ${a.doc_last}`)).size;
     const nextApt = upcoming[0];
+    const latestFollowUp = past.find(a => a.follow_up_date)?.follow_up_date;
+    
     const nextAptLabel = nextApt
         ? new Date(nextApt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : '—';
+        : (latestFollowUp ? new Date(latestFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
+    
+    const nextAptSub = nextApt 
+        ? nextApt.time_slot 
+        : (latestFollowUp ? 'Doctor recommended' : 'no upcoming');
 
     const displayed = activeTab === 'upcoming' ? upcoming : past;
 
@@ -223,10 +233,33 @@ const PatientDashboard = () => {
 
             {/* Real stat cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Upcoming" value={upcoming.length} icon={CalendarIcon} sub="confirmed & scheduled" />
-                <StatCard title="Completed Visits" value={completedCount} icon={CheckCircle2} sub="all time" />
-                <StatCard title="Doctors Seen" value={uniqueDoctors} icon={User} sub="unique doctors" />
-                <StatCard title="Next Visit" value={nextAptLabel} icon={Clock} sub={nextApt ? nextApt.time_slot : 'no upcoming'} />
+                <StatCard 
+                    title="Upcoming" 
+                    value={upcoming.length} 
+                    icon={CalendarIcon} 
+                    sub="confirmed & scheduled" 
+                    onClick={() => setActiveTab('upcoming')}
+                />
+                <StatCard 
+                    title="Completed Visits" 
+                    value={completedCount} 
+                    icon={CheckCircle2} 
+                    sub="click to view history" 
+                    onClick={() => setStatModal('completed')}
+                />
+                <StatCard 
+                    title="Doctors Seen" 
+                    value={uniqueDoctors} 
+                    icon={User} 
+                    sub="click to view doctors" 
+                    onClick={() => setStatModal('doctors')}
+                />
+                <StatCard 
+                    title="Next Visit" 
+                    value={nextAptLabel} 
+                    icon={CalendarIcon} 
+                    sub={nextAptSub} 
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -456,6 +489,93 @@ const PatientDashboard = () => {
                             >
                                 Close
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Stat Details Modal */}
+            {statModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {statModal === 'doctors' ? 'Doctors You\'ve Seen' : 'Completed Visit Registry'}
+                            </h3>
+                            <button
+                                onClick={() => setStatModal(null)}
+                                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            {statModal === 'doctors' ? (
+                                <div className="space-y-6">
+                                    {Array.from(new Set([...upcoming, ...past].map(a => a.doctor_id))).map(docId => {
+                                        const apts = [...upcoming, ...past].filter(a => a.doctor_id === docId);
+                                        const doc = apts[0];
+                                        return (
+                                            <div key={docId} className="space-y-3">
+                                                <div className="flex items-center gap-4 p-2">
+                                                    <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center font-bold text-lg">
+                                                        {doc.doc_first[0]}{doc.doc_last[0]}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900 text-lg">Dr. {doc.doc_first} {doc.doc_last}</h4>
+                                                        <p className="text-sm text-gray-500">{doc.specialty}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="grid gap-2 pl-2">
+                                                    {apts.map(apt => (
+                                                        <div key={apt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                            <div>
+                                                                <p className="text-xs font-bold text-gray-600">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                                                                <p className="text-sm text-gray-800">{apt.time_slot} • <span className={`font-medium ${apt.status === 'COMPLETED' ? 'text-blue-600' : 'text-green-600'}`}>{apt.status}</span></p>
+                                                            </div>
+                                                            {apt.status === 'COMPLETED' && (
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        setSelectedReportApt(apt);
+                                                                        setStatModal(null);
+                                                                    }}
+                                                                    className="px-3 py-1.5 bg-white text-[10px] font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors"
+                                                                >
+                                                                    View Summary
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {past.filter(a => a.status === 'COMPLETED').map(apt => (
+                                        <div key={apt.id} className="p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-bold text-blue-600 mb-1">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                                                <h4 className="font-bold text-gray-900">Dr. {apt.doc_first} {apt.doc_last}</h4>
+                                                <p className="text-xs text-gray-500">{apt.symptoms || 'General Checkup'}</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedReportApt(apt);
+                                                    setStatModal(null);
+                                                }}
+                                                className="px-4 py-2 bg-white text-xs font-bold text-blue-600 border border-blue-100 rounded-xl hover:shadow-sm"
+                                            >
+                                                Clinical Summary
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {past.filter(a => a.status === 'COMPLETED').length === 0 && (
+                                        <p className="text-center py-10 text-gray-400 italic">No completed records found yet.</p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

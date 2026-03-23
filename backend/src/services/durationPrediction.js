@@ -125,7 +125,7 @@ async function isFollowUpPatient(patientId, doctorId) {
     try {
         const [[result]] = await db.query(
             `SELECT COUNT(*) as visits FROM appointments 
-             WHERE patient_id = ? AND doctor_id = ? AND status = 'completed'`,
+             WHERE patient_id = ? AND doctor_id = ? AND status = 'COMPLETED'`,
             [patientId, doctorId]
         );
         return result.visits > 0;

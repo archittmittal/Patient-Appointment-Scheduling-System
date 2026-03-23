@@ -180,7 +180,7 @@ async function getHistoricalDelay(doctorId, timeOfDay) {
         FROM appointments a
         JOIN live_queue lq ON a.id = lq.appointment_id
         WHERE a.doctor_id = ?
-        AND a.status = 'completed'
+        AND a.status = 'COMPLETED'
         AND CAST(SUBSTRING_INDEX(a.time_slot, ':', 1) AS UNSIGNED) BETWEEN ? AND ?
         AND a.appointment_date > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     `, [doctorId, timeOfDay.startHour, timeOfDay.endHour]);

@@ -13,6 +13,7 @@ const NOTIFICATION_ICONS = {
     DELAY_ALERT: '⚠️',
     WAITLIST_OFFER: '🎉',
     CANCELLATION: '❌',
+    MISSED: '⚠️',
     GENERAL: '📣'
 };
 
@@ -48,7 +49,7 @@ const Navbar = () => {
                     
                     // Check for high-priority alerts to popup
                     const priorityAlerts = data.filter(n => 
-                        (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING') && 
+                        (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING' || n.type === 'MISSED') && 
                         !n.read_at &&
                         new Date(n.sent_at) > new Date(Date.now() - 5 * 60000) // Within last 5 mins
                     );
