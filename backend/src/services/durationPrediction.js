@@ -125,7 +125,7 @@ async function isFollowUpPatient(patientId, doctorId) {
     try {
         const [[result]] = await db.query(
             `SELECT COUNT(*) as visits FROM appointments 
-             WHERE patient_id = ? AND doctor_id = ? AND status = 'COMPLETED'`,
+             WHERE patient_id = ? AND doctor_id = ? AND status = 'completed'`,
             [patientId, doctorId]
         );
         return result.visits > 0;
@@ -347,35 +347,46 @@ async function calculateQueueWaitTime(appointmentId) {
 
         // Get all appointments ahead in queue with WAITING status
         const [aheadQueue] = await db.query(`
-            SELECT a.id, a.symptoms, a.patient_id, lq.predicted_duration,
-                   (SELECT COUNT(*) > 0 FROM appointments prev 
-                    WHERE prev.patient_id = a.patient_id 
-                    AND prev.doctor_id = a.doctor_id 
-                    AND prev.status = 'COMPLETED') as is_follow_up
+            SELECT a.id, lq.predicted_duration
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE a.doctor_id = ? 
               AND a.appointment_date = ?
-              AND lq.queue_number < ?
+              AND lq.queue_number <= ?
               AND lq.status IN ('WAITING', 'IN_PROGRESS')
             ORDER BY lq.queue_number ASC
         `, [queueEntry.doctor_id, queueEntry.appointment_date, queueEntry.queue_number]);
 
+        // Get consultation_start for the in-progress patient if it exists
+        const [[inProgressInfo]] = await db.query(`
+            SELECT a.id, a.consultation_start, lq.predicted_duration
+            FROM live_queue lq
+            JOIN appointments a ON lq.appointment_id = a.id
+            WHERE a.doctor_id = ? 
+              AND a.appointment_date = ?
+              AND lq.status = 'IN_PROGRESS'
+            LIMIT 1
+        `, [queueEntry.doctor_id, queueEntry.appointment_date]);
+
         // Calculate total wait time
         let totalWait = 0;
+        const now = new Date();
+
         for (const apt of aheadQueue) {
-            // Use stored predicted_duration if available, otherwise predict
-            if (apt.predicted_duration) {
-                totalWait += apt.predicted_duration;
-            } else {
-                const prediction = await predictConsultationDuration({
-                    doctorId: queueEntry.doctor_id,
-                    patientId: apt.patient_id,
-                    symptoms: apt.symptoms,
-                    isFollowUp: apt.is_follow_up
-                });
-                totalWait += prediction.predictedDuration;
+            // If this is the patient we are calculating for, we don't add their duration to THEIR wait time
+            if (apt.id === appointmentId) continue;
+
+            let effectiveDuration = apt.predicted_duration || DEFAULT_DURATION;
+
+            // If this patient is IN_PROGRESS, calculate remaining time
+            if (inProgressInfo && apt.id === inProgressInfo.id && inProgressInfo.consultation_start) {
+                const startTime = new Date(inProgressInfo.consultation_start);
+                const elapsedMins = Math.floor((now - startTime) / 60000);
+                // User requirement: minimum 5-7 mins. We'll use 5 mins.
+                effectiveDuration = Math.max(5, (inProgressInfo.predicted_duration || DEFAULT_DURATION) - elapsedMins);
             }
+
+            totalWait += effectiveDuration;
         }
 
         return {
@@ -403,7 +414,20 @@ async function recalculateQueueEstimates(doctorId, appointmentDate) {
             ORDER BY lq.queue_number ASC
         `, [doctorId, appointmentDate]);
 
+        // Get in-progress patient's remaining time
+        const [[inProgress]] = await db.query(`
+            SELECT a.consultation_start, lq.predicted_duration
+            FROM live_queue lq
+            JOIN appointments a ON lq.appointment_id = a.id
+            WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status = 'IN_PROGRESS'
+            LIMIT 1
+        `, [doctorId, appointmentDate]);
+
         let cumulativeWait = 0;
+        if (inProgress && inProgress.consultation_start) {
+            const elapsed = Math.floor((new Date() - new Date(inProgress.consultation_start)) / 60000);
+            cumulativeWait = Math.max(5, (inProgress.predicted_duration || DEFAULT_DURATION) - elapsed);
+        }
         
         for (const entry of queue) {
             const prediction = await predictConsultationDuration({
