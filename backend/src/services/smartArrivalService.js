@@ -23,11 +23,9 @@ async function calculateSmartArrival(appointmentId, options = {}) {
             a.time_slot,
             a.doctor_id,
             lq.queue_number,
-            lq.status as queue_status,
-            d.avg_consultation_time
+            lq.status as queue_status
         FROM appointments a
         LEFT JOIN live_queue lq ON a.id = lq.appointment_id
-        LEFT JOIN doctors d ON a.doctor_id = d.id
         WHERE a.id = ?
     `, [appointmentId]);
 
@@ -127,7 +125,7 @@ async function getDoctorStats(doctorId) {
 
     return {
         totalAppointments: stats?.total_appointments || 0,
-        avgConsultationMins: stats?.avg_consultation_mins || doctor?.avg_consultation_time || 15,
+        avgConsultationMins: stats?.avg_consultation_mins || (doctor ? doctor.avg_consultation_time : 15),
         stddevMins: stats?.stddev_mins || 5
     };
 }
@@ -182,8 +180,8 @@ async function getHistoricalDelay(doctorId, timeOfDay) {
         FROM appointments a
         JOIN live_queue lq ON a.id = lq.appointment_id
         WHERE a.doctor_id = ?
-        AND a.status = 'COMPLETED'
-        AND HOUR(a.time_slot) BETWEEN ? AND ?
+        AND a.status = 'completed'
+        AND CAST(SUBSTRING_INDEX(a.time_slot, ':', 1) AS UNSIGNED) BETWEEN ? AND ?
         AND a.appointment_date > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     `, [doctorId, timeOfDay.startHour, timeOfDay.endHour]);
 
