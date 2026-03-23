@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Phone, Mail, MapPin, Shield, CreditCard, Bell, Settings, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
+import { Pill, Activity, Calendar as CalendarIcon, ChevronRight, FileText } from 'lucide-react';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -29,12 +30,28 @@ const PatientProfile = () => {
     const [form, setForm] = useState({});
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState(null); // {type:'success'|'error', text}
+    const [pastVisits, setPastVisits] = useState([]);
+    const [latestFollowup, setLatestFollowup] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
         fetch(`${API}/api/patients/${user.id}`)
             .then(res => res.json())
             .then(data => setProfile(data))
+            .catch(err => console.error(err));
+
+        fetch(`${API}/api/patients/${user.id}/appointments?type=past`)
+            .then(res => res.json())
+            .then(data => {
+                const visits = Array.isArray(data) ? data : [];
+                setPastVisits(visits);
+                
+                // Find latest follow-up
+                const withFollowup = visits
+                    .filter(a => a.follow_up_date && new Date(a.follow_up_date) >= new Date())
+                    .sort((a, b) => new Date(a.follow_up_date) - new Date(b.follow_up_date));
+                setLatestFollowup(withFollowup[0] || null);
+            })
             .catch(err => console.error(err));
     }, [user?.id]);
 
@@ -222,6 +239,91 @@ const PatientProfile = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Latest Follow-up Recommendation Block */}
+                    {latestFollowup && (
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-3xl shadow-sm border border-amber-100 p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2.5 bg-amber-100 rounded-xl text-amber-600">
+                                    <CalendarIcon size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900">Follow-up Recommendation</h3>
+                                    <p className="text-sm text-amber-700">Recommended by your doctor based on your last visit.</p>
+                                </div>
+                            </div>
+                            
+                            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-white flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 font-bold text-lg border border-amber-100">
+                                        {new Date(latestFollowup.follow_up_date).getDate()}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Scheduled For Around</p>
+                                        <p className="text-lg font-bold text-gray-900">
+                                            {new Date(latestFollowup.follow_up_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="hidden md:block h-10 w-px bg-gray-200"></div>
+                                <div className="text-center md:text-left">
+                                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">With Specialist</p>
+                                    <p className="text-lg font-bold text-gray-900">Dr. {latestFollowup.doc_first} {latestFollowup.doc_last}</p>
+                                    <p className="text-xs text-primary font-semibold">{latestFollowup.specialty}</p>
+                                </div>
+                                <button 
+                                    onClick={() => window.location.href = '/book'}
+                                    className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-95"
+                                >
+                                    Book Follow-up
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Recent Medical Records Summary */}
+                    {pastVisits.length > 0 && (
+                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                <Activity size={20} className="text-primary" /> Recent Medical Records
+                            </h3>
+                            <div className="space-y-4">
+                                {pastVisits.slice(0, 3).map(visit => (
+                                    <div key={visit.id} className="group p-5 bg-gray-50 hover:bg-blue-50/50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-all">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex gap-4">
+                                                <div className="p-3 bg-white rounded-xl shadow-sm text-gray-400 group-hover:text-primary transition-colors">
+                                                    <FileText size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-gray-900">Dr. {visit.doc_first} {visit.doc_last}</h4>
+                                                    <p className="text-xs text-gray-500">{visit.specialty} • {new Date(visit.appointment_date).toLocaleDateString()}</p>
+                                                    {(visit.diagnosis || visit.prescription) && (
+                                                        <div className="mt-3 flex gap-2">
+                                                            {visit.diagnosis && <span className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-[10px] font-bold uppercase">Diagnosis</span>}
+                                                            {visit.prescription && <span className="px-2 py-1 bg-blue-100 text-blue-600 rounded text-[10px] font-bold uppercase">Prescription</span>}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => window.location.href = '/dashboard'}
+                                                className="p-2 text-gray-400 hover:text-primary hover:bg-white rounded-full transition-all"
+                                            >
+                                                <ChevronRight size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button 
+                                    onClick={() => window.location.href = '/dashboard'}
+                                    className="w-full py-4 text-center text-sm font-bold text-primary hover:bg-primary-light rounded-2xl transition-all"
+                                >
+                                    View Full Medical History
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

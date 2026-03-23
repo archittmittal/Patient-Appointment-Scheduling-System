@@ -3,6 +3,7 @@ import { Bell, UserCircle, X, CheckCheck, Settings, LogOut, ChevronDown } from '
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import QueueAlertModal from './QueueAlertModal';
 
 const NOTIFICATION_ICONS = {
     QUEUE_UPDATE: '📊',
@@ -26,6 +27,7 @@ const Navbar = () => {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [activeAlert, setActiveAlert] = useState(null);
     const dropdownRef = useRef(null);
     const userMenuRef = useRef(null);
 
@@ -43,6 +45,26 @@ const Navbar = () => {
                 if (notifRes.ok) {
                     const data = await notifRes.json();
                     setNotifications(data);
+                    
+                    // Check for high-priority alerts to popup
+                    const priorityAlerts = data.filter(n => 
+                        (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING') && 
+                        !n.read_at &&
+                        new Date(n.sent_at) > new Date(Date.now() - 5 * 60000) // Within last 5 mins
+                    );
+
+                    if (priorityAlerts.length > 0) {
+                        const latestAlert = priorityAlerts[0];
+                        const seenAlerts = JSON.parse(localStorage.getItem('seen_queue_alerts') || '[]');
+                        
+                        if (!seenAlerts.includes(latestAlert.id)) {
+                            // Parse data if it's a string
+                            if (typeof latestAlert.data === 'string') {
+                                try { latestAlert.data = JSON.parse(latestAlert.data); } catch(e) {}
+                            }
+                            setActiveAlert(latestAlert);
+                        }
+                    }
                 }
                 if (countRes.ok) {
                     const { count } = await countRes.json();
@@ -54,10 +76,44 @@ const Navbar = () => {
         };
         
         fetchNotifications();
-        // Poll for new notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000);
+        // Poll for new notifications every 15 seconds for real-time feel
+        const interval = setInterval(fetchNotifications, 15000);
         return () => clearInterval(interval);
     }, [user]);
+
+    const handleAlertAction = async () => {
+        if (!activeAlert) return;
+        
+        // Mark as read and save to seen list
+        const seenAlerts = JSON.parse(localStorage.getItem('seen_queue_alerts') || '[]');
+        seenAlerts.push(activeAlert.id);
+        localStorage.setItem('seen_queue_alerts', JSON.stringify(seenAlerts));
+
+        try {
+            await fetch(`${API}/api/notifications/${activeAlert.id}/read`, {
+                method: 'POST',
+                headers: authedHeaders()
+            });
+            
+            // If it's your turn and you have an appointment, navigate to waiting room
+            if (activeAlert.type === 'YOUR_TURN' && activeAlert.data?.appointment_id) {
+                navigate(`/virtual-waiting/${activeAlert.data.appointment_id}`);
+            }
+        } catch (err) {
+            console.error('Error handling alert action:', err);
+        }
+        
+        setActiveAlert(null);
+    };
+
+    const handleAlertClose = () => {
+        if (activeAlert) {
+            const seenAlerts = JSON.parse(localStorage.getItem('seen_queue_alerts') || '[]');
+            seenAlerts.push(activeAlert.id);
+            localStorage.setItem('seen_queue_alerts', JSON.stringify(seenAlerts));
+        }
+        setActiveAlert(null);
+    };
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -222,6 +278,13 @@ const Navbar = () => {
                     )}
                 </div>
             </div>
+
+            {/* Global Queue Alert Modal */}
+            <QueueAlertModal 
+                alert={activeAlert} 
+                onClose={handleAlertClose}
+                onAction={handleAlertAction}
+            />
         </header>
     );
 };
