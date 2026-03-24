@@ -161,7 +161,8 @@ const notificationService = require('../services/notificationService');
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 // Now also records consultation duration for AI prediction training (Issue #48)
 router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
-    const { status, diagnosis, notes, prescription, follow_up_date } = req.body;
+    const status = (req.body.status || '').toUpperCase();
+    const { diagnosis, notes, prescription, follow_up_date } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
@@ -193,10 +194,9 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
 
         // 2. Handle status-specific logic
         if (status === 'IN_PROGRESS') {
-            // Record consultation start time
             await conn.query(
-                'UPDATE appointments SET consultation_start = NOW() WHERE id = ?',
-                [queueRow.appointment_id]
+                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'IN_PROGRESS' WHERE lq.id = ?",
+                [req.params.queueId]
             );
 
             // Notify CURRENT patient that it's their turn
@@ -368,7 +368,6 @@ router.patch('/:id/cancel', async (req, res) => {
             [req.params.id]
         );
 
-        // If the appointment is today, remove it from the live queue too
         const todayStr = new Date().toISOString().split('T')[0];
         const aptDate = String(appt.appointment_date).split('T')[0];
         if (aptDate === todayStr) {

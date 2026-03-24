@@ -40,9 +40,18 @@ async function calculateSmartArrival(appointmentId, options = {}) {
     // Get current queue status for this doctor today
     const queueStatus = await getCurrentQueueStatus(appointment.doctor_id);
     
-    // Calculate expected wait based on position
-    const position = appointment.queue_number || 1;
-    const patientsAhead = Math.max(0, position - queueStatus.currentPosition - 1);
+    // Calculate actual patients ahead in queue (Waiting or In Progress)
+    const [[{ aheadCount }]] = await pool.query(`
+        SELECT COUNT(*) as aheadCount
+        FROM live_queue lq
+        JOIN appointments a_ahead ON lq.appointment_id = a_ahead.id
+        WHERE a_ahead.doctor_id = ? 
+          AND a_ahead.appointment_date = CURDATE()
+          AND lq.queue_number < ?
+          AND lq.status IN ('WAITING', 'IN_PROGRESS')
+    `, [appointment.doctor_id, appointment.queue_number]);
+
+    const patientsAhead = aheadCount || 0;
     const estimatedWaitMins = patientsAhead * avgConsultTime;
 
     // Get historical delay patterns for this time of day
