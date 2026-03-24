@@ -174,7 +174,7 @@ const PatientProfile = () => {
                         </section>
 
                         <div className="pt-8 border-t border-gray-100 flex justify-between items-end">
-                            <div className="space-y-1">
+                            <div className="flex-1 space-y-6">
                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Digitally Signed By</p>
                                 <p className="font-serif italic text-xl text-gray-800">Dr. {visit.doc_first} {visit.doc_last}</p>
                                 <p className="text-xs text-primary font-bold">{visit.specialty}</p>
@@ -218,16 +218,20 @@ const PatientProfile = () => {
                     </div>
 
                     <div className="space-y-3">
-                        <ProfileMenu icon={User} title="Personal Info" description="Update your details" isActive={true} />
-                        <ProfileMenu icon={Shield} title="Medical Records" description="View past reports" />
-                        <ProfileMenu icon={CreditCard} title="Payment Methods" description="Manage cards & billing" />
-                        <ProfileMenu icon={Bell} title="Notifications" description="Alert preferences" />
+                        <div onClick={() => document.getElementById('personal-info')?.scrollIntoView({ behavior: 'smooth' })}>
+                            <ProfileMenu icon={User} title="Personal Info" description="Edit your details" isActive={true} />
+                        </div>
+                        <div onClick={() => document.getElementById('medical-history')?.scrollIntoView({ behavior: 'smooth' })}>
+                            <ProfileMenu icon={Shield} title="Medical Records" description="View past reports" />
+                        </div>
+                        <ProfileMenu icon={Bell} title="Notifications" description="Email and SMS alerts" />
+                        <ProfileMenu icon={Lock} title="Privacy" description="Security settings" />
                         <ProfileMenu icon={Settings} title="Settings" description="App settings & privacy" />
                     </div>
                 </div>
 
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                    <div id="personal-info" className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
                         <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                             <h3 className="text-xl font-bold text-gray-900">Personal Information</h3>
                             {!isEditing ? (
@@ -362,7 +366,7 @@ const PatientProfile = () => {
 
                     {/* Recent Medical Records Summary */}
                     {pastVisits.length > 0 && (
-                        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                        <div id="medical-history" className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
                             <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <Activity size={20} className="text-primary" /> Recent Medical Records
                             </h3>
@@ -395,7 +399,7 @@ const PatientProfile = () => {
                                     </div>
                                 ))}
                                 <button 
-                                    onClick={() => window.location.href = '/dashboard'}
+                                    onClick={() => navigate('/patient-dashboard')}
                                     className="w-full py-4 text-center text-sm font-bold text-primary hover:bg-primary-light rounded-2xl transition-all"
                                 >
                                     View Full Medical History
