@@ -273,6 +273,11 @@ async function recordConsultationDuration({
         // EMA gives more weight to recent consultations
         const alpha = 0.1; // Smoothing factor
 
+        const [currentPatient] = await db.query(
+            "SELECT a.consultation_start FROM live_queue lq JOIN appointments a ON lq.appointment_id = a.id WHERE lq.doctor_id = ? AND lq.status = 'IN_PROGRESS' LIMIT 1",
+            [appt.doctor_id]
+        );
+
         const [[currentAvg]] = await conn.query(
             'SELECT * FROM doctor_avg_times WHERE doctor_id = ?',
             [doctorId]
@@ -391,7 +396,7 @@ async function calculateQueueWaitTime(appointmentId) {
 
         return {
             estimatedWait: totalWait,
-            patientsAhead: aheadQueue.length
+            patientsAhead: Math.max(0, aheadQueue.length - 1)
         };
     } catch (error) {
         console.error('Error calculating queue wait time:', error);

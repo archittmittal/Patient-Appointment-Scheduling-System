@@ -81,6 +81,8 @@ function App() {
             <Route path="/admin-appointments" element={<AdminAppointments />} />
             <Route path="/notifications/settings" element={<NotificationSettings />} />
           </Route>
+          {/* Catch-all redirect to root */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

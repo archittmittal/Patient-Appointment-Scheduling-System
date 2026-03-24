@@ -38,7 +38,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const today = new Date().toISOString().split('T')[0];
     const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
     const isToday = today === aptDate;
-    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING'].includes(apt.status);
+    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS'].includes((apt.status || '').toUpperCase());
 
     return (
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors">
@@ -52,7 +52,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
                         <p className="text-xs text-gray-500">{apt.specialty}</p>
                     </div>
                 </div>
-                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_STYLES[apt.status] || 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
                     {statusLabel}
                 </span>
             </div>
@@ -83,7 +83,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
                 </button>
             )}
             {/* View Report Button */}
-            {apt.status === 'COMPLETED' && (apt.diagnosis || apt.prescription || apt.notes) && (
+            {(apt.status || '').toUpperCase() === 'COMPLETED' && (apt.diagnosis || apt.prescription || apt.notes) && (
                 <button
                     onClick={() => onViewReport(apt)}
                     className="w-full mt-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
@@ -196,7 +196,7 @@ const PatientDashboard = () => {
     };
 
     // Real derived stats
-    const completedCount = past.filter(a => a.status === 'COMPLETED').length;
+    const completedCount = past.filter(a => (a.status || '').toUpperCase() === 'COMPLETED').length;
     const uniqueDoctors = new Set([...upcoming, ...past].map(a => `${a.doc_first} ${a.doc_last}`)).size;
     const nextApt = upcoming[0];
     const latestFollowUp = past.find(a => a.follow_up_date)?.follow_up_date;
@@ -395,8 +395,8 @@ const PatientDashboard = () => {
                                             Dr. {apt.doc_first} {apt.doc_last}
                                         </h4>
                                         <p className="text-xs text-gray-500">{apt.specialty}</p>
-                                        <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_STYLES[apt.status] || 'bg-gray-100 text-gray-600'}`}>
-                                            {apt.status.toLowerCase()}
+                                        <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
+                                            {(apt.status || 'pending').toLowerCase()}
                                         </span>
                                     </div>
                                 ))}
@@ -519,7 +519,7 @@ const PatientDashboard = () => {
                                             <div key={docId} className="space-y-3">
                                                 <div className="flex items-center gap-4 p-2">
                                                     <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center font-bold text-lg">
-                                                        {doc.doc_first[0]}{doc.doc_last[0]}
+                                                        {(doc.doc_first || '?')[0]}{(doc.doc_last || '?')[0]}
                                                     </div>
                                                     <div>
                                                         <h4 className="font-bold text-gray-900 text-lg">Dr. {doc.doc_first} {doc.doc_last}</h4>
@@ -531,7 +531,7 @@ const PatientDashboard = () => {
                                                         <div key={apt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                                                             <div>
                                                                 <p className="text-xs font-bold text-gray-600">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                                                                <p className="text-sm text-gray-800">{apt.time_slot} • <span className={`font-medium ${apt.status === 'COMPLETED' ? 'text-blue-600' : 'text-green-600'}`}>{apt.status}</span></p>
+                                                                <p className="text-sm text-gray-800">{apt.time_slot} • <span className={`font-medium ${(apt.status || '').toUpperCase() === 'COMPLETED' ? 'text-blue-600' : 'text-green-600'}`}>{apt.status || 'Pending'}</span></p>
                                                             </div>
                                                             {apt.status === 'COMPLETED' && (
                                                                 <button 
