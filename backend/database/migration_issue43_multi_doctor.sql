@@ -39,11 +39,10 @@ CREATE TABLE IF NOT EXISTS journey_stops (
     INDEX idx_doctor_status (doctor_id, status)
 );
 
--- Add location fields to doctor_profiles if not exists
-ALTER TABLE doctor_profiles 
+-- Add location fields to doctors if they don't exist
+ALTER TABLE doctors 
 ADD COLUMN IF NOT EXISTS floor_number INT DEFAULT 1,
-ADD COLUMN IF NOT EXISTS building VARCHAR(50) DEFAULT 'A',
-ADD COLUMN IF NOT EXISTS room_number VARCHAR(20);
+ADD COLUMN IF NOT EXISTS building VARCHAR(50) DEFAULT 'A';
 
 -- Journey route templates (common multi-doctor paths)
 CREATE TABLE IF NOT EXISTS journey_templates (
