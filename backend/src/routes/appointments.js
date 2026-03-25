@@ -486,7 +486,7 @@ router.post('/waitlist/join', authenticate, async (req, res) => {
         
         // Get patient ID from user
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
         
@@ -516,7 +516,7 @@ router.post('/waitlist/join', authenticate, async (req, res) => {
 router.delete('/waitlist/:id', authenticate, async (req, res) => {
     try {
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
 
@@ -541,7 +541,7 @@ router.delete('/waitlist/:id', authenticate, async (req, res) => {
 router.get('/waitlist/my', authenticate, async (req, res) => {
     try {
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
 
@@ -561,7 +561,7 @@ router.get('/waitlist/my', authenticate, async (req, res) => {
 router.get('/waitlist/offers', authenticate, async (req, res) => {
     try {
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
 
@@ -581,7 +581,7 @@ router.get('/waitlist/offers', authenticate, async (req, res) => {
 router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
     try {
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
 
@@ -606,7 +606,7 @@ router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
 router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
     try {
         const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
 
