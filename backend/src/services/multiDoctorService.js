@@ -7,82 +7,68 @@
 const db = require('../config/db');
 
 /**
- * Create a multi-doctor appointment journey
+ * Create a multi-doctor appointment journey (COORDINATION - Issue #43)
  */
 const createJourney = async (patientId, appointments) => {
-    // appointments: [{ doctorId, reason, preferredTime }]
+    // appointments: [{ doctorId, reason, timeSlot, date }]
     
     if (!appointments || appointments.length < 2) {
         throw new Error('Multi-doctor journey requires at least 2 doctors');
     }
 
-    // Start transaction
     const connection = await db.getConnection();
     await connection.beginTransaction();
 
     try {
-        // Create journey record
+        // 1. Create journey record
+        const scheduledDate = appointments[0].date;
         const [journeyResult] = await connection.execute(`
             INSERT INTO multi_doctor_journeys 
-            (patient_id, total_stops, status, created_at)
-            VALUES (?, ?, 'PENDING', NOW())
-        `, [patientId, appointments.length]);
+            (patient_id, total_stops, status, scheduled_date, created_at)
+            VALUES (?, ?, 'PENDING', ?, NOW())
+        `, [patientId, appointments.length, scheduledDate]);
 
         const journeyId = journeyResult.insertId;
 
-        // Get doctor details for optimization
-        const doctorIds = appointments.map(a => a.doctorId);
-        const [doctors] = await connection.execute(`
-            SELECT d.id, CONCAT(d.first_name, ' ', d.last_name) as name,
-                dp.specialty, dp.floor_number, dp.building
-            FROM doctors d
-            LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
-            WHERE d.id IN (${doctorIds.map(() => '?').join(',')})
-        `, doctorIds);
-
-        // Create doctor map
-        const doctorMap = {};
-        doctors.forEach(d => doctorMap[d.id] = d);
-
-        // Optimize order based on floor/building (simple optimization)
-        const optimizedAppointments = [...appointments].sort((a, b) => {
-            const docA = doctorMap[a.doctorId] || {};
-            const docB = doctorMap[b.doctorId] || {};
-            
-            // Sort by building first, then floor
-            if (docA.building !== docB.building) {
-                return (docA.building || 'A').localeCompare(docB.building || 'A');
-            }
-            return (docA.floor_number || 1) - (docB.floor_number || 1);
-        });
-
-        // Create individual appointments
+        // 2. Create individual appointments and journey stops
         const journeyStops = [];
-        for (let i = 0; i < optimizedAppointments.length; i++) {
-            const apt = optimizedAppointments[i];
-            const doctor = doctorMap[apt.doctorId] || {};
+        for (let i = 0; i < appointments.length; i++) {
+            const aptData = appointments[i];
+            
+            // A. Create the actual appointment
+            const [aptResult] = await connection.execute(`
+                INSERT INTO appointments 
+                (patient_id, doctor_id, appointment_date, time_slot, status, reason, created_at)
+                VALUES (?, ?, ?, ?, 'PENDING', ?, NOW())
+            `, [
+                patientId, 
+                aptData.doctorId, 
+                aptData.date, 
+                aptData.timeSlot, 
+                aptData.reason || 'Multi-Doctor Consultation'
+            ]);
 
-            // Insert journey stop
+            const appointmentId = aptResult.insertId;
+
+            // B. Create the journey stop linked to the appointment
             const [stopResult] = await connection.execute(`
                 INSERT INTO journey_stops 
-                (journey_id, doctor_id, stop_order, reason, status, estimated_duration_mins)
-                VALUES (?, ?, ?, ?, 'PENDING', ?)
+                (journey_id, doctor_id, appointment_id, stop_order, reason, status, estimated_duration_mins)
+                VALUES (?, ?, ?, ?, ?, 'PENDING', 20)
             `, [
                 journeyId,
-                apt.doctorId,
+                aptData.doctorId,
+                appointmentId,
                 i + 1,
-                apt.reason || 'Consultation',
-                apt.estimatedDuration || 20
+                aptData.reason || 'Multi-Doctor Consultation'
             ]);
 
             journeyStops.push({
                 stopId: stopResult.insertId,
+                appointmentId,
                 order: i + 1,
-                doctorId: apt.doctorId,
-                doctorName: doctor.name,
-                specialty: doctor.specialty,
-                floor: doctor.floor_number,
-                building: doctor.building,
+                doctorId: aptData.doctorId,
+                timeSlot: aptData.timeSlot,
                 status: 'PENDING'
             });
         }
@@ -95,7 +81,7 @@ const createJourney = async (patientId, appointments) => {
             totalStops: appointments.length,
             status: 'PENDING',
             stops: journeyStops,
-            message: 'Multi-doctor journey created successfully'
+            message: 'Coordinated multi-doctor journey booked successfully'
         };
 
     } catch (err) {
@@ -351,6 +337,9 @@ const getSuggestedCombinations = async (symptom) => {
 /**
  * Get journey analytics (admin/doctor)
  */
+/**
+ * Get journey analytics (admin/doctor)
+ */
 const getJourneyAnalytics = async (startDate, endDate) => {
     try {
         const [stats] = await db.execute(`
@@ -390,6 +379,127 @@ const getJourneyAnalytics = async (startDate, endDate) => {
     }
 };
 
+/**
+ * COORDINATION & SCHEDULING (Issue #43)
+ * Find optimal combinations of slots for multiple doctors
+ */
+const getOptimalSlotPaths = async (doctorIds, date) => {
+    // 1. Get doctor details and travel factors
+    const [doctors] = await db.execute(`
+        SELECT d.id, CONCAT(d.first_name, ' ', d.last_name) as name,
+            dp.specialty, dp.floor_number, dp.building, dp.room_number,
+            d.max_patients_per_slot
+        FROM doctors d
+        LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
+        WHERE d.id IN (${doctorIds.map(() => '?').join(',')})
+    `, doctorIds);
+
+    const docMap = {};
+    doctors.forEach(d => docMap[d.id] = d);
+
+    // 2. Fetch available slots for each doctor on that date
+    const doctorSlots = {};
+    for (const id of doctorIds) {
+        const [booked] = await db.execute(`
+            SELECT time_slot, COUNT(*) as count 
+            FROM appointments 
+            WHERE doctor_id = ? AND appointment_date = ? AND status != 'CANCELLED'
+            GROUP BY time_slot
+        `, [id, date]);
+
+        const bookedMap = {};
+        booked.forEach(b => bookedMap[b.time_slot] = b.count);
+
+        // Standard slots (9am - 5pm, 30m intervals)
+        const allSlots = [
+            '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
+            '12:00 PM', '12:30 PM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM',
+            '04:00 PM', '04:30 PM'
+        ];
+
+        const capacity = docMap[id]?.max_patients_per_slot || 15;
+        doctorSlots[id] = allSlots.filter(s => (bookedMap[s] || 0) < capacity);
+    }
+
+    // 3. Find valid paths (sequences of slots with travel/buffer time)
+    // A path is valid if: end_time(prev) + buffer + travel_time <= start_time(curr)
+    const paths = [];
+    
+    // Sort doctors to test permutations? For now, keep selected order or optimized order
+    const orderedDoctorIds = [...doctorIds]; 
+
+    const findPathsRecursive = (currentIndex, currentPath) => {
+        if (currentIndex === orderedDoctorIds.length) {
+            paths.push([...currentPath]);
+            return;
+        }
+
+        const doctorId = orderedDoctorIds[currentIndex];
+        const available = doctorSlots[doctorId] || [];
+
+        for (const slot of available) {
+            if (currentPath.length === 0) {
+                findPathsRecursive(currentIndex + 1, [{ doctorId, slot, doctorName: docMap[doctorId].name }]);
+            } else {
+                const prev = currentPath[currentPath.length - 1];
+                const prevDoc = docMap[prev.doctorId];
+                const currDoc = docMap[doctorId];
+
+                // Calculate required gap (mins)
+                let travelMins = 5; // internal building
+                if (prevDoc.building !== currDoc.building) travelMins = 15;
+                else travelMins += Math.abs((prevDoc.floor_number || 1) - (currDoc.floor_number || 1)) * 2;
+
+                const bufferMins = 15; // mandatory buffer
+                const totalGapNeeded = travelMins + bufferMins;
+
+                if (isSlotAfter(prev.slot, slot, totalGapNeeded)) {
+                    findPathsRecursive(currentIndex + 1, [...currentPath, { doctorId, slot, doctorName: docMap[doctorId].name }]);
+                }
+            }
+        }
+    };
+
+    findPathsRecursive(0, []);
+
+    // 4. Rank paths by total duration (first to last)
+    const rankedPaths = paths.map(p => {
+        const start = p[0].slot;
+        const end = p[p.length - 1].slot;
+        const duration = diffMins(start, end) + 20; // +20 for last consultation
+        
+        return {
+            items: p,
+            totalDurationMins: duration,
+            startTime: start,
+            endTime: end
+        };
+    }).sort((a, b) => a.totalDurationMins - b.totalDurationMins);
+
+    return rankedPaths.slice(0, 5); // Return top 5
+};
+
+// Helper: Slot time comparison
+const isSlotAfter = (slot1, slot2, gapMins) => {
+    return diffMins(slot1, slot2) >= gapMins;
+};
+
+const diffMins = (slot1, slot2) => {
+    const d1 = parseTime(slot1);
+    const d2 = parseTime(slot2);
+    return (d2 - d1) / (1000 * 60);
+};
+
+const parseTime = (timeStr) => {
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0);
+    return d;
+};
+
 module.exports = {
     createJourney,
     getPatientJourneys,
@@ -397,5 +507,6 @@ module.exports = {
     updateStopStatus,
     getRouteOptimization,
     getSuggestedCombinations,
-    getJourneyAnalytics
+    getJourneyAnalytics,
+    getOptimalSlotPaths
 };

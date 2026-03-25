@@ -200,11 +200,14 @@ const MultiDoctorJourney = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     
-    // Create journey state
     const [doctors, setDoctors] = useState([]);
     const [selectedDoctors, setSelectedDoctors] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState(null);
+    const [creationStep, setCreationStep] = useState(1); // 1: Select, 2: Slots
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [optimalPaths, setOptimalPaths] = useState([]);
+    const [selectedPathIndex, setSelectedPathIndex] = useState(null);
 
     // Fetch journeys
     useEffect(() => {
@@ -261,22 +264,51 @@ const MultiDoctorJourney = () => {
         });
     };
 
+    // Find optimal slots
+    const handleFindSlots = async () => {
+        if (!selectedDate) return alert('Please select a date');
+        
+        setIsCreating(true);
+        try {
+            const res = await fetch(`${API}/api/multi-doctor/coordinate-slots`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({
+                    doctorIds: selectedDoctors.map(d => d.id),
+                    date: selectedDate
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            
+            setOptimalPaths(data);
+            setCreationStep(2);
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
     // Create journey
     const handleCreateJourney = async () => {
-        if (selectedDoctors.length < 2) {
-            alert('Please select at least 2 doctors');
+        if (selectedPathIndex === null) {
+            alert('Please select an optimal schedule');
             return;
         }
 
+        const path = optimalPaths[selectedPathIndex];
         setIsCreating(true);
         try {
             const res = await fetch(`${API}/api/multi-doctor/journey`, {
                 method: 'POST',
                 headers: authedHeaders(true),
                 body: JSON.stringify({
-                    appointments: selectedDoctors.map(d => ({
-                        doctorId: d.id,
-                        reason: 'Consultation'
+                    appointments: path.items.map(item => ({
+                        doctorId: item.doctorId,
+                        reason: 'Consultation',
+                        timeSlot: item.slot,
+                        date: selectedDate
                     }))
                 })
             });
@@ -289,14 +321,21 @@ const MultiDoctorJourney = () => {
             const data = await res.json();
             setJourneys(prev => [data, ...prev]);
             setShowCreateModal(false);
-            setSelectedDoctors([]);
-            setSearchTerm('');
-            setSuggestions(null);
+            resetCreationState();
         } catch (err) {
             alert(err.message);
         } finally {
             setIsCreating(false);
         }
+    };
+
+    const resetCreationState = () => {
+        setSelectedDoctors([]);
+        setSearchTerm('');
+        setSuggestions(null);
+        setCreationStep(1);
+        setOptimalPaths([]);
+        setSelectedPathIndex(null);
     };
 
     // Filter doctors
@@ -505,98 +544,194 @@ const MultiDoctorJourney = () => {
                         </div>
 
                         <div className="p-6 overflow-y-auto max-h-[60vh]">
-                            {/* Symptom search */}
-                            <div className="mb-6">
-                                <label className="text-sm font-medium text-gray-700 mb-2 block">
-                                    Describe your symptoms (optional)
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="e.g., chest pain, headache"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
-                                    />
-                                    <button
-                                        onClick={handleSymptomSearch}
-                                        className="px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover"
-                                    >
-                                        <Search size={18} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Suggestions */}
-                            {suggestions?.suggestedSpecialties?.length > 0 && (
-                                <div className="mb-6 bg-amber-50 rounded-xl p-4 border border-amber-100">
-                                    <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
-                                        <Sparkles size={16} className="text-amber-500" />
-                                        Recommended Specialists
-                                    </h4>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        {suggestions.suggestedSpecialties.map((spec, idx) => (
-                                            <React.Fragment key={spec}>
-                                                <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-medium text-gray-900">
-                                                    {spec}
-                                                </span>
-                                                {idx < suggestions.suggestedSpecialties.length - 1 && (
-                                                    <MoveRight size={16} className="text-amber-400" />
-                                                )}
-                                            </React.Fragment>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Selected doctors */}
-                            {selectedDoctors.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                        Selected ({selectedDoctors.length})
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {selectedDoctors.map(doc => (
-                                            <span
-                                                key={doc.id}
-                                                className="px-3 py-1.5 bg-primary-light text-primary rounded-lg text-sm font-medium flex items-center gap-2"
+                            {creationStep === 1 ? (
+                                <>
+                                    {/* Symptom search */}
+                                    <div className="mb-6">
+                                        <label className="text-sm font-medium text-gray-700 mb-2 block">
+                                            Describe your symptoms (optional)
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="e.g., chest pain, headache"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                            />
+                                            <button
+                                                onClick={handleSymptomSearch}
+                                                className="px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover"
                                             >
-                                                {doc.name}
-                                                <button onClick={() => toggleDoctor(doc)}>
-                                                    <X size={14} />
-                                                </button>
+                                                <Search size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Suggestions */}
+                                    {suggestions?.suggestedSpecialties?.length > 0 && (
+                                        <div className="mb-6 bg-amber-50 rounded-xl p-4 border border-amber-100">
+                                            <h4 className="font-medium text-amber-900 mb-2 flex items-center gap-2">
+                                                <Sparkles size={16} className="text-amber-500" />
+                                                Recommended Specialists
+                                            </h4>
+                                            <div className="flex items-center gap-2 flex-wrap text-xs">
+                                                {suggestions.suggestedSpecialties.map((spec, idx) => (
+                                                    <React.Fragment key={spec}>
+                                                        <span className="px-2 py-1 bg-white rounded text-gray-900 border border-amber-200">
+                                                            {spec}
+                                                        </span>
+                                                        {idx < suggestions.suggestedSpecialties.length - 1 && (
+                                                            <MoveRight size={14} className="text-amber-400" />
+                                                        )}
+                                                    </React.Fragment>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Selected doctors */}
+                                    {selectedDoctors.length > 0 && (
+                                        <div className="mb-6">
+                                            <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                                Selected ({selectedDoctors.length})
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedDoctors.map(doc => (
+                                                    <span
+                                                        key={doc.id}
+                                                        className="px-3 py-1.5 bg-primary-light text-primary rounded-lg text-sm font-medium flex items-center gap-2"
+                                                    >
+                                                        {doc.name}
+                                                        <button onClick={() => toggleDoctor(doc)}>
+                                                            <X size={14} />
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Doctor list */}
+                                    <div>
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            Select Doctors (min 2)
+                                        </h4>
+                                        <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                            {filteredDoctors.map(doctor => (
+                                                <DoctorSelectCard
+                                                    key={doctor.id}
+                                                    doctor={doctor}
+                                                    isSelected={selectedDoctors.some(d => d.id === doctor.id)}
+                                                    onToggle={toggleDoctor}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Date Selection */}
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700 mb-2 block">
+                                            Select Appointment Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            min={new Date().toISOString().split('T')[0]}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        />
+                                    </div>
+
+                                    {/* Optimal Paths */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="font-bold text-gray-900">Recommended Schedules</h4>
+                                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                                {optimalPaths.length} options found
                                             </span>
-                                        ))}
+                                        </div>
+                                        
+                                        <div className="space-y-4">
+                                            {optimalPaths.length === 0 ? (
+                                                <div className="p-8 text-center bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                                                    <AlertCircle className="mx-auto text-gray-400 mb-2" size={32} />
+                                                    <p className="text-gray-500 font-medium">No valid schedules found for this date.</p>
+                                                    <p className="text-xs text-gray-400 mt-1">Try another date or different doctors.</p>
+                                                </div>
+                                            ) : (
+                                                optimalPaths.map((path, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setSelectedPathIndex(idx)}
+                                                        className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                                                            selectedPathIndex === idx
+                                                                ? 'border-primary bg-primary-light/30 shadow-sm'
+                                                                : 'border-gray-100 b-white hover:border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`p-1.5 rounded-lg ${selectedPathIndex === idx ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                                                    <Sparkles size={14} />
+                                                                </div>
+                                                                <span className="font-bold text-gray-900">Option {idx + 1}</span>
+                                                            </div>
+                                                            <div className="text-xs font-semibold text-primary bg-primary-light px-2 py-1 rounded">
+                                                                {path.totalDurationMins} mins total
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            {path.items.map((item, i) => (
+                                                                <React.Fragment key={i}>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{item.slot}</span>
+                                                                        <span className="text-xs font-medium text-gray-700">{item.doctorName.split(' ').pop()}</span>
+                                                                    </div>
+                                                                    {i < path.items.length - 1 && (
+                                                                        <ArrowRight size={14} className="text-gray-300" />
+                                                                    )}
+                                                                </React.Fragment>
+                                                            ))}
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
-
-                            {/* Doctor list */}
-                            <div>
-                                <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                    Select Doctors (min 2)
-                                </h4>
-                                <div className="space-y-3 max-h-60 overflow-y-auto">
-                                    {filteredDoctors.map(doctor => (
-                                        <DoctorSelectCard
-                                            key={doctor.id}
-                                            doctor={doctor}
-                                            isSelected={selectedDoctors.some(d => d.id === doctor.id)}
-                                            onToggle={toggleDoctor}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
                         </div>
 
                         <div className="p-6 border-t border-gray-100">
-                            <button
-                                onClick={handleCreateJourney}
-                                disabled={selectedDoctors.length < 2 || isCreating}
-                                className="w-full py-3.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isCreating ? 'Creating...' : `Create Journey (${selectedDoctors.length} stops)`}
-                            </button>
+                            {creationStep === 1 ? (
+                                <button
+                                    onClick={handleFindSlots}
+                                    disabled={selectedDoctors.length < 2 || isCreating}
+                                    className="w-full py-3.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isCreating ? 'Finding Optimal Slots...' : `Continue to Scheduling`}
+                                </button>
+                            ) : (
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setCreationStep(1)}
+                                        className="flex-1 py-3.5 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 bg-white"
+                                    >
+                                        Back to Doctors
+                                    </button>
+                                    <button
+                                        onClick={handleCreateJourney}
+                                        disabled={selectedPathIndex === null || isCreating}
+                                        className="flex-[2] py-3.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isCreating ? 'Booking All...' : `Confirm & Book All`}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
