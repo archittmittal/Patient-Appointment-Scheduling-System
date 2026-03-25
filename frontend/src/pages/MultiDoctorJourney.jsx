@@ -272,7 +272,7 @@ const MultiDoctorJourney = () => {
         try {
             const res = await fetch(`${API}/api/multi-doctor/journey`, {
                 method: 'POST',
-                headers: authedHeaders(),
+                headers: authedHeaders(true),
                 body: JSON.stringify({
                     appointments: selectedDoctors.map(d => ({
                         doctorId: d.id,
