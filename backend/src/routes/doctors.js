@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 const {
     calculateCurrentDelay,
     propagateDelayToQueue,
@@ -36,7 +36,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can update their profile
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot } = req.body;
         await db.query(
@@ -82,7 +86,11 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, async (req, res) => {
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can update their availability
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { availability } = req.body;
         if (!availability || typeof availability !== 'object') {
@@ -96,17 +104,44 @@ router.patch('/:id/availability', authenticate, async (req, res) => {
     }
 });
 
-// GET /api/doctors/:id/reviews — mock reviews
+// GET /api/doctors/:id/reviews — real reviews from appointment_feedback
 router.get('/:id/reviews', async (req, res) => {
-    const reviews = [
-        { id: 1, name: 'Alice Walker', rating: 5.0, date: '2 days ago', comment: 'Very thorough and professional. Highly recommended.', avatar: 'https://ui-avatars.com/api/?name=Alice+Walker&background=random' },
-        { id: 2, name: 'David Chen', rating: 4.5, date: '1 week ago', comment: 'Very professional and the clinic is well-equipped.', avatar: 'https://ui-avatars.com/api/?name=David+Chen&background=random' }
-    ];
-    res.json(reviews);
+    try {
+        const [rows] = await db.query(`
+            SELECT 
+                af.id, 
+                CONCAT(p.first_name, ' ', p.last_name) as name,
+                af.weighted_score as rating,
+                af.created_at as date,
+                af.comment,
+                u.email
+            FROM appointment_feedback af
+            JOIN patients p ON af.patient_id = p.id
+            JOIN users u ON p.id = u.id
+            WHERE af.doctor_id = ?
+            ORDER BY af.created_at DESC
+            LIMIT 10
+        `, [req.params.id]);
+
+        const reviews = rows.map(r => ({
+            ...r,
+            rating: Number(r.rating),
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random`
+        }));
+
+        res.json(reviews);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching reviews' });
+    }
 });
 
 // GET /api/doctors/:id/patients — all patients with their appointments + symptoms
-router.get('/:id/patients', async (req, res) => {
+router.get('/:id/patients', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can view their patient list
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const [rows] = await db.query(`
             SELECT a.id AS appointment_id, a.appointment_date, a.time_slot, a.symptoms, a.status,
@@ -127,7 +162,11 @@ router.get('/:id/patients', async (req, res) => {
 });
 
 // GET /api/doctors/:id/queue — today's live queue for this doctor
-router.get('/:id/queue', async (req, res) => {
+router.get('/:id/queue', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can view their queue
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const [rows] = await db.query(`
             SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status, lq.estimated_time,
@@ -161,7 +200,11 @@ router.get('/:id/blocked-dates', async (req, res) => {
 });
 
 // POST /api/doctors/:id/blocked-dates — block a specific date
-router.post('/:id/blocked-dates', async (req, res) => {
+router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can block dates
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { date, reason } = req.body;
         if (!date) return res.status(400).json({ message: 'date is required' });
@@ -180,7 +223,11 @@ router.post('/:id/blocked-dates', async (req, res) => {
 });
 
 // DELETE /api/doctors/:id/blocked-dates/:dateId — unblock a date
-router.delete('/:id/blocked-dates/:dateId', async (req, res) => {
+router.delete('/:id/blocked-dates/:dateId', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can unblock dates
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         await db.query(
             'DELETE FROM doctor_blocked_dates WHERE id = ? AND doctor_id = ?',

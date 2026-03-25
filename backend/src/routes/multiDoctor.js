@@ -103,6 +103,25 @@ router.get('/suggestions', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * Issue #43: Coordination & Scheduling
+ */
+// GET /api/multi-doctor/coordinate-slots — find optimal slot paths
+router.post('/coordinate-slots', authenticate, async (req, res) => {
+    try {
+        const { doctorIds, date } = req.body;
+        if (!doctorIds || doctorIds.length < 2 || !date) {
+            return res.status(400).json({ error: 'doctorIds (min 2) and date required' });
+        }
+
+        const paths = await multiDoctorService.getOptimalSlotPaths(doctorIds, date);
+        res.json(paths);
+    } catch (err) {
+        console.error('Coordinate slots error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get journey analytics (admin only)
 router.get('/analytics', authenticate, async (req, res) => {
     try {
