@@ -185,7 +185,7 @@ const getJourneyDetails = async (journeyId, patientId) => {
         ...journey,
         stops,
         totalEstimatedMins: cumulativeTime,
-        currentStop: stops.find(s => s.status === 'in_progress') || stops.find(s => s.status === 'pending')
+        currentStop: stops.find(s => s.status === 'IN_PROGRESS') || stops.find(s => s.status === 'PENDING')
     };
 };
 
@@ -193,7 +193,7 @@ const getJourneyDetails = async (journeyId, patientId) => {
  * Update stop status (for doctors/admin)
  */
 const updateStopStatus = async (stopId, status, notes) => {
-    const validStatuses = ['pending', 'checked_in', 'in_progress', 'completed', 'skipped'];
+    const validStatuses = ['PENDING', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'];
     if (!validStatuses.includes(status)) {
         throw new Error('Invalid status');
     }
@@ -217,9 +217,9 @@ const updateStopStatus = async (stopId, status, notes) => {
         UPDATE journey_stops 
         SET status = ?, 
             notes = ?,
-            ${status === 'completed' ? 'completed_at = NOW(),' : ''}
-            ${status === 'checked_in' ? 'checked_in_at = NOW(),' : ''}
-            ${status === 'in_progress' ? 'started_at = NOW(),' : ''}
+            ${status === 'COMPLETED' ? 'completed_at = NOW(),' : ''}
+            ${status === 'CHECKED_IN' ? 'checked_in_at = NOW(),' : ''}
+            ${status === 'IN_PROGRESS' ? 'started_at = NOW(),' : ''}
             updated_at = NOW()
         WHERE id = ?
     `.replace(/,\s*WHERE/, ' WHERE'), [status, notes, stopId]);
@@ -235,10 +235,10 @@ const updateStopStatus = async (stopId, status, notes) => {
             UPDATE multi_doctor_journeys SET status = 'COMPLETED', completed_at = NOW()
             WHERE id = ?
         `, [stop.journey_id]);
-    } else if (status === 'in_progress') {
+    } else if (status === 'IN_PROGRESS') {
         await db.execute(`
-            UPDATE multi_doctor_journeys SET status = 'in_progress'
-            WHERE id = ? AND status = 'pending'
+            UPDATE multi_doctor_journeys SET status = 'IN_PROGRESS'
+            WHERE id = ? AND status = 'PENDING'
         `, [stop.journey_id]);
     }
 
@@ -357,9 +357,9 @@ const getJourneyAnalytics = async (startDate, endDate) => {
             SELECT 
                 COUNT(*) as total_journeys,
                 AVG(total_stops) as avg_stops,
-                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress
+                SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'IN_PROGRESS' THEN 1 ELSE 0 END) as in_progress
             FROM multi_doctor_journeys
             WHERE DATE(created_at) BETWEEN DATE(?) AND DATE(?)
         `, [startDate, endDate]);
