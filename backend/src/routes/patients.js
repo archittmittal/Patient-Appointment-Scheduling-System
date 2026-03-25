@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { authenticate } = require('../middleware/authenticate');
 
 // Get a patient's simple profile
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticate, async (req, res) => {
+    // Check if the user is authorized to view this profile
+    if (req.user.user_role !== 'doctor' && req.user.user_role !== 'admin' && req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const [rows] = await db.query('SELECT * FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         if (rows.length === 0) {
@@ -17,7 +22,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/patients/:id — update editable profile fields
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', authenticate, async (req, res) => {
+    // Only the patient themselves can update their profile
+    if (req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { first_name, last_name, phone, address, blood_group } = req.body;
         await db.query(
@@ -39,7 +48,11 @@ router.patch('/:id', async (req, res) => {
 });
 
 // Get a patient's appointments — supports ?type=upcoming|past (default: upcoming)
-router.get('/:id/appointments', async (req, res) => {
+router.get('/:id/appointments', authenticate, async (req, res) => {
+    // Check authorization: doctors/admins or the patient themselves
+    if (req.user.user_role !== 'doctor' && req.user.user_role !== 'admin' && req.user.user_id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const type = req.query.type || 'upcoming';
 
