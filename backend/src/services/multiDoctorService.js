@@ -355,12 +355,11 @@ const getJourneyAnalytics = async (startDate, endDate) => {
 
         const [popularCombos] = await db.execute(`
             SELECT 
-                GROUP_CONCAT(DISTINCT dp.specialty ORDER BY js.stop_order SEPARATOR ' → ') as route,
+                GROUP_CONCAT(DISTINCT d.specialty ORDER BY js.stop_order SEPARATOR ' → ') as route,
                 COUNT(DISTINCT j.id) as count
             FROM multi_doctor_journeys j
             JOIN journey_stops js ON j.id = js.journey_id
             JOIN doctors d ON js.doctor_id = d.id
-            JOIN doctor_profiles dp ON d.id = dp.doctor_id
             WHERE DATE(j.created_at) BETWEEN DATE(?) AND DATE(?)
             GROUP BY j.id
             ORDER BY count DESC
@@ -386,12 +385,11 @@ const getJourneyAnalytics = async (startDate, endDate) => {
 const getOptimalSlotPaths = async (doctorIds, date) => {
     // 1. Get doctor details and travel factors
     const [doctors] = await db.execute(`
-        SELECT d.id, CONCAT(d.first_name, ' ', d.last_name) as name,
-            dp.specialty, dp.floor_number, dp.building, dp.room_number,
-            d.max_patients_per_slot
-        FROM doctors d
-        LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
-        WHERE d.id IN (${doctorIds.map(() => '?').join(',')})
+        SELECT id, CONCAT(first_name, ' ', last_name) as name,
+            specialty, floor_number, building, location_room as room_number,
+            max_patients_per_slot
+        FROM doctors
+        WHERE id IN (${doctorIds.map(() => '?').join(',')})
     `, doctorIds);
 
     const docMap = {};
