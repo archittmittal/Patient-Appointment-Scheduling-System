@@ -8,8 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import { 
     QrCode, Zap, CheckCircle2, Clock, User, Calendar, 
     ChevronRight, Sparkles, Shield, Award, ArrowRight,
-    Smartphone, ScanLine, Timer, MapPin
+    Smartphone, ScanLine, Timer, MapPin, Copy
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -43,7 +44,17 @@ const ExpressBadge = ({ eligible }) => (
 
 // QR Code Display Component
 const QRCodeDisplay = ({ qrData, onClose }) => {
+    const [copied, setCopied] = useState(false);
+
     if (!qrData) return null;
+
+    const handleCopy = () => {
+        if (qrData.token) {
+            navigator.clipboard.writeText(qrData.token);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -56,26 +67,39 @@ const QRCodeDisplay = ({ qrData, onClose }) => {
                     <p className="text-sm text-gray-500 mt-1">Show this at the clinic kiosk</p>
                 </div>
                 
-                {/* QR Code Placeholder - In production, use a QR library */}
-                <div className="bg-gray-50 rounded-2xl p-6 mb-6">
-                    <div className="w-48 h-48 mx-auto bg-white rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center">
-                        <div className="text-center">
-                            <ScanLine size={48} className="text-gray-300 mx-auto mb-2" />
-                            <p className="text-xs text-gray-400 font-mono">{qrData.token?.slice(0, 16)}...</p>
-                        </div>
-                    </div>
+                <div className="bg-white rounded-2xl p-6 mb-4 border-2 border-gray-100 flex items-center justify-center shadow-inner">
+                    <QRCodeSVG 
+                        value={qrData.qrData || qrData.token || 'invalid'} 
+                        size={200}
+                        level="H"
+                        includeMargin={true}
+                        className="bg-white rounded-xl"
+                    />
+                </div>
+
+                <div className="flex items-center justify-center mb-6 gap-2">
+                    <p className="text-xs text-gray-400 font-mono bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                        {qrData.token?.slice(0, 16)}...
+                    </p>
+                    <button 
+                        onClick={handleCopy}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                        title="Copy token ID"
+                    >
+                        {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />}
+                    </button>
                 </div>
 
                 <div className="bg-amber-50 rounded-xl p-4 mb-6">
-                    <p className="text-sm text-amber-800 text-center">
-                        <Timer size={14} className="inline mr-1" />
+                    <p className="text-sm text-amber-800 text-center flex items-center justify-center">
+                        <Timer size={14} className="mr-1 inline" />
                         Valid for 24 hours
                     </p>
                 </div>
 
                 <button
                     onClick={onClose}
-                    className="w-full py-3 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    className="w-full py-3 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-gray-100"
                 >
                     Close
                 </button>
