@@ -9,6 +9,8 @@ const STATUS_STYLES = {
     PENDING:   'bg-orange-100 text-orange-700',
     COMPLETED: 'bg-blue-100 text-blue-700',
     CANCELLED: 'bg-red-100 text-red-700',
+    LATE_ARRIVAL: 'bg-amber-100 text-amber-700',
+    NEEDS_RESCHEDULE: 'bg-purple-100 text-purple-700'
 };
 
 const StatCard = ({ title, value, icon: Icon, sub, onClick }) => (
@@ -38,7 +40,8 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const today = new Date().toISOString().split('T')[0];
     const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
     const isToday = today === aptDate;
-    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS'].includes((apt.status || '').toUpperCase());
+    const virtualCheckinStatuses = ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS', 'LATE_ARRIVAL'];
+    const canVirtualCheckin = isToday && virtualCheckinStatuses.includes((apt.status || '').toUpperCase());
 
     return (
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors">
