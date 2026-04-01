@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const PING_INTERVAL = 30000; // 30 seconds
-const POLL_INTERVAL = 15000; // 15 seconds
+const FALLBACK_POLL = 60000; // 1 minute (fallback if SSE fails)
 
 // Status indicator component
 const StatusBadge = ({ status }) => {
@@ -148,12 +148,60 @@ const VirtualWaitingRoom = () => {
         }
     }, [appointmentId, status?.isCheckedIn]);
 
-    // Initial fetch and polling
+    // Initial fetch and background polling fallback
     useEffect(() => {
         fetchStatus();
-        const statusInterval = setInterval(fetchStatus, POLL_INTERVAL);
+        const statusInterval = setInterval(fetchStatus, FALLBACK_POLL);
         return () => clearInterval(statusInterval);
     }, [fetchStatus]);
+
+    // SSE Connection for real-time updates
+    useEffect(() => {
+        if (!appointmentId || !user?.id) return;
+
+        let eventSource = null;
+        let retryTimeout = null;
+
+        const connectSSE = () => {
+            const token = localStorage.getItem('token');
+            const url = `${API}/api/virtual-checkin/${appointmentId}/stream?token=${token}`;
+            
+            eventSource = new EventSource(url);
+
+            eventSource.onopen = () => {
+                setIsConnected(true);
+                setError(null);
+            };
+
+            eventSource.addEventListener('queue_update', (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    setStatus(data);
+                } catch (err) {
+                    console.error('SSE data parsing error', err);
+                }
+            });
+
+            eventSource.onerror = (error) => {
+                console.error('SSE connection error:', error);
+                if (eventSource) eventSource.close();
+                setIsConnected(false);
+                
+                // Fallback: fetch status immediately on drop
+                fetchStatus();
+                
+                // Retry SSE connection after 5 seconds
+                retryTimeout = setTimeout(connectSSE, 5000);
+            };
+        };
+
+        connectSSE();
+
+        return () => {
+            if (eventSource) eventSource.close();
+            if (retryTimeout) clearTimeout(retryTimeout);
+        };
+    }, [appointmentId, user?.id, fetchStatus]);
 
     // Session heartbeat
     useEffect(() => {
