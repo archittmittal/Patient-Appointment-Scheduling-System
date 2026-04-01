@@ -7,11 +7,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_in_production';
  * On success attaches req.user = { id, email, role }.
  */
 function authenticate(req, res, next) {
+    let token = '';
     const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+    } else if (req.query.token) {
+        token = req.query.token;
+    }
+
+    if (!token) {
         return res.status(401).json({ message: 'Authentication required' });
     }
-    const token = authHeader.slice(7);
+    
     try {
         req.user = jwt.verify(token, JWT_SECRET);
         next();
