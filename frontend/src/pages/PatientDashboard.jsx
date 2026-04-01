@@ -9,6 +9,8 @@ const STATUS_STYLES = {
     PENDING:   'bg-amber-50 text-amber-700 border border-amber-100',
     COMPLETED: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
     CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-100',
+    LATE_ARRIVAL: 'bg-orange-50 text-orange-700 border border-orange-100',
+    NEEDS_RESCHEDULE: 'bg-purple-50 text-purple-700 border border-purple-100'
 };
 
 const StatCard = ({ title, value, icon: Icon, sub, onClick }) => (
@@ -38,7 +40,8 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const today = new Date().toISOString().split('T')[0];
     const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
     const isToday = today === aptDate;
-    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS'].includes((apt.status || '').toUpperCase());
+    const virtualCheckinStatuses = ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS', 'LATE_ARRIVAL'];
+    const canVirtualCheckin = isToday && virtualCheckinStatuses.includes((apt.status || '').toUpperCase());
 
     return (
         <div className="glass-card p-6 rounded-[1.5rem] hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group">
