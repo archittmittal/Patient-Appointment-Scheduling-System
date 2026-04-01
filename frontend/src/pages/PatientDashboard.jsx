@@ -1,29 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi, FileText, Pill, Activity } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi, FileText, Pill, Activity, Zap, ClipboardCheck, AlarmClock, MessageSquare, ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const STATUS_STYLES = {
-    CONFIRMED: 'bg-green-100 text-green-700',
-    PENDING:   'bg-orange-100 text-orange-700',
-    COMPLETED: 'bg-blue-100 text-blue-700',
-    CANCELLED: 'bg-red-100 text-red-700',
+    CONFIRMED: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    PENDING:   'bg-amber-50 text-amber-700 border border-amber-100',
+    COMPLETED: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
+    CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-100',
 };
 
 const StatCard = ({ title, value, icon: Icon, sub, onClick }) => (
     <div 
         onClick={onClick}
-        className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between group transition-all ${onClick ? 'cursor-pointer hover:shadow-md hover:border-primary/30 active:scale-95' : ''}`}
+        className={`glass-card p-6 rounded-[2rem] flex items-start justify-between group transition-all duration-300 ${onClick ? 'cursor-pointer hover:translate-y-[-4px] active:scale-95' : ''}`}
     >
         <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
-            {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{title}</p>
+            <h3 className="text-4xl font-black text-slate-900 tracking-tight">{value}</h3>
+            {sub && <p className="text-[11px] text-slate-400 font-medium mt-2">{sub}</p>}
         </div>
         {Icon && (
-            <div className="p-3 bg-primary-light/50 text-primary rounded-xl group-hover:scale-110 transition-transform">
-                <Icon size={24} />
+            <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm shadow-indigo-100">
+                <Icon size={24} strokeWidth={2.5} />
             </div>
         )}
     </div>
@@ -41,18 +41,18 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS'].includes((apt.status || '').toUpperCase());
 
     return (
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:border-primary/30 transition-colors">
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
-                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctor)}&background=random`} alt={doctor} className="w-full h-full object-cover" />
+        <div className="glass-card p-6 rounded-[1.5rem] hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group">
+            <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden ring-4 ring-slate-50 group-hover:ring-indigo-50 transition-all duration-300">
+                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctor)}&background=4338ca&color=fff&bold=true`} alt={doctor} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                        <h4 className="font-semibold text-gray-900 text-sm">{doctor}</h4>
-                        <p className="text-xs text-gray-500">{apt.specialty}</p>
+                        <h4 className="font-bold text-slate-900 text-base leading-tight">Dr. {apt.doc_first} {apt.doc_last}</h4>
+                        <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-0.5">{apt.specialty}</p>
                     </div>
                 </div>
-                <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
+                <span className={`px-3 py-1 text-[11px] font-bold rounded-lg uppercase tracking-wider ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-slate-100 text-slate-600'}`}>
                     {statusLabel}
                 </span>
             </div>
@@ -110,16 +110,24 @@ const PatientDashboard = () => {
     const [processingOffer, setProcessingOffer] = useState(null);
     const [selectedReportApt, setSelectedReportApt] = useState(null);
     const [statModal, setStatModal] = useState(null); // 'doctors' | 'completed'
+    
+    // Smart Actions state
+    const [pendingFeedback, setPendingFeedback] = useState([]);
+    const [expressEligible, setExpressEligible] = useState([]);
+    const [prepOverview, setPrepOverview] = useState([]);
 
     useEffect(() => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [upRes, pastRes, waitlistRes, offersRes] = await Promise.all([
+                const [upRes, pastRes, waitlistRes, offersRes, feedbackRes, expressRes, prepRes] = await Promise.all([
                     fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`),
                     fetch(`${API}/api/patients/${user.id}/appointments?type=past`),
                     fetch(`${API}/api/appointments/waitlist/my`, { headers: authedHeaders() }),
                     fetch(`${API}/api/appointments/waitlist/offers`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/express-checkin/today`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/prep/overview`, { headers: authedHeaders() }),
                 ]);
                 const [upData, pastData] = await Promise.all([upRes.json(), pastRes.json()]);
                 setUpcoming(Array.isArray(upData) ? upData : []);
@@ -133,6 +141,20 @@ const PatientDashboard = () => {
                 if (offersRes.ok) {
                     const offersData = await offersRes.json();
                     setOffers(Array.isArray(offersData) ? offersData : []);
+                }
+
+                // Phase 2: Set Smart Actions data
+                if (feedbackRes.ok) {
+                    const data = await feedbackRes.json();
+                    setPendingFeedback(Array.isArray(data) ? data : []);
+                }
+                if (expressRes.ok) {
+                    const data = await expressRes.json();
+                    setExpressEligible(Array.isArray(data) ? data : []);
+                }
+                if (prepRes.ok) {
+                    const data = await prepRes.json();
+                    setPrepOverview(Array.isArray(data) ? data : []);
                 }
             } catch (err) {
                 console.error('Dashboard error:', err);
@@ -211,6 +233,56 @@ const PatientDashboard = () => {
 
     const displayed = activeTab === 'upcoming' ? upcoming : past;
 
+    // Smart Actions Computation
+    const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    
+    // Nudge: Running Late
+    const todayApt = upcoming.find(apt => {
+        const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
+        return aptDate === todayStr && !['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(apt.status?.toUpperCase() || '');
+    });
+
+    let runningLateApt = null;
+    if (todayApt) {
+        const aptTimeSlot = todayApt.time_slot || todayApt.appointment_time;
+        if (aptTimeSlot) {
+            const timeParts = aptTimeSlot.split(':');
+            let h = parseInt(timeParts[0]);
+            let m = parseInt(timeParts[1]);
+            // Format check for AM/PM in case time_slot uses 12h, but normally db is 24h or string.
+            if (aptTimeSlot.toUpperCase().includes('PM') && h < 12) h += 12;
+            if (aptTimeSlot.toUpperCase().includes('AM') && h === 12) h = 0;
+            
+            const aptTime = new Date();
+            aptTime.setHours(h, m, 0, 0);
+
+            const timeDiffMins = (aptTime - now) / 60000;
+            if (timeDiffMins <= 60 && timeDiffMins >= -60) {
+                runningLateApt = todayApt;
+            }
+        }
+    }
+
+    // Nudge: Express Check-in
+    const expressCard = expressEligible.length > 0 ? expressEligible[0] : null;
+
+    // Nudge: Prep Checklist
+    const pendingPrepApt = prepOverview.find(prep => {
+        if (!prep.appointment?.appointment_date) return false;
+        const aptDate = new Date(prep.appointment.appointment_date);
+        const diffHours = (aptDate - now) / 3600000;
+        const requiredDone = prep.prepProgress?.requiredCompleted || 0;
+        const requiredTotal = prep.prepProgress?.requiredTotal || 0;
+        // Within 48 hours and not completed
+        return diffHours >= -24 && diffHours <= 48 && requiredDone < requiredTotal;
+    });
+
+    // Nudge: Feedback
+    const feedbackCard = pendingFeedback.length > 0 ? pendingFeedback[0] : null;
+
+    const hasSmartActions = runningLateApt || expressCard || pendingPrepApt || feedbackCard;
+
     if (isLoading) {
         return <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Loading dashboard...</div>;
     }
@@ -218,15 +290,16 @@ const PatientDashboard = () => {
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-10">
             {/* Header */}
-            <div className="flex justify-between items-end">
+            <div className="flex justify-between items-center bg-white/40 p-6 rounded-[2rem] border border-white/40 backdrop-blur-sm">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.first_name}!</h1>
-                    <p className="text-gray-500 mt-1">Here is your appointment summary.</p>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Welcome back, <span className="text-indigo-600">{user?.first_name}</span>!</h1>
+                    <p className="text-slate-500 font-medium mt-1">Your wellness journey at a glance.</p>
                 </div>
                 <button
                     onClick={() => navigate('/book')}
-                    className="bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-lg font-medium transition-colors shadow-sm shadow-primary/30"
+                    className="btn-primary flex items-center gap-2 group"
                 >
+                    <ListPlus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
                     Book Appointment
                 </button>
             </div>
@@ -262,20 +335,72 @@ const PatientDashboard = () => {
                 />
             </div>
 
+            {/* Smart Actions Panel */}
+            {hasSmartActions && (
+                <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Zap size={18} className="text-amber-500" />
+                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Recommended Actions</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {runningLateApt && (
+                            <div className="bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-2xl border border-rose-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate(`/late-arrival?appointment=${runningLateApt.id}`)}>
+                                <div className="p-3 bg-rose-100 text-rose-600 rounded-xl w-fit mb-4">
+                                    <AlarmClock size={20} />
+                                </div>
+                                <h3 className="font-bold text-rose-900 mb-1">Running Late?</h3>
+                                <p className="text-xs text-rose-600 mb-3">You have an appointment soon. Let us know if you'll be delayed.</p>
+                                <span className="text-xs font-bold text-rose-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Get Options <ArrowRight size={14} /></span>
+                            </div>
+                        )}
+                        {expressCard && (
+                            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-5 rounded-2xl border border-amber-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate('/express-checkin')}>
+                                <div className="p-3 bg-amber-100 text-amber-600 rounded-xl w-fit mb-4">
+                                    <Zap size={20} />
+                                </div>
+                                <h3 className="font-bold text-amber-900 mb-1">Express Check-in</h3>
+                                <p className="text-xs text-amber-600 mb-3">Skip the line for your appointment with {expressCard.doctor}.</p>
+                                <span className="text-xs font-bold text-amber-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Check in now <ArrowRight size={14} /></span>
+                            </div>
+                        )}
+                        {pendingPrepApt && (
+                            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate(`/prep-checklist/${pendingPrepApt.appointment.id}`)}>
+                                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl w-fit mb-4">
+                                    <ClipboardCheck size={20} />
+                                </div>
+                                <h3 className="font-bold text-indigo-900 mb-1">Prep Checklist</h3>
+                                <p className="text-xs text-indigo-600 mb-3">You have pending items for your upcoming appointment.</p>
+                                <span className="text-xs font-bold text-indigo-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Complete prep <ArrowRight size={14} /></span>
+                            </div>
+                        )}
+                        {feedbackCard && (
+                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-2xl border border-emerald-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate('/feedback')}>
+                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl w-fit mb-4">
+                                    <MessageSquare size={20} />
+                                </div>
+                                <h3 className="font-bold text-emerald-900 mb-1">Rate Your Visit</h3>
+                                <p className="text-xs text-emerald-600 mb-3">How was your visit with {feedbackCard.doctor_name}?</p>
+                                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Leave feedback <ArrowRight size={14} /></span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main appointments panel */}
                 <div className="lg:col-span-2 space-y-4">
                     {/* Tabs */}
-                    <div className="flex gap-2 border-b border-gray-200">
+                    <div className="flex gap-4 border-b border-slate-100 mb-6">
                         <button
                             onClick={() => setActiveTab('upcoming')}
-                            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'upcoming' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            className={`pb-4 px-2 text-sm font-bold border-b-2 transition-all duration-300 ${activeTab === 'upcoming' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                         >
                             Upcoming ({upcoming.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('past')}
-                            className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'past' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                            className={`pb-4 px-2 text-sm font-bold border-b-2 transition-all duration-300 ${activeTab === 'past' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                         >
                             Past Visits ({past.length})
                         </button>
@@ -312,10 +437,10 @@ const PatientDashboard = () => {
                 <div className="space-y-4">
                     {/* Issue #41: Slot Offers Alert */}
                     {offers.length > 0 && (
-                        <div className="bg-green-50 rounded-2xl border border-green-200 p-4 animate-pulse-slow">
-                            <div className="flex items-center gap-2 mb-3">
-                                <Bell className="text-green-600" size={18} />
-                                <h3 className="font-bold text-green-800">Slot Available!</h3>
+                        <div className="bg-emerald-50/50 rounded-3xl border border-emerald-100 p-6 animate-pulse-slow">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Bell className="text-emerald-600" size={20} strokeWidth={2.5} />
+                                <h3 className="font-black text-emerald-900 uppercase tracking-wider text-sm">Slot Available!</h3>
                             </div>
                             {offers.map(offer => (
                                 <div key={offer.id} className="bg-white rounded-xl p-3 mb-2 last:mb-0 border border-green-100">
@@ -352,10 +477,12 @@ const PatientDashboard = () => {
 
                     {/* Issue #41: Active Waitlists */}
                     {waitlist.length > 0 && (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                                <ListPlus className="text-primary" size={18} />
-                                <h3 className="font-bold text-gray-900">My Waitlists</h3>
+                        <div className="glass-card rounded-[2rem] p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                    <ListPlus size={18} strokeWidth={2.5} />
+                                </div>
+                                <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">My Waitlists</h3>
                             </div>
                             {waitlist.map(entry => (
                                 <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
@@ -379,8 +506,13 @@ const PatientDashboard = () => {
                         </div>
                     )}
 
-                    <h2 className="text-lg font-bold text-gray-900">Recent History</h2>
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div className="flex items-center gap-3 mb-2">
+                         <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
+                            <Activity size={18} strokeWidth={2.5} />
+                        </div>
+                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent History</h2>
+                    </div>
+                    <div className="glass-card rounded-[2rem] p-8">
                         {past.length === 0 ? (
                             <p className="text-sm text-gray-400 italic text-center py-4">No visit history yet.</p>
                         ) : (
@@ -416,18 +548,18 @@ const PatientDashboard = () => {
 
             {/* Report/Prescription Modal */}
             {selectedReportApt && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="glass-modal rounded-[2.5rem] w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white/50">
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900">Consultation Report</h3>
-                                <p className="text-sm text-gray-500 mt-1">
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Consultation Report</h3>
+                                <p className="text-sm text-slate-500 font-medium mt-1">
                                     Dr. {selectedReportApt.doc_first} {selectedReportApt.doc_last} • {new Date(selectedReportApt.appointment_date).toLocaleDateString()}
                                 </p>
                             </div>
                             <button
                                 onClick={() => setSelectedReportApt(null)}
-                                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                className="p-3 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
                             >
                                 <X size={20} />
                             </button>
@@ -482,10 +614,10 @@ const PatientDashboard = () => {
                                 </div>
                             )}
                         </div>
-                        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+                        <div className="p-8 border-t border-slate-100 bg-slate-50 flex justify-end">
                             <button
                                 onClick={() => setSelectedReportApt(null)}
-                                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold rounded-xl transition-colors"
+                                className="btn-secondary px-8 font-bold"
                             >
                                 Close
                             </button>
@@ -498,40 +630,40 @@ const PatientDashboard = () => {
             {statModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                            <h3 className="text-xl font-bold text-gray-900">
-                                {statModal === 'doctors' ? 'Doctors You\'ve Seen' : 'Completed Visit Registry'}
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white/50">
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                                {statModal === 'doctors' ? 'My Doctors' : 'Visit Registry'}
                             </h3>
                             <button
                                 onClick={() => setStatModal(null)}
-                                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                                className="p-3 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
                             >
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                        <div className="p-8 max-h-[60vh] overflow-y-auto">
                             {statModal === 'doctors' ? (
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     {Array.from(new Set([...upcoming, ...past].map(a => a.doctor_id))).map(docId => {
                                         const apts = [...upcoming, ...past].filter(a => a.doctor_id === docId);
                                         const doc = apts[0];
                                         return (
-                                            <div key={docId} className="space-y-3">
-                                                <div className="flex items-center gap-4 p-2">
-                                                    <div className="w-14 h-14 bg-primary/10 text-primary rounded-full flex items-center justify-center font-bold text-lg">
+                                            <div key={docId} className="space-y-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shadow-indigo-200">
                                                         {(doc.doc_first || '?')[0]}{(doc.doc_last || '?')[0]}
                                                     </div>
                                                     <div>
-                                                        <h4 className="font-bold text-gray-900 text-lg">Dr. {doc.doc_first} {doc.doc_last}</h4>
-                                                        <p className="text-sm text-gray-500">{doc.specialty}</p>
+                                                        <h4 className="font-bold text-slate-900 text-xl tracking-tight">Dr. {doc.doc_first} {doc.doc_last}</h4>
+                                                        <p className="text-sm text-indigo-500 font-bold uppercase tracking-widest">{doc.specialty}</p>
                                                     </div>
                                                 </div>
-                                                <div className="grid gap-2 pl-2">
+                                                <div className="grid gap-3">
                                                     {apts.map(apt => (
-                                                        <div key={apt.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                        <div key={apt.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-indigo-500/5 transition-all">
                                                             <div>
-                                                                <p className="text-xs font-bold text-gray-600">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                                                                <p className="text-sm text-gray-800">{apt.time_slot} • <span className={`font-medium ${(apt.status || '').toUpperCase() === 'COMPLETED' ? 'text-blue-600' : 'text-green-600'}`}>{apt.status || 'Pending'}</span></p>
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                                                                <p className="text-sm font-bold text-slate-800">{apt.time_slot} • <span className={`uppercase text-[11px] font-black ${(apt.status || '').toUpperCase() === 'COMPLETED' ? 'text-indigo-600' : 'text-emerald-600'}`}>{apt.status || 'Pending'}</span></p>
                                                             </div>
                                                             {apt.status === 'COMPLETED' && (
                                                                 <button 
@@ -539,9 +671,9 @@ const PatientDashboard = () => {
                                                                         setSelectedReportApt(apt);
                                                                         setStatModal(null);
                                                                     }}
-                                                                    className="px-3 py-1.5 bg-white text-[10px] font-bold text-primary border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors"
+                                                                    className="px-4 py-2 bg-white text-[11px] font-bold text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                                                                 >
-                                                                    View Summary
+                                                                    Summary
                                                                 </button>
                                                             )}
                                                         </div>
@@ -552,27 +684,27 @@ const PatientDashboard = () => {
                                     })}
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="space-y-4">
                                     {past.filter(a => a.status === 'COMPLETED').map(apt => (
-                                        <div key={apt.id} className="p-4 bg-blue-50/30 rounded-2xl border border-blue-100/50 flex items-center justify-between">
+                                        <div key={apt.id} className="p-6 bg-white rounded-3xl border border-slate-100 flex items-center justify-between hover:shadow-2xl hover:shadow-indigo-500/5 transition-all">
                                             <div>
-                                                <p className="text-xs font-bold text-blue-600 mb-1">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                                                <h4 className="font-bold text-gray-900">Dr. {apt.doc_first} {apt.doc_last}</h4>
-                                                <p className="text-xs text-gray-500">{apt.symptoms || 'General Checkup'}</p>
+                                                <p className="text-[10px] font-black text-indigo-600 mb-2 uppercase tracking-widest">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                                                <h4 className="text-lg font-black text-slate-900 tracking-tight">Dr. {apt.doc_first} {apt.doc_last}</h4>
+                                                <p className="text-sm text-slate-500 font-medium">{apt.symptoms || 'General Checkup'}</p>
                                             </div>
                                             <button 
                                                 onClick={() => {
                                                     setSelectedReportApt(apt);
                                                     setStatModal(null);
                                                 }}
-                                                className="px-4 py-2 bg-white text-xs font-bold text-blue-600 border border-blue-100 rounded-xl hover:shadow-sm"
+                                                className="btn-primary py-2 px-5 text-xs font-bold"
                                             >
                                                 Clinical Summary
                                             </button>
                                         </div>
                                     ))}
                                     {past.filter(a => a.status === 'COMPLETED').length === 0 && (
-                                        <p className="text-center py-10 text-gray-400 italic">No completed records found yet.</p>
+                                        <p className="text-center py-12 text-slate-400 font-medium italic">No completed records found yet.</p>
                                     )}
                                 </div>
                             )}
