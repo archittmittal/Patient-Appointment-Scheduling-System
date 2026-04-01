@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { API, authedHeaders } from '../config/api';
 
 const PATIENT_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/patient-dashboard' },
@@ -38,32 +39,72 @@ const Sidebar = () => {
     const navigate = useNavigate();
     const menuItems = ROLE_MENU[user?.role] || [];
 
+    // Issue #43: Feedback loop automation polling
+    const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
+
+    useEffect(() => {
+        if (!user || user.role !== 'PATIENT') return;
+
+        const checkFeedback = async () => {
+            try {
+                const res = await fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    setPendingFeedbackCount(Array.isArray(data) ? data.length : 0);
+                }
+            } catch (err) {
+                console.error('Failed to poll feedback', err);
+            }
+        };
+
+        checkFeedback();
+        // Poll every 5 minutes
+        const interval = setInterval(checkFeedback, 5 * 60 * 1000); 
+        return () => clearInterval(interval);
+    }, [user]);
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
     return (
-        <div className="w-64 h-screen bg-white shadow-xl flex flex-col border-r border-gray-100 flex-shrink-0">
-            <div className="p-6">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-hover bg-clip-text text-transparent">HealthSync</h1>
-                <p className="text-sm text-gray-500 mt-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
+        <div className="w-68 h-screen bg-white shadow-2xl flex flex-col border-r border-slate-100 flex-shrink-0 z-20">
+            <div className="p-8">
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+                        <Activity className="text-white" size={24} />
+                    </div>
+                    <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-indigo-400 bg-clip-text text-transparent tracking-tight">HealthSync</h1>
+                </div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
             </div>
 
-            <nav className="flex-1 px-4 space-y-2 mt-4">
+            <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
                 {menuItems.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.path}
                         className={({ isActive }) =>
-                            `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive
-                                ? 'bg-primary-light text-primary font-medium scale-[1.02] shadow-sm'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            `flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 ${isActive
+                                ? 'bg-indigo-600 text-white font-bold scale-[1.05] shadow-lg shadow-indigo-600/20'
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:translate-x-1'
                             }`
                         }
                     >
-                        <item.icon size={20} />
-                        {item.name}
+                        {({ isActive }) => (
+                            <>
+                                <div className="flex items-center gap-3">
+                                    <item.icon size={20} />
+                                    <span>{item.name}</span>
+                                </div>
+                                {item.name === 'Feedback' && pendingFeedbackCount > 0 && (
+                                    <span className={`px-2 py-0.5 text-[10px] font-black tracking-wider rounded-full transition-colors ${isActive ? 'bg-white text-indigo-600' : 'bg-red-500 text-white shadow-sm shadow-red-500/30'}`}>
+                                        {pendingFeedbackCount}
+                                    </span>
+                                )}
+                            </>
+                        )}
                     </NavLink>
                 ))}
             </nav>
