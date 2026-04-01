@@ -232,6 +232,23 @@ const updateStopStatus = async (stopId, status, notes) => {
 };
 
 /**
+ * Implement a simple travel time matrix between nodes.
+ * Used for route optimization between doctors.
+ */
+const calculateTravelTime = (nodeA, nodeB) => {
+    if (!nodeA || !nodeB) return 0;
+    
+    // Base time between buildings
+    if (nodeA.building !== nodeB.building) {
+        // e.g., 'A' to 'B' takes 10 mins + elevator time
+        return 10 + Math.abs((nodeA.floor_number || 1) - 1) * 2 + Math.abs((nodeB.floor_number || 1) - 1) * 2;
+    }
+    
+    // Same building, different floors (e.g., 2 mins per floor)
+    return Math.abs((nodeA.floor_number || 1) - (nodeB.floor_number || 1)) * 2;
+};
+
+/**
  * Get optimal route suggestion
  */
 const getRouteOptimization = async (doctorIds) => {
@@ -247,24 +264,56 @@ const getRouteOptimization = async (doctorIds) => {
         WHERE d.id IN (${doctorIds.map(() => '?').join(',')})
     `, doctorIds);
 
-    // Simple optimization by building/floor
-    const optimized = [...doctors].sort((a, b) => {
-        if (a.building !== b.building) {
-            return (a.building || 'A').localeCompare(b.building || 'A');
-        }
-        return (a.floor_number || 1) - (b.floor_number || 1);
-    });
+    // Preserve original order requested
+    const original = doctorIds.map(id => doctors.find(d => d.id == id)).filter(Boolean);
 
-    // Calculate theoretical savings (simplified)
-    const originalFloorChanges = calculateFloorChanges(doctorIds.map(id => doctors.find(d => d.id === id)));
+    // Greedy nearest-neighbor optimization
+    const unvisited = [...original];
+    const optimized = [];
+    
+    if (unvisited.length > 0) {
+        // Start from the first appointment location
+        let current = unvisited.shift();
+        optimized.push(current);
+        
+        while (unvisited.length > 0) {
+            let nearestIdx = 0;
+            let minTime = Infinity;
+            
+            for (let i = 0; i < unvisited.length; i++) {
+                const time = calculateTravelTime(current, unvisited[i]);
+                if (time < minTime) {
+                    minTime = time;
+                    nearestIdx = i;
+                }
+            }
+            
+            current = unvisited.splice(nearestIdx, 1)[0];
+            optimized.push(current);
+        }
+    }
+
+    // Calculate travel times
+    let originalTime = 0;
+    for (let i = 1; i < original.length; i++) {
+        originalTime += calculateTravelTime(original[i - 1], original[i]);
+    }
+
+    let optimizedTime = 0;
+    for (let i = 1; i < optimized.length; i++) {
+        optimizedTime += calculateTravelTime(optimized[i - 1], optimized[i]);
+    }
+
+    const originalFloorChanges = calculateFloorChanges(original);
     const optimizedFloorChanges = calculateFloorChanges(optimized);
-    const savingsMins = (originalFloorChanges - optimizedFloorChanges) * 3; // 3 mins per floor change saved
 
     return {
-        original: doctors,
+        original,
         optimized,
         floorChangesSaved: originalFloorChanges - optimizedFloorChanges,
-        estimatedTimeSavedMins: Math.max(0, savingsMins)
+        estimatedTimeSavedMins: Math.max(0, originalTime - optimizedTime),
+        originalTravelTimeMins: originalTime,
+        optimizedTravelTimeMins: optimizedTime
     };
 };
 
