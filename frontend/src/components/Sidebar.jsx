@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const PATIENT_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/patient-dashboard' },
+    { name: 'Health Hub', icon: LineChart, path: '/vitals' },
+    { name: 'Prescriptions', icon: Pill, path: '/prescriptions' },
     { name: 'Find a Doctor', icon: Users, path: '/doctors' },
     { name: 'Book Appointment', icon: Calendar, path: '/book' },
     { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
