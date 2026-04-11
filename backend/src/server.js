@@ -20,6 +20,30 @@ const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 
+// Issue #92: Swagger API Documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const swaggerOptions = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'Hospital Management API',
+            version: '1.0.0',
+            description: 'API documentation for the Patient Appointment Scheduling System',
+        },
+        servers: [
+            {
+                url: 'http://localhost:7860',
+            },
+        ],
+    },
+    apis: ['./src/routes/*.js'],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -47,6 +71,10 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 7860;
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT}`);
+    });
+}
+
+module.exports = app;
