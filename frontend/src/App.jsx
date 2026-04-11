@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -18,8 +19,8 @@ import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
 import NotificationSettings from './pages/NotificationSettings';
-import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; // Issue #39
-import WalkinRegistration from './pages/WalkinRegistration'; // Issue #42
+import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; 
+import WalkinRegistration from './pages/WalkinRegistration'; 
 import ExpressCheckin from './pages/ExpressCheckin';
 import BatchAppointments from './pages/BatchAppointments';
 import PrepChecklist from './pages/PrepChecklist';
@@ -27,8 +28,8 @@ import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import PeakHoursAnalytics from './components/PeakHoursAnalytics';
-import VitalsHub from './pages/VitalsHub'; // Issue #95
-import PatientPrescriptions from './pages/PatientPrescriptions'; // Issue #94
+import VitalsHub from './pages/VitalsHub'; 
+import PatientPrescriptions from './pages/PatientPrescriptions'; 
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -41,57 +42,60 @@ function RootRedirect() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<RootRedirect />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Patient routes */}
-          <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
-            <Route path="/patient-dashboard" element={<PatientDashboard />} />
-            <Route path="/vitals" element={<VitalsHub />} />
-            <Route path="/prescriptions" element={<PatientPrescriptions />} />
-            <Route path="/doctors" element={<DoctorSearch />} />
-            <Route path="/doctors/:id" element={<DoctorProfile />} />
-            <Route path="/book" element={<BookAppointment />} />
-            <Route path="/queue" element={<LiveQueue />} />
-            <Route path="/profile" element={<PatientProfile />} />
-            <Route path="/notifications/settings" element={<NotificationSettings />} />
-            <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
-            <Route path="/walkin" element={<WalkinRegistration />} />
-            <Route path="/express-checkin" element={<ExpressCheckin />} />
-            <Route path="/batch-appointments" element={<BatchAppointments />} />
-            <Route path="/prep-checklist" element={<PrepChecklist />} />
-            <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
-            <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
-            <Route path="/late-arrival" element={<LateArrival />} />
-            <Route path="/feedback" element={<FeedbackAnalytics />} />
-          </Route>
+            {/* Patient routes */}
+            <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
+              <Route path="/patient-dashboard" element={<PatientDashboard />} />
+              <Route path="/vitals" element={<VitalsHub />} />
+              <Route path="/prescriptions" element={<PatientPrescriptions />} />
+              <Route path="/doctors" element={<DoctorSearch />} />
+              <Route path="/doctors/:id" element={<DoctorProfile />} />
+              <Route path="/book" element={<BookAppointment />} />
+              <Route path="/queue" element={<LiveQueue />} />
+              <Route path="/profile" element={<PatientProfile />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
+              <Route path="/walkin" element={<WalkinRegistration />} />
+              <Route path="/express-checkin" element={<ExpressCheckin />} />
+              <Route path="/batch-appointments" element={<BatchAppointments />} />
+              <Route path="/prep-checklist" element={<PrepChecklist />} />
+              <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
+              <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
+              <Route path="/late-arrival" element={<LateArrival />} />
+              <Route path="/feedback" element={<FeedbackAnalytics />} />
+            </Route>
 
-          {/* Doctor routes */}
-          <Route element={<ProtectedRoute allowedRoles={['DOCTOR']}><Layout /></ProtectedRoute>}>
-            <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-            <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
-            <Route path="/doctor-schedule" element={<DoctorSchedule />} />
-            <Route path="/notifications/settings" element={<NotificationSettings />} />
-            <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
-            <Route path="/doctor-analytics" element={<PeakHoursAnalytics />} />
-          </Route>
+            {/* Doctor routes */}
+            <Route element={<ProtectedRoute allowedRoles={['DOCTOR']}><Layout /></ProtectedRoute>}>
+              <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+              <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
+              <Route path="/doctor-schedule" element={<DoctorSchedule />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
+              <Route path="/doctor-analytics" element={<PeakHoursAnalytics />} />
+            </Route>
 
-          {/* Admin routes */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN']}><Layout /></ProtectedRoute>}>
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/admin-users" element={<AdminUsers />} />
-            <Route path="/admin-appointments" element={<AdminAppointments />} />
-            <Route path="/notifications/settings" element={<NotificationSettings />} />
-          </Route>
-          {/* Catch-all redirect to root */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            {/* Admin routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN']}><Layout /></ProtectedRoute>}>
+              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/admin-users" element={<AdminUsers />} />
+              <Route path="/admin-appointments" element={<AdminAppointments />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+            </Route>
+
+            {/* Catch-all redirect to root */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
