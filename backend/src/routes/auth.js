@@ -7,7 +7,39 @@ const { JWT_SECRET } = require('../middleware/authenticate');
 
 const BCRYPT_ROUNDS = 10;
 
-// POST /api/auth/login
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: User authentication and registration
+ */
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login to the system
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ */
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -58,7 +90,49 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// POST /api/auth/register  (patients only — doctors are assigned by admin)
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new patient
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - first_name
+ *               - last_name
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *               phone:
+ *                 type: string
+ *               blood_group:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Registration successful
+ *       409:
+ *         description: Email already exists
+ *       400:
+ *         description: Missing required fields
+ */
 router.post('/register', async (req, res) => {
     const conn = await db.getConnection();
     try {
