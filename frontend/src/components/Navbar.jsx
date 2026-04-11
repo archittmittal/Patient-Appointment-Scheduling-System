@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 import QueueAlertModal from './QueueAlertModal';
+import ThemeToggle from './ThemeToggle';
 
 const NOTIFICATION_ICONS = {
     QUEUE_UPDATE: '📊',
@@ -23,7 +24,6 @@ const Navbar = () => {
     const name = user ? `${user.first_name} ${user.last_name}`.trim() : '';
     const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : '';
     
-    // Issue #38: Notification state
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -32,7 +32,6 @@ const Navbar = () => {
     const dropdownRef = useRef(null);
     const userMenuRef = useRef(null);
 
-    // Fetch notifications and unread count
     useEffect(() => {
         if (!user) return;
         
@@ -47,11 +46,10 @@ const Navbar = () => {
                     const data = await notifRes.json();
                     setNotifications(data);
                     
-                    // Check for high-priority alerts to popup
                     const priorityAlerts = data.filter(n => 
                         (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING' || n.type === 'MISSED') && 
                         !n.read_at &&
-                        new Date(n.sent_at) > new Date(Date.now() - 5 * 60000) // Within last 5 mins
+                        new Date(n.sent_at) > new Date(Date.now() - 5 * 60000)
                     );
 
                     if (priorityAlerts.length > 0) {
@@ -59,7 +57,6 @@ const Navbar = () => {
                         const seenAlerts = JSON.parse(localStorage.getItem('seen_queue_alerts') || '[]');
                         
                         if (!seenAlerts.includes(latestAlert.id)) {
-                            // Parse data if it's a string
                             if (typeof latestAlert.data === 'string') {
                                 try { latestAlert.data = JSON.parse(latestAlert.data); } catch(e) {}
                             }
@@ -77,15 +74,12 @@ const Navbar = () => {
         };
         
         fetchNotifications();
-        // Poll for new notifications every 15 seconds for real-time feel
         const interval = setInterval(fetchNotifications, 15000);
         return () => clearInterval(interval);
     }, [user]);
 
     const handleAlertAction = async () => {
         if (!activeAlert) return;
-        
-        // Mark as read and save to seen list
         const seenAlerts = JSON.parse(localStorage.getItem('seen_queue_alerts') || '[]');
         seenAlerts.push(activeAlert.id);
         localStorage.setItem('seen_queue_alerts', JSON.stringify(seenAlerts));
@@ -95,15 +89,12 @@ const Navbar = () => {
                 method: 'POST',
                 headers: authedHeaders()
             });
-            
-            // If it's your turn and you have an appointment, navigate to waiting room
             if (activeAlert.type === 'YOUR_TURN' && activeAlert.data?.appointment_id) {
                 navigate(`/virtual-waiting/${activeAlert.data.appointment_id}`);
             }
         } catch (err) {
             console.error('Error handling alert action:', err);
         }
-        
         setActiveAlert(null);
     };
 
@@ -116,31 +107,18 @@ const Navbar = () => {
         setActiveAlert(null);
     };
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setShowNotifications(false);
-            }
-            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-                setShowUserMenu(false);
-            }
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setShowNotifications(false);
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target)) setShowUserMenu(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
-
     const markAllAsRead = async () => {
         try {
-            await fetch(`${API}/api/notifications/mark-all-read`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
+            await fetch(`${API}/api/notifications/mark-all-read`, { method: 'POST', headers: authedHeaders() });
             setUnreadCount(0);
             setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
         } catch (err) {
@@ -148,26 +126,15 @@ const Navbar = () => {
         }
     };
 
-    const formatTime = (dateStr) => {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diff = now - date;
-        
-        if (diff < 60000) return 'Just now';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-        return date.toLocaleDateString();
-    };
-
     return (
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-white/20 flex items-center justify-between px-8 sticky top-0 z-10">
+        <header className="h-20 bg-[var(--surface)]/80 backdrop-blur-md border-b border-[var(--border-base)] flex items-center justify-between px-8 sticky top-0 z-10 transition-colors duration-300">
             <div>
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-soft bg-clip-text text-transparent tracking-tight">HealthSync</h2>
             </div>
 
-            <div className="flex items-center gap-6">
-                {/* Issue #38: Notification Bell with Dropdown */}
+            <div className="flex items-center gap-4">
+                <ThemeToggle />
+                
                 <div className="relative" ref={dropdownRef}>
                     <button 
                         onClick={() => setShowNotifications(!showNotifications)}
@@ -175,119 +142,73 @@ const Navbar = () => {
                     >
                         <Bell size={20} />
                         {unreadCount > 0 && (
-                            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold animate-pulse">
+                            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-[var(--surface)] flex items-center justify-center text-[10px] text-white font-bold animate-pulse">
                                 {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                         )}
                     </button>
 
-                    {/* Notification Dropdown */}
                     {showNotifications && (
-                        <div className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
-                            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                                <h3 className="font-bold text-gray-900">Notifications</h3>
+                        <div className="absolute right-0 mt-3 w-80 bg-[var(--surface)] backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-base)] overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between p-4 border-b border-[var(--border-base)]">
+                                <h3 className="font-bold text-[var(--text-base)]">Notifications</h3>
                                 <div className="flex items-center gap-2">
                                     {unreadCount > 0 && (
-                                        <button 
-                                            onClick={markAllAsRead}
-                                            className="p-1.5 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-lg transition-colors"
-                                            title="Mark all as read"
-                                        >
-                                            <CheckCheck size={16} />
-                                        </button>
+                                        <button onClick={markAllAsRead} className="p-1.5 text-slate-400 hover:text-primary rounded-lg transition-colors"><CheckCheck size={16} /></button>
                                     )}
-                                    <button 
-                                        onClick={() => { setShowNotifications(false); navigate('/notifications/settings'); }}
-                                        className="p-1.5 text-gray-400 hover:text-primary hover:bg-gray-50 rounded-lg transition-colors"
-                                        title="Notification settings"
-                                    >
-                                        <Settings size={16} />
-                                    </button>
+                                    <button onClick={() => { setShowNotifications(false); navigate('/notifications/settings'); }} className="p-1.5 text-slate-400 hover:text-primary rounded-lg transition-colors"><Settings size={16} /></button>
                                 </div>
                             </div>
 
                             <div className="max-h-80 overflow-y-auto">
                                 {notifications.length === 0 ? (
-                                    <div className="p-8 text-center text-gray-400">
+                                    <div className="p-8 text-center text-slate-400">
                                         <Bell size={32} className="mx-auto mb-2 opacity-30" />
                                         <p className="text-sm">No notifications yet</p>
                                     </div>
                                 ) : (
                                     notifications.map(notif => (
-                                        <div 
-                                            key={notif.id}
-                                            className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${
-                                                !notif.read_at ? 'bg-blue-50/50' : ''
-                                            }`}
-                                        >
+                                        <div key={notif.id} className={`p-4 border-b border-[var(--border-base)] hover:bg-primary-light/5 transition-colors cursor-pointer ${!notif.read_at ? 'bg-primary-light/10' : ''}`}>
                                             <div className="flex gap-3">
                                                 <span className="text-xl">{NOTIFICATION_ICONS[notif.type] || '📣'}</span>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-gray-900 truncate">{notif.title}</p>
-                                                    <p className="text-xs text-gray-500 truncate">{notif.message}</p>
-                                                    <p className="text-xs text-gray-400 mt-1">{formatTime(notif.sent_at)}</p>
+                                                    <p className="text-sm font-medium text-[var(--text-base)] truncate">{notif.title}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{notif.message}</p>
                                                 </div>
-                                                {!notif.read_at && (
-                                                    <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></span>
-                                                )}
+                                                {!notif.read_at && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-2"></span>}
                                             </div>
                                         </div>
                                     ))
                                 )}
-                            </div>
-
-                            <div className="p-3 border-t border-gray-100 bg-gray-50">
-                                <button 
-                                    onClick={() => { setShowNotifications(false); navigate('/notifications/settings'); }}
-                                    className="w-full text-center text-sm text-primary font-medium hover:underline"
-                                >
-                                    Manage notification settings
-                                </button>
                             </div>
                         </div>
                     )}
                 </div>
 
                 <div className="relative" ref={userMenuRef}>
-                    <button 
-                        onClick={() => setShowUserMenu(!showUserMenu)}
-                        className="flex items-center gap-3 pl-4 border-l border-slate-200 hover:bg-slate-50 rounded-xl p-2 transition-all active:scale-95"
-                    >
-                        <div className="p-1 bg-slate-100 rounded-lg">
-                            <UserCircle size={28} className="text-slate-500" />
+                    <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 pl-4 border-l border-[var(--border-base)] hover:bg-primary-light/5 rounded-xl p-2 transition-all active:scale-95">
+                        <div className="p-1 bg-primary-light/30 rounded-lg">
+                            <UserCircle size={28} className="text-primary" />
                         </div>
-                        <div className="hidden md:block text-left">
-                            <p className="text-sm font-bold text-slate-900 leading-tight">{name}</p>
+                        <div className="hidden md:block text-left scale-90 origin-left">
+                            <p className="text-sm font-bold text-[var(--text-base)] leading-tight">{name || 'User'}</p>
                             <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">{roleLabel}</p>
                         </div>
                         <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
                     </button>
 
-                    {/* User Menu Dropdown */}
                     {showUserMenu && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
-                            <div className="p-3 border-b border-gray-100 md:hidden">
-                                <p className="text-sm font-medium text-gray-700">{name}</p>
-                                <p className="text-xs text-gray-500">{roleLabel}</p>
-                            </div>
-                            <button 
-                                onClick={handleLogout}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors"
-                            >
+                        <div className="absolute right-0 mt-2 w-48 bg-[var(--surface)] rounded-xl shadow-xl border border-[var(--border-base)] overflow-hidden z-50">
+                            <button onClick={handleLogout} className="w-full flex items-center gap-4 px-5 py-4 text-left text-red-600 hover:bg-red-500/10 transition-colors">
                                 <LogOut size={18} />
-                                <span className="font-medium">Logout</span>
+                                <span className="font-bold">Logout</span>
                             </button>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Global Queue Alert Modal */}
-            <QueueAlertModal 
-                alert={activeAlert} 
-                onClose={handleAlertClose}
-                onAction={handleAlertAction}
-            />
+            <QueueAlertModal alert={activeAlert} onClose={handleAlertClose} onAction={handleAlertAction} />
         </header>
     );
 };

@@ -66,18 +66,18 @@ const Register = () => {
         }
     };
 
-    const inputClass = "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50 transition-colors";
+    const inputClass = "w-full border border-[var(--border-base)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)] transition-colors";
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-300">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center text-primary mb-4">
                     <HeartPulse size={48} strokeWidth={1.5} />
                 </div>
-                <h2 className="text-center text-3xl font-extrabold text-gray-900 tracking-tight">
+                <h2 className="text-center text-3xl font-extrabold text-[var(--text-base)] tracking-tight">
                     Create Patient Account
                 </h2>
-                <p className="mt-2 text-center text-sm text-gray-600">
+                <p className="mt-2 text-center text-sm text-gray-500">
                     Already have an account?{' '}
                     <Link to="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
                 </p>
@@ -86,16 +86,16 @@ const Register = () => {
             {/* Step indicators */}
             <div className="sm:mx-auto sm:w-full sm:max-w-md mt-4">
                 <div className="flex items-center gap-2 justify-center mb-6">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 1 ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>1</div>
-                    <div className={`flex-1 h-1 max-w-16 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200'}`}></div>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 2 ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>2</div>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 1 ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>1</div>
+                    <div className={`flex-1 h-1 max-w-16 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 2 ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>2</div>
                 </div>
             </div>
 
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-gray-100">
+                <div className="bg-[var(--bg-navbar)] py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-[var(--border-base)]">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                        <div className="mb-4 p-3 bg-red-50/10 border border-red-200/20 text-red-500 rounded-lg text-sm">
                             {error}
                         </div>
                     )}
@@ -103,47 +103,47 @@ const Register = () => {
                     {/* Step 1: Account credentials */}
                     {step === 1 && (
                         <form onSubmit={handleStep1} className="space-y-4">
-                            <h3 className="text-base font-semibold text-gray-700 mb-4">Account Information</h3>
+                            <h3 className="text-base font-semibold text-[var(--text-base)] opacity-80 mb-4">Account Information</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">First Name *</label>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">First Name *</label>
                                     <div className="relative">
                                         <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                         <input name="first_name" required value={formData.first_name} onChange={handleChange}
-                                            className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50"
+                                            className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
                                             placeholder="John" />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Last Name *</label>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Last Name *</label>
                                     <input name="last_name" required value={formData.last_name} onChange={handleChange}
                                         className={inputClass} placeholder="Doe" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Email Address *</label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Email Address *</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input name="email" type="email" required value={formData.email} onChange={handleChange}
-                                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50"
+                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
                                         placeholder="you@example.com" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Password *</label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Password *</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input name="password" type="password" required value={formData.password} onChange={handleChange}
-                                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50"
+                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
                                         placeholder="Min. 6 characters" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Confirm Password *</label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password *</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input name="confirm_password" type="password" required value={formData.confirm_password} onChange={handleChange}
-                                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50"
+                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
                                         placeholder="Re-enter password" />
                                 </div>
                             </div>
@@ -156,14 +156,14 @@ const Register = () => {
                     {/* Step 2: Personal / medical details */}
                     {step === 2 && (
                         <form onSubmit={handleSubmit} className="space-y-4">
-                            <h3 className="text-base font-semibold text-gray-700 mb-4">Personal &amp; Medical Details</h3>
+                            <h3 className="text-base font-semibold text-[var(--text-base)] opacity-80 mb-4">Personal &amp; Medical Details</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Date of Birth</label>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Date of Birth</label>
                                     <input name="dob" type="date" value={formData.dob} onChange={handleChange} className={inputClass} />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-600 mb-1">Blood Group</label>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Blood Group</label>
                                     <select name="blood_group" value={formData.blood_group} onChange={handleChange} className={inputClass}>
                                         <option value="">Select</option>
                                         {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => (
@@ -173,26 +173,26 @@ const Register = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Phone Number</label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Phone Number</label>
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                                     <input name="phone" value={formData.phone} onChange={handleChange}
-                                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50"
+                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
                                         placeholder="+1 555 000 0000" />
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1">Address</label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
                                 <div className="relative">
                                     <MapPin className="absolute left-3 top-3 text-gray-400" size={16} />
                                     <textarea name="address" value={formData.address} onChange={handleChange} rows={2}
-                                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-gray-50 resize-none"
+                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)] resize-none"
                                         placeholder="Your home address" />
                                 </div>
                             </div>
                             <p className="text-xs text-gray-400">Date of birth, blood group, phone and address are optional and can be updated later in your profile.</p>
                             <div className="flex gap-3">
-                                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+                                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 border border-[var(--border-base)] text-[var(--text-base)] font-semibold rounded-xl hover:bg-[var(--bg-base)] transition-colors">
                                     Back
                                 </button>
                                 <button type="submit" disabled={loading} className="flex-1 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-60">
