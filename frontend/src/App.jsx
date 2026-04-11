@@ -27,6 +27,8 @@ import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import PeakHoursAnalytics from './components/PeakHoursAnalytics';
+import VitalsHub from './pages/VitalsHub'; // Issue #95
+import PatientPrescriptions from './pages/PatientPrescriptions'; // Issue #94
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -49,6 +51,8 @@ function App() {
           {/* Patient routes */}
           <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
             <Route path="/patient-dashboard" element={<PatientDashboard />} />
+            <Route path="/vitals" element={<VitalsHub />} />
+            <Route path="/prescriptions" element={<PatientPrescriptions />} />
             <Route path="/doctors" element={<DoctorSearch />} />
             <Route path="/doctors/:id" element={<DoctorProfile />} />
             <Route path="/book" element={<BookAppointment />} />

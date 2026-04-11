@@ -1,0 +1,40 @@
+const db = require('../config/db');
+
+class PrescriptionService {
+    /**
+     * Fetch all prescriptions for a specific patient
+     * Includes doctor info and medication details
+     */
+    async getPatientPrescriptions(patientId) {
+        const query = `
+            SELECT 
+                p.id,
+                p.date_prescribed,
+                p.medications,
+                p.instructions,
+                d.first_name as doctor_first_name,
+                d.last_name as doctor_last_name,
+                d.specialty
+            FROM prescriptions p
+            JOIN doctors d ON p.doctor_id = d.id
+            WHERE p.patient_id = ?
+            ORDER BY p.date_prescribed DESC
+        `;
+        const [rows] = await db.query(query, [patientId]);
+        return rows;
+    }
+
+    /**
+     * Create a new prescription
+     */
+    async createPrescription(doctorId, patientId, medications, instructions) {
+        const query = `
+            INSERT INTO prescriptions (doctor_id, patient_id, medications, instructions, date_prescribed)
+            VALUES (?, ?, ?, ?, NOW())
+        `;
+        const [result] = await db.query(query, [doctorId, patientId, medications, instructions]);
+        return { id: result.insertId, status: 'created' };
+    }
+}
+
+module.exports = new PrescriptionService();
