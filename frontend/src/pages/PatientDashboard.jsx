@@ -124,8 +124,8 @@ const PatientDashboard = () => {
         const fetchData = async () => {
             try {
                 const [upRes, pastRes, waitlistRes, offersRes, feedbackRes, expressRes, prepRes] = await Promise.all([
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`),
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`),
+                    fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers: authedHeaders() }),
                     fetch(`${API}/api/appointments/waitlist/my`, { headers: authedHeaders() }),
                     fetch(`${API}/api/appointments/waitlist/offers`, { headers: authedHeaders() }),
                     fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() }),
@@ -180,7 +180,7 @@ const PatientDashboard = () => {
                 const data = await res.json();
                 setOffers(prev => prev.filter(o => o.id !== offerId));
                 // Refresh appointments
-                const upRes = await fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`);
+                const upRes = await fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`, { headers: authedHeaders() });
                 const upData = await upRes.json();
                 setUpcoming(Array.isArray(upData) ? upData : []);
             }

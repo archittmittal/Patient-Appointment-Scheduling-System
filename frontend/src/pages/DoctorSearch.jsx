@@ -25,54 +25,57 @@ const getNextAvailableDate = (availability) => {
 const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nextAvailable }) => {
     const navigate = useNavigate();
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all group">
-            <div className="flex gap-4">
-                <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+        <div className="glass-card p-6 border-slate-100 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-3xl -translate-y-12 translate-x-12 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            
+            <div className="flex gap-5 relative z-10">
+                <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-50 border border-slate-100 shadow-sm relative group/img">
                     <img
-                        src={image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`}
+                        src={image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=f8fafc&color=4f46e5&bold=true`}
                         alt={name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-700"
                     />
+                    <div className="absolute inset-0 bg-indigo-600/0 group-hover/img:bg-indigo-600/5 transition-colors"></div>
                 </div>
                 <div className="flex-1">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">{name}</h3>
-                            <p className="text-primary font-medium text-sm">{specialty}</p>
+                            <h3 className="text-xl font-black text-slate-900 leading-tight tracking-tight group-hover:text-indigo-600 transition-colors uppercase">{name}</h3>
+                            <p className="text-indigo-500 font-black text-[10px] uppercase tracking-[0.2em] mt-1">{specialty}</p>
                         </div>
-                        <div className="flex items-center gap-1 bg-yellow-50 text-yellow-700 px-2.5 py-1 rounded-lg text-sm font-medium">
-                            <Star size={16} className="fill-yellow-500 text-yellow-500" />
+                        <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl text-xs font-black shadow-sm border border-amber-100">
+                            <Star size={14} className="fill-amber-500 text-amber-500" />
                             {rating}
                         </div>
                     </div>
-                    <div className="mt-3 space-y-1.5">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <MapPin size={16} />
-                            {location_room || 'Location not set'}
+                    <div className="mt-4 space-y-2">
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                            <MapPin size={16} className="text-indigo-400" />
+                            {location_room || 'Clinic Suite Undefined'}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <CalendarIcon size={16} />
+                        <div className="flex items-center gap-3 text-xs font-black text-slate-400 uppercase tracking-widest">
+                            <CalendarIcon size={16} className="text-emerald-400" />
                             {nextAvailable
-                                ? <>Next slot: <span className="font-medium text-gray-900">{nextAvailable}</span></>
-                                : <span className="text-gray-400 italic">No availability this week</span>
+                                ? <span className="flex items-center gap-1.5">NEXT SLOT: <span className="text-emerald-600 font-black">{nextAvailable}</span></span>
+                                : <span className="text-rose-400 italic">No Availability</span>
                             }
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-8 flex gap-3 relative z-10">
                 <button
                     onClick={() => navigate(`/doctors/${id}`)}
-                    className="flex-1 py-2.5 border border-primary text-primary hover:bg-primary-light rounded-xl font-medium transition-colors"
+                    className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-white border border-slate-100 hover:border-indigo-200 rounded-2xl transition-all active:scale-95"
                 >
-                    View Profile
+                    View Record
                 </button>
                 <button
                     onClick={() => navigate('/book')}
-                    className="flex-1 py-2.5 bg-primary text-white hover:bg-primary-hover rounded-xl font-medium shadow-sm transition-colors"
+                    className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 rounded-2xl transition-all active:scale-95 border border-indigo-500"
                 >
-                    Book Visit
+                    Reserve Now
                 </button>
             </div>
         </div>
@@ -109,36 +112,42 @@ const DoctorSearch = () => {
     });
 
     return (
-        <div className="space-y-8 pb-10">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Find a Doctor</h1>
-                <p className="text-gray-500 mt-1">Search for specialists and book appointments easily.</p>
+        <div className="space-y-10 pb-10">
+            <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-indigo-50 rounded-[2rem] flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                    <Search size={28} strokeWidth={2.5} />
+                </div>
+                <div>
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Medical Registry</h1>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Discover elite healthcare professionals and specialist care.</p>
+                </div>
             </div>
 
-            <div className="flex gap-4 items-center">
-                <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <div className="flex flex-col md:flex-row gap-6 items-stretch">
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={20} strokeWidth={2.5} />
                     <input
                         type="text"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="Search doctors by name or specialty..."
-                        className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-2xl text-base focus:outline-none focus:ring-2 focus:ring-primary-light focus:border-primary transition-all shadow-sm"
+                        placeholder="Search by name, specialist code, or expertise..."
+                        className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-[2rem] text-sm font-black uppercase tracking-widest placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 shadow-sm transition-all"
                     />
                 </div>
-                <button className="bg-white border border-gray-200 p-3.5 rounded-2xl text-gray-600 hover:text-primary hover:border-primary/50 transition-colors shadow-sm flex items-center justify-center">
-                    <Filter size={20} />
+                <button className="px-8 bg-white border border-slate-100 rounded-[2rem] text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm flex items-center justify-center group active:scale-95">
+                    <Filter size={20} strokeWidth={2.5} className="group-hover:rotate-180 transition-transform duration-500" />
+                    <span className="ml-3 text-[10px] font-black uppercase tracking-widest">Advanced Filters</span>
                 </button>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
                 {specialties.map(filter => (
                     <button
                         key={filter}
                         onClick={() => setActiveFilter(filter)}
-                        className={`px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${activeFilter === filter
-                            ? 'bg-primary text-white shadow-md shadow-primary/30'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:border-primary/50 hover:text-primary'
+                        className={`px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap transition-all active:scale-95 ${activeFilter === filter
+                            ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 border border-indigo-500'
+                            : 'bg-white text-slate-400 border border-slate-100 hover:border-indigo-200 hover:text-indigo-600 shadow-sm'
                             }`}
                     >
                         {filter}
@@ -146,11 +155,22 @@ const DoctorSearch = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filtered.length > 0 ? (
                     filtered.map(doc => <DoctorCard key={doc.id} {...doc} />)
                 ) : (
-                    <p className="text-gray-400 col-span-3 text-center py-10">No doctors found.</p>
+                    <div className="col-span-full py-24 text-center glass-card border-dashed">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4 border border-slate-100">
+                            <Users size={32} />
+                        </div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">No medical professionals match your current query.</p>
+                        <button 
+                            onClick={() => {setSearchQuery(''); setActiveFilter('All');}}
+                            className="mt-6 px-6 py-2 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 rounded-full transition-colors"
+                        >
+                            Reset Registry Filters
+                        </button>
+                    </div>
                 )}
             </div>
         </div>

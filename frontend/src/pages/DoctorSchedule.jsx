@@ -38,33 +38,42 @@ const generateHourlySlots = (from, to) => {
 };
 
 const fillColor = (booked, capacity, closed, blocked) => {
-    if (closed || blocked) return 'bg-gray-50 text-gray-300';
-    if (booked === 0)                               return 'bg-green-50  text-green-700';
-    if (booked >= capacity)                         return 'bg-red-50    text-red-700 font-semibold';
-    if (booked / capacity >= 0.75)                  return 'bg-orange-50 text-orange-700';
-    return 'bg-yellow-50 text-yellow-700';
+    if (closed) return 'bg-slate-50/50 text-slate-300 border-slate-100/50 opacity-40';
+    if (blocked) return 'bg-rose-50/50 text-rose-300 border-rose-100/50';
+    if (booked === 0) return 'bg-emerald-50/30 text-emerald-600 border-emerald-100/50';
+    if (booked >= capacity) return 'bg-rose-50 text-rose-700 border-rose-200 font-black';
+    if (booked / capacity >= 0.75) return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'bg-indigo-50/50 text-indigo-700 border-indigo-100';
 };
 
 const SlotCell = ({ booked, capacity, closed, blocked, isToday }) => {
     const base = fillColor(booked, capacity, closed, blocked);
-    const todayRing = isToday ? 'ring-1 ring-primary/40' : '';
+    const todayRing = isToday ? 'ring-2 ring-indigo-500/20 shadow-lg shadow-indigo-500/5' : '';
+    
     if (closed) return (
-        <div className={`h-12 flex items-center justify-center rounded-lg text-xs ${base} ${todayRing}`}>
-            <span className="text-gray-300">—</span>
+        <div className={`h-12 flex items-center justify-center rounded-xl text-[10px] uppercase font-black tracking-widest border transition-all ${base} ${todayRing}`}>
+            <span className="opacity-40 select-none">—</span>
         </div>
     );
+    
     if (blocked) return (
-        <div className={`h-12 flex items-center justify-center rounded-lg text-xs ${base} ${todayRing}`}>
-            <span className="text-red-300 line-through">Blocked</span>
+        <div className={`h-12 flex items-center justify-center rounded-xl text-[10px] uppercase font-black tracking-widest border border-dashed transition-all ${base} ${todayRing}`}>
+            <span className="text-rose-400 select-none">Blocked</span>
         </div>
     );
+    
     const pct = capacity > 0 ? Math.round((booked / capacity) * 100) : 0;
-    const barColor = booked >= capacity ? 'bg-red-400' : booked / capacity >= 0.75 ? 'bg-orange-400' : booked > 0 ? 'bg-yellow-400' : 'bg-green-400';
+    const barColor = booked >= capacity ? 'bg-rose-500' : booked / capacity >= 0.75 ? 'bg-amber-500' : booked > 0 ? 'bg-indigo-500' : 'bg-emerald-500';
+    
     return (
-        <div className={`h-12 flex flex-col items-center justify-center rounded-lg px-1 gap-1 ${base} ${todayRing}`}>
-            <span className="text-xs font-semibold leading-none">{booked}/{capacity}</span>
-            <div className="w-full h-1 bg-white/60 rounded-full overflow-hidden">
-                <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+        <div className={`h-14 flex flex-col items-center justify-center rounded-2xl px-2 gap-1.5 border hover:scale-[1.02] hover:z-10 cursor-default transition-all duration-300 ${base} ${todayRing}`}>
+            <div className="flex items-center gap-1">
+                <span className="text-xs font-black tracking-tight leading-none">{booked}</span>
+                <span className="text-[10px] font-black opacity-30 leading-none">/</span>
+                <span className="text-[10px] font-black opacity-30 leading-none">{capacity}</span>
+            </div>
+            <div className="w-full h-1 bg-white/40 rounded-full overflow-hidden border border-black/5">
+                <div className={`h-full ${barColor} rounded-full transition-all duration-700 ease-out`} style={{ width: `${pct}%` }} />
             </div>
         </div>
     );
@@ -163,69 +172,82 @@ const DoctorSchedule = () => {
     const isCurrentWeek = toStr(getMondayOf(new Date())) === toStr(weekStart);
 
     return (
-        <div className="space-y-6 pb-10">
+        <div className="space-y-8 pb-10">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <CalendarDays size={24} className="text-primary" />
-                        Weekly Schedule
+                    <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight uppercase">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                            <CalendarDays size={24} strokeWidth={2.5} />
+                        </div>
+                        Clinical Schedule
                     </h1>
-                    <p className="text-gray-500 mt-1">View your appointment load across the week.</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5 ml-15">Real-time clinical load and appointment queue management.</p>
                 </div>
 
                 {/* Week navigation */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 bg-white/50 p-2 rounded-[2rem] border border-white/80 shadow-sm backdrop-blur-md">
                     <button
                         onClick={prevWeek}
-                        className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200 group"
                     >
-                        <ChevronLeft size={18} />
+                        <ChevronLeft size={20} className="text-slate-400 group-hover:text-indigo-600" />
                     </button>
-                    <span className="text-sm font-semibold text-gray-700 min-w-[200px] text-center">{weekLabel}</span>
+                    <span className="text-xs font-black text-slate-900 min-w-[180px] text-center uppercase tracking-widest">{weekLabel}</span>
                     <button
                         onClick={nextWeek}
-                        className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                        className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200 group"
                     >
-                        <ChevronRight size={18} />
+                        <ChevronRight size={20} className="text-slate-400 group-hover:text-indigo-600" />
                     </button>
                     {!isCurrentWeek && (
-                        <button onClick={goToday} className="ml-1 px-3 py-1.5 text-xs font-medium border border-primary/40 text-primary rounded-xl hover:bg-primary-light transition-colors">
-                            This Week
+                        <button 
+                            onClick={goToday} 
+                            className="ml-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white rounded-full hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
+                        >
+                            Back to Today
                         </button>
                     )}
                 </div>
             </div>
 
             {/* Summary bar */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-4">
                 {days.map((d, i) => {
                     const isToday   = d.dateStr === todayStr;
                     const total     = dayTotals[i];
                     const maxSlots  = d.slots.length * capacity;
                     const pct       = maxSlots > 0 ? Math.round((total / maxSlots) * 100) : 0;
                     return (
-                        <div key={d.dateStr} className={`bg-white rounded-2xl border p-3 text-center shadow-sm ${isToday ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
-                            <p className={`text-xs font-semibold uppercase tracking-wide ${isToday ? 'text-primary' : 'text-gray-400'}`}>
+                        <div 
+                            key={d.dateStr} 
+                            className={`glass-card p-4 text-center transition-all duration-300 hover:scale-[1.05] ${
+                                isToday ? 'border-indigo-500/50 shadow-xl shadow-indigo-500/10' : 'border-slate-100'
+                            }`}
+                        >
+                            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isToday ? 'text-indigo-600' : 'text-slate-400'}`}>
                                 {d.dayLabel}
                             </p>
-                            <p className={`text-lg font-bold mt-0.5 ${isToday ? 'text-primary' : 'text-gray-800'}`}>
+                            <p className={`text-2xl font-black mt-1 leading-none tracking-tighter ${isToday ? 'text-indigo-600' : 'text-slate-900'}`}>
                                 {d.date.getDate()}
                             </p>
                             {d.isBlocked ? (
-                                <span className="text-xs text-red-400 mt-1 block">Blocked</span>
+                                <span className="text-[8px] font-black text-rose-400 mt-2 block uppercase tracking-widest">Blocked</span>
                             ) : !d.isOpen ? (
-                                <span className="text-xs text-gray-300 mt-1 block">Off</span>
+                                <span className="text-[8px] font-black text-slate-300 mt-2 block uppercase tracking-widest">Vacation</span>
                             ) : (
                                 <>
-                                    <p className="text-xs font-semibold text-gray-700 mt-1">{total} booked</p>
-                                    <div className="w-full h-1 bg-gray-100 rounded-full mt-1.5 overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all ${pct >= 75 ? 'bg-red-400' : pct >= 40 ? 'bg-orange-400' : 'bg-green-400'}`}
-                                            style={{ width: `${pct}%` }}
-                                        />
+                                    <div className="mt-3 space-y-1.5">
+                                        <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden border border-black/5">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-700 ${pct >= 75 ? 'bg-rose-400' : pct >= 40 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                                            {total} Booked <span className="opacity-40">•</span> {pct}%
+                                        </p>
                                     </div>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">{pct}% full</p>
                                 </>
                             )}
                         </div>
@@ -235,43 +257,52 @@ const DoctorSchedule = () => {
 
             {/* Grid */}
             {allSlotLabels.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center text-gray-400">
-                    No availability configured for this week.
+                <div className="glass-card p-16 text-center border-dashed">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4 border border-slate-100">
+                        <Clock size={32} />
+                    </div>
+                    <p className="text-sm font-black text-slate-400 uppercase tracking-widest">No availability configured for this week cycle.</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm table-fixed">
-                            <thead className="bg-gray-50 border-b border-gray-100">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-36">
-                                        <div className="flex items-center gap-1">
-                                            <Clock size={13} />
-                                            Time Slot
+                <div className="glass-card p-0 overflow-hidden border-slate-200/50">
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-sm table-fixed border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 border-b border-slate-100">
+                                    <th className="px-6 py-4 text-left w-44">
+                                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                            <Clock size={14} strokeWidth={2.5} className="text-indigo-400" />
+                                            Schedule Matrix
                                         </div>
                                     </th>
                                     {days.map(d => (
-                                        <th key={d.dateStr} className={`px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide ${d.dateStr === todayStr ? 'text-primary' : 'text-gray-500'}`}>
-                                            <span>{d.dayLabel}</span>
-                                            <span className={`ml-1 font-bold ${d.dateStr === todayStr ? 'text-primary' : 'text-gray-700'}`}>
-                                                {d.date.getDate()}
-                                            </span>
+                                        <th key={d.dateStr} className={`px-2 py-4 text-center transition-colors ${d.dateStr === todayStr ? 'bg-indigo-50/30' : ''}`}>
+                                            <div className="flex flex-col items-center">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${d.dateStr === todayStr ? 'text-indigo-600' : 'text-slate-400'}`}>
+                                                    {d.dayLabel}
+                                                </span>
+                                                <span className={`text-base font-black tracking-tighter ${d.dateStr === todayStr ? 'text-indigo-600' : 'text-slate-900'}`}>
+                                                    {d.date.getDate()}
+                                                </span>
+                                            </div>
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-slate-100/50">
                                 {allSlotLabels.map(slotLabel => (
-                                    <tr key={slotLabel} className="hover:bg-gray-50/50">
-                                        <td className="px-4 py-2 font-mono text-xs text-gray-500 w-36 whitespace-nowrap">
-                                            {slotLabel}
+                                    <tr key={slotLabel} className="group hover:bg-slate-50/30 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200/50 group-hover:bg-white group-hover:text-indigo-600 transition-all">
+                                                {slotLabel.replace(' – ', '-')}
+                                            </span>
                                         </td>
                                         {days.map(d => {
                                             const slotExists = d.slots.includes(slotLabel);
                                             const isToday    = d.dateStr === todayStr;
                                             if (!slotExists) {
                                                 return (
-                                                    <td key={d.dateStr} className="px-2 py-2">
+                                                    <td key={d.dateStr} className={`px-2 py-3 transition-colors ${isToday ? 'bg-indigo-50/10' : ''}`}>
                                                         <SlotCell booked={0} capacity={capacity} closed={true} blocked={false} isToday={isToday} />
                                                     </td>
                                                 );
@@ -280,7 +311,7 @@ const DoctorSchedule = () => {
                                             const entry  = apptIndex[key];
                                             const booked = entry ? entry.booked : 0;
                                             return (
-                                                <td key={d.dateStr} className="px-2 py-2">
+                                                <td key={d.dateStr} className={`px-2 py-3 transition-colors ${isToday ? 'bg-indigo-50/10' : ''}`}>
                                                     <SlotCell
                                                         booked={booked}
                                                         capacity={capacity}
@@ -300,30 +331,31 @@ const DoctorSchedule = () => {
             )}
 
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded bg-green-50 border border-green-200" />
-                    Available
+            <div className="flex flex-wrap items-center gap-6 p-6 bg-slate-50/50 rounded-3xl border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] w-full mb-2">Metric Indicators</p>
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-lg bg-emerald-50 border border-emerald-100 shadow-sm" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Optimal Load</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded bg-yellow-50 border border-yellow-200" />
-                    &lt;75% booked
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-lg bg-indigo-50 border border-indigo-100 shadow-sm" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Moderate</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded bg-orange-50 border border-orange-200" />
-                    ≥75% booked
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-lg bg-amber-50 border border-amber-100 shadow-sm" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">High Load</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded bg-red-50 border border-red-200" />
-                    Full
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-lg bg-rose-50 border border-rose-100 shadow-sm" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Full Capacity</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded bg-gray-50 border border-gray-200" />
-                    Off / Blocked
+                <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-lg bg-slate-50 border border-slate-200 border-dashed shadow-sm" />
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Inactive/Off</span>
                 </div>
-                <div className="flex items-center gap-1.5 ml-auto">
-                    <Users size={13} />
-                    Capacity: {capacity} patients per slot
+                <div className="flex items-center gap-2 ml-auto py-2 px-4 bg-white rounded-full border border-slate-100 shadow-sm">
+                    <Users size={14} className="text-indigo-400" />
+                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Unit Capacity: {capacity} patients</span>
                 </div>
             </div>
         </div>

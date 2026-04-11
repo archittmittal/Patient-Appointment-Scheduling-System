@@ -161,9 +161,9 @@ const Navbar = () => {
     };
 
     return (
-        <header className="h-20 bg-white shadow-sm border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-10">
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-white/20 flex items-center justify-between px-8 sticky top-0 z-10">
             <div>
-                <h2 className="text-2xl font-semibold text-gray-800 tracking-tight">HealthSync</h2>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-soft bg-clip-text text-transparent tracking-tight">HealthSync</h2>
             </div>
 
             <div className="flex items-center gap-6">
@@ -171,11 +171,11 @@ const Navbar = () => {
                 <div className="relative" ref={dropdownRef}>
                     <button 
                         onClick={() => setShowNotifications(!showNotifications)}
-                        className="relative p-2 text-gray-500 hover:text-primary transition-colors rounded-full hover:bg-primary-light/50"
+                        className="relative p-2.5 text-slate-500 hover:text-primary transition-all rounded-xl hover:bg-primary-light/50 active:scale-95"
                     >
                         <Bell size={20} />
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">
+                            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold animate-pulse">
                                 {unreadCount > 9 ? '9+' : unreadCount}
                             </span>
                         )}
@@ -183,7 +183,7 @@ const Navbar = () => {
 
                     {/* Notification Dropdown */}
                     {showNotifications && (
-                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                        <div className="absolute right-0 mt-3 w-80 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                             <div className="flex items-center justify-between p-4 border-b border-gray-100">
                                 <h3 className="font-bold text-gray-900">Notifications</h3>
                                 <div className="flex items-center gap-2">
@@ -251,14 +251,16 @@ const Navbar = () => {
                 <div className="relative" ref={userMenuRef}>
                     <button 
                         onClick={() => setShowUserMenu(!showUserMenu)}
-                        className="flex items-center gap-3 pl-4 border-l border-gray-200 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                        className="flex items-center gap-3 pl-4 border-l border-slate-200 hover:bg-slate-50 rounded-xl p-2 transition-all active:scale-95"
                     >
-                        <UserCircle size={36} className="text-gray-400" />
-                        <div className="hidden md:block text-left">
-                            <p className="text-sm font-medium text-gray-700">{name}</p>
-                            <p className="text-xs text-gray-500">{roleLabel}</p>
+                        <div className="p-1 bg-slate-100 rounded-lg">
+                            <UserCircle size={28} className="text-slate-500" />
                         </div>
-                        <ChevronDown size={16} className={`text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                        <div className="hidden md:block text-left">
+                            <p className="text-sm font-bold text-slate-900 leading-tight">{name}</p>
+                            <p className="text-[11px] text-slate-500 font-medium uppercase tracking-wider">{roleLabel}</p>
+                        </div>
+                        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />
                     </button>
 
                     {/* User Menu Dropdown */}

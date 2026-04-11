@@ -2,13 +2,47 @@
 
 @theme {
   --font-sans: "Inter", system-ui, sans-serif;
-  --color-primary: #13a4ec;
-  --color-primary-hover: #0f8ecf;
-  --color-primary-light: #e0f2fe;
+  --color-primary: #4338ca;
+  --color-primary-hover: #3730a3;
+  --color-primary-light: #eef2ff;
+  --color-primary-soft: #818cf8;
+  --color-secondary: #64748b;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-surface: #ffffff;
+  --color-background: #f8fafc;
+  
+  /* Glassmorphism Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-blur: blur(12px);
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-[var(--glass-bg)] backdrop-blur-[var(--glass-blur)] border border-[var(--glass-border)] shadow-xl shadow-indigo-500/5;
+  }
+  
+  .glass-modal {
+    @apply bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2.5 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover hover:shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all;
+  }
 }
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-[var(--color-background)] text-slate-900 antialiased;
   }
 }

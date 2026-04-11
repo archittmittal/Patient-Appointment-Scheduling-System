@@ -63,9 +63,8 @@ async function leaveWaitlist(waitlistId, patientId) {
 async function getPatientWaitlist(patientId) {
     const [entries] = await pool.query(
         `SELECT w.*, 
-                d.specialization,
-                u.first_name as doctor_first_name, 
-                u.last_name as doctor_last_name,
+                d.first_name as doctor_first_name, 
+                d.last_name as doctor_last_name,
                 (SELECT COUNT(*) FROM waitlist w2 
                  WHERE w2.doctor_id = w.doctor_id 
                  AND w2.preferred_date = w.preferred_date 
@@ -73,7 +72,6 @@ async function getPatientWaitlist(patientId) {
                  AND w2.created_at < w.created_at) + 1 as queue_position
          FROM waitlist w
          JOIN doctors d ON w.doctor_id = d.id
-         JOIN users u ON d.user_id = u.id
          WHERE w.patient_id = ? AND w.status IN ('ACTIVE', 'OFFERED')
          ORDER BY w.preferred_date ASC`,
         [patientId]
@@ -88,13 +86,13 @@ async function getPatientWaitlist(patientId) {
 async function getDoctorWaitlist(doctorId, date = null) {
     let query = `
         SELECT w.*, 
-               u.first_name as patient_first_name,
-               u.last_name as patient_last_name,
+               p.first_name as patient_first_name,
+               p.last_name as patient_last_name,
                u.email as patient_email,
                u.phone as patient_phone
         FROM waitlist w
         JOIN patients p ON w.patient_id = p.id
-        JOIN users u ON p.user_id = u.id
+        LEFT JOIN users u ON p.id = u.id
         WHERE w.doctor_id = ? AND w.status = 'ACTIVE'
     `;
     const params = [doctorId];
@@ -344,14 +342,14 @@ async function declineSlotOffer(offerId, patientId) {
 async function getPatientOffers(patientId) {
     const [offers] = await pool.query(
         `SELECT so.*, 
-                d.specialization,
-                u.first_name as doctor_first_name,
-                u.last_name as doctor_last_name,
+                d.specialty,
+                d.first_name as doctor_first_name,
+                d.last_name as doctor_last_name,
                 TIMESTAMPDIFF(MINUTE, NOW(), so.expires_at) as minutes_remaining
          FROM slot_offers so
          JOIN waitlist w ON so.waitlist_id = w.id
          JOIN doctors d ON w.doctor_id = d.id
-         JOIN users u ON d.user_id = u.id
+         LEFT JOIN users u ON d.id = u.id
          WHERE w.patient_id = ? AND so.offer_status = 'PENDING' AND so.expires_at > NOW()
          ORDER BY so.expires_at ASC`,
         [patientId]

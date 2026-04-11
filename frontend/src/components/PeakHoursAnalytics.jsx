@@ -13,19 +13,19 @@ import { API } from '../config/api';
 // Traffic level badge component
 const TrafficBadge = ({ level }) => {
     const config = {
-        'very-high': { label: 'Very Busy', color: 'bg-red-100 text-red-700', icon: TrendingUp },
-        'high': { label: 'Busy', color: 'bg-orange-100 text-orange-700', icon: TrendingUp },
-        'normal': { label: 'Normal', color: 'bg-blue-100 text-blue-700', icon: Users },
-        'low': { label: 'Quiet', color: 'bg-green-100 text-green-700', icon: TrendingDown },
-        'very-low': { label: 'Very Quiet', color: 'bg-emerald-100 text-emerald-700', icon: Star }
+        'very-high': { label: 'Peak Capacity', color: 'bg-rose-50 text-rose-600 border-rose-100', icon: TrendingUp },
+        'high': { label: 'High Demand', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: TrendingUp },
+        'normal': { label: 'Steady Flow', color: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: Users },
+        'low': { label: 'High Availability', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: TrendingDown },
+        'very-low': { label: 'Optimal Booking', color: 'bg-sky-50 text-sky-600 border-sky-100', icon: Star }
     };
     
     const cfg = config[level] || config.normal;
     const Icon = cfg.icon;
     
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
-            <Icon size={10} />
+        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${cfg.color}`}>
+            <Icon size={12} strokeWidth={2.5} />
             {cfg.label}
         </span>
     );
@@ -34,18 +34,18 @@ const TrafficBadge = ({ level }) => {
 // Heatmap cell
 const HeatmapCell = ({ value, maxValue }) => {
     const intensity = value / maxValue;
-    let bgClass = 'bg-gray-50';
+    let bgClass = 'bg-slate-50';
     
-    if (intensity > 0.8) bgClass = 'bg-red-400';
-    else if (intensity > 0.6) bgClass = 'bg-orange-300';
-    else if (intensity > 0.4) bgClass = 'bg-yellow-200';
-    else if (intensity > 0.2) bgClass = 'bg-green-100';
-    else if (intensity > 0) bgClass = 'bg-emerald-50';
+    if (intensity > 0.8) bgClass = 'bg-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.3)]';
+    else if (intensity > 0.6) bgClass = 'bg-indigo-400';
+    else if (intensity > 0.4) bgClass = 'bg-indigo-200';
+    else if (intensity > 0.2) bgClass = 'bg-indigo-100 text-indigo-600';
+    else if (intensity > 0) bgClass = 'bg-indigo-50';
     
     return (
         <div 
-            className={`w-full aspect-square rounded-sm ${bgClass} transition-all hover:scale-110`}
-            title={`${value}% of max`}
+            className={`w-full aspect-square rounded-lg ${bgClass} transition-all duration-300 hover:scale-125 hover:z-10 cursor-pointer border border-white/20`}
+            title={`${value}% of max clinical load`}
         />
     );
 };
@@ -55,15 +55,19 @@ const BestTimeCard = ({ time, rank }) => {
     const medals = ['🥇', '🥈', '🥉'];
     
     return (
-        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-primary/30 transition-colors">
-            <span className="text-xl">{medals[rank - 1] || `#${rank}`}</span>
+        <div className="flex items-center gap-4 p-5 bg-white rounded-[2rem] border border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 group">
+            <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                {medals[rank - 1] || rank}
+            </div>
             <div>
-                <p className="font-semibold text-gray-900">{time.day}</p>
-                <p className="text-sm text-gray-500">{time.time}</p>
+                <p className="text-sm font-black text-slate-900 tracking-tight">{time.day}</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{time.time}</p>
             </div>
             <div className="ml-auto text-right">
-                <p className="text-sm font-medium text-emerald-600">~{time.avgWaitMins}m wait</p>
-                <p className="text-xs text-gray-400">{time.score}/100 score</p>
+                <p className="text-xs font-black text-emerald-600">{time.avgWaitMins}m wait</p>
+                <div className="w-16 h-1 bg-slate-100 rounded-full mt-1.5 overflow-hidden">
+                    <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${time.score}%` }}></div>
+                </div>
             </div>
         </div>
     );
@@ -122,84 +126,105 @@ const PeakHoursAnalytics = ({ doctorId }) => {
 
     if (!analysis) return null;
 
-    return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        return (
+        <div className="glass-card overflow-hidden border-none shadow-none">
             {/* Header */}
-            <div className="p-5 border-b border-gray-100">
+            <div className="p-8 border-b border-slate-100/50">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white">
-                            <TrendingUp size={20} />
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100">
+                            <TrendingUp size={24} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900">Peak Hours Analytics</h3>
-                            <p className="text-xs text-gray-500">Best times to book your appointment</p>
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">Peak Hours Analytics</h3>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Statistical analysis of patient engagement patterns.</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setExpanded(!expanded)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl transition-all border border-transparent hover:border-slate-200 group"
                     >
-                        {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        {expanded ? <ChevronUp size={20} className="text-slate-400 group-hover:text-indigo-600" /> : <ChevronDown size={20} className="text-slate-400 group-hover:text-indigo-600" />}
                     </button>
                 </div>
             </div>
 
             {/* Current Status */}
             {crowdLevel && (
-                <div className={`px-5 py-3 flex items-center justify-between ${
-                    crowdLevel.crowdLevel === 'busy' ? 'bg-red-50' :
-                    crowdLevel.crowdLevel === 'quiet' ? 'bg-green-50' : 'bg-blue-50'
+                <div className={`px-8 py-4 flex items-center justify-between transition-colors duration-500 border-b border-slate-100/30 ${
+                    crowdLevel.crowdLevel === 'busy' ? 'bg-rose-50/50' :
+                    crowdLevel.crowdLevel === 'quiet' ? 'bg-emerald-50/50' : 'bg-indigo-50/50'
                 }`}>
-                    <div className="flex items-center gap-2">
-                        <Zap size={16} className={
-                            crowdLevel.crowdLevel === 'busy' ? 'text-red-500' :
-                            crowdLevel.crowdLevel === 'quiet' ? 'text-green-500' : 'text-blue-500'
-                        } />
-                        <span className="text-sm font-medium">
-                            {crowdLevel.crowdLevel === 'busy' ? 'Currently Busy' :
-                             crowdLevel.crowdLevel === 'quiet' ? 'Quiet Right Now' : 'Normal Activity'}
-                        </span>
+                    <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            crowdLevel.crowdLevel === 'busy' ? 'bg-rose-500 text-white animate-pulse' :
+                            crowdLevel.crowdLevel === 'quiet' ? 'bg-emerald-500 text-white' : 'bg-indigo-500 text-white'
+                        }`}>
+                            <Zap size={14} fill="currentColor" />
+                        </div>
+                        <div>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                crowdLevel.crowdLevel === 'busy' ? 'text-rose-600' :
+                                crowdLevel.crowdLevel === 'quiet' ? 'text-emerald-600' : 'text-indigo-600'
+                            }`}>
+                                {crowdLevel.crowdLevel === 'busy' ? 'Peak Facility Load' :
+                                 crowdLevel.crowdLevel === 'quiet' ? 'High Capacity Available' : 'Normal Clinical Activity'}
+                            </span>
+                        </div>
                     </div>
-                    <span className="text-xs text-gray-500">
-                        {crowdLevel.patientsWaiting} waiting • {crowdLevel.remainingToday} remaining today
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] bg-white/50 px-4 py-1.5 rounded-full border border-white/80 shadow-sm">
+                        {crowdLevel.patientsWaiting} PENDING • {crowdLevel.remainingToday} SLOTS REMAINING
                     </span>
                 </div>
             )}
 
             {/* Quick Stats */}
-            <div className="p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-3 bg-orange-50 rounded-xl">
-                    <Sun size={18} className="text-orange-500 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500">Busiest Day</p>
-                    <p className="font-semibold text-gray-900">{analysis.busiestDay}</p>
+            <div className="p-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-500/5 transition-all group">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-amber-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                        <Sun size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Busiest Cycle</p>
+                    <p className="text-lg font-black text-slate-900 tracking-tight">{analysis.busiestDay}</p>
                 </div>
-                <div className="text-center p-3 bg-emerald-50 rounded-xl">
-                    <Moon size={18} className="text-emerald-500 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500">Quietest Day</p>
-                    <p className="font-semibold text-gray-900">{analysis.quietestDay}</p>
+                <div className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-500/5 transition-all group">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                        <Moon size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Optimal Cycle</p>
+                    <p className="text-lg font-black text-slate-900 tracking-tight">{analysis.quietestDay}</p>
                 </div>
-                <div className="text-center p-3 bg-red-50 rounded-xl">
-                    <Clock size={18} className="text-red-500 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500">Peak Hours</p>
-                    <p className="font-semibold text-gray-900 text-sm">
-                        {analysis.peakHours.slice(0, 2).join(', ') || 'None'}
+                <div className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-500/5 transition-all group">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-rose-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                        <Clock size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Peak Window</p>
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight truncate">
+                        {analysis.peakHours.slice(0, 2).join(', ') || 'N/A'}
                     </p>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-xl">
-                    <Star size={18} className="text-green-500 mx-auto mb-1" />
-                    <p className="text-xs text-gray-500">Best Hours</p>
-                    <p className="font-semibold text-gray-900 text-sm">
-                        {analysis.quietHours.slice(0, 2).join(', ') || 'Varies'}
+                <div className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-500/5 transition-all group">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 mb-4 shadow-sm group-hover:scale-110 transition-transform">
+                        <Star size={20} strokeWidth={2.5} />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">Best Window</p>
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-tight truncate">
+                        {analysis.quietHours.slice(0, 2).join(', ') || 'Varied'}
                     </p>
                 </div>
             </div>
 
             {/* Recommendation */}
-            <div className="mx-5 mb-5 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                <div className="flex items-start gap-3">
-                    <Info size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-blue-900">{analysis.recommendation}</p>
+            <div className="mx-8 mb-8 p-6 bg-gradient-to-r from-indigo-50 to-blue-50/50 rounded-[2rem] border border-indigo-100/50 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/30 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="flex items-start gap-4 relative z-10">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 shadow-sm flex-shrink-0">
+                        <Info size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Clinical Advice</p>
+                        <p className="text-sm font-black text-slate-900 leading-relaxed">{analysis.recommendation}</p>
+                    </div>
                 </div>
             </div>
 
@@ -208,12 +233,12 @@ const PeakHoursAnalytics = ({ doctorId }) => {
                 <>
                     {/* Best Booking Times */}
                     {bestTimes.length > 0 && (
-                        <div className="px-5 pb-5">
-                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                <Star className="text-yellow-500" size={16} />
-                                Best Times to Book
+                        <div className="px-8 pb-8">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <Star className="text-amber-500" size={14} fill="currentColor" />
+                                Recommended Booking Slots
                             </h4>
-                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {bestTimes.slice(0, 6).map((time, idx) => (
                                     <BestTimeCard key={idx} time={time} rank={idx + 1} />
                                 ))}
@@ -222,66 +247,69 @@ const PeakHoursAnalytics = ({ doctorId }) => {
                     )}
 
                     {/* Hourly Distribution */}
-                    <div className="px-5 pb-5">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                            <Clock className="text-primary" size={16} />
-                            Hourly Traffic
+                    <div className="px-8 pb-10">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <Clock className="text-indigo-500" size={14} strokeWidth={2.5} />
+                            Hourly Engagement Profile
                         </h4>
-                        <div className="flex items-end gap-1 h-32 bg-gray-50 rounded-xl p-3">
+                        <div className="flex items-end gap-1.5 h-40 bg-slate-50/50 rounded-3xl p-6 border border-slate-100 shadow-inner">
                             {analysis.hourlyDistribution.map((hour, idx) => {
                                 const maxAppts = Math.max(...analysis.hourlyDistribution.map(h => h.appointments));
                                 const heightPercent = maxAppts > 0 ? (hour.appointments / maxAppts) * 100 : 10;
                                 
                                 return (
-                                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
+                                    <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar">
                                         <div 
-                                            className={`w-full rounded-t transition-all hover:opacity-80 ${
-                                                hour.trafficLevel === 'very-high' ? 'bg-red-400' :
-                                                hour.trafficLevel === 'high' ? 'bg-orange-400' :
-                                                hour.trafficLevel === 'low' ? 'bg-green-400' :
-                                                hour.trafficLevel === 'very-low' ? 'bg-emerald-400' : 'bg-blue-400'
+                                            className={`w-full rounded-2xl transition-all duration-300 hover:scale-x-110 shadow-sm ${
+                                                hour.trafficLevel === 'very-high' ? 'bg-rose-400' :
+                                                hour.trafficLevel === 'high' ? 'bg-amber-400' :
+                                                hour.trafficLevel === 'low' ? 'bg-emerald-400' :
+                                                hour.trafficLevel === 'very-low' ? 'bg-sky-400' : 'bg-indigo-400'
                                             }`}
-                                            style={{ height: `${Math.max(heightPercent, 5)}%` }}
-                                            title={`${hour.displayHour}: ${hour.appointments} appointments`}
+                                            style={{ height: `${Math.max(heightPercent, 8)}%` }}
+                                            title={`${hour.displayHour}: ${hour.appointments} clinical entries`}
                                         />
-                                        <span className="text-[10px] text-gray-400">
-                                            {hour.hour % 3 === 0 ? hour.hour : ''}
+                                        <span className={`text-[8px] font-black uppercase tracking-tighter transition-colors ${hour.hour % 3 === 0 ? 'text-slate-400' : 'text-transparent'}`}>
+                                            {hour.hour}h
                                         </span>
                                     </div>
                                 );
                             })}
                         </div>
-                        <div className="flex justify-between text-xs text-gray-400 mt-1">
-                            <span>6 AM</span>
-                            <span>12 PM</span>
-                            <span>6 PM</span>
+                        <div className="flex justify-between px-6 mt-2">
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Early Shift</span>
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Prime Hours</span>
+                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Late Shift</span>
                         </div>
                     </div>
 
                     {/* Weekly Heatmap */}
                     {heatmapData && (
-                        <div className="px-5 pb-5">
-                            <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                <Calendar className="text-primary" size={16} />
-                                Weekly Heatmap
+                        <div className="px-8 pb-12">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <Calendar className="text-indigo-500" size={14} strokeWidth={2.5} />
+                                Weekly Load Distribution Matrix
                             </h4>
-                            <div className="overflow-x-auto">
-                                <div className="min-w-[500px]">
+                            <div className="overflow-x-auto pb-4 custom-scrollbar">
+                                <div className="min-w-[650px] p-6 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 shadow-inner">
                                     {/* Hours header */}
-                                    <div className="flex gap-0.5 mb-1 ml-16">
-                                        {[6, 9, 12, 15, 18, 21].map(h => (
-                                            <span key={h} className="flex-1 text-[10px] text-gray-400 text-center">
-                                                {h > 12 ? `${h-12}PM` : h === 12 ? '12PM' : `${h}AM`}
-                                            </span>
-                                        ))}
+                                    <div className="flex gap-1.5 mb-4 ml-24">
+                                        {Array.from({ length: 16 }).map((_, i) => {
+                                            const h = i + 6;
+                                            return (
+                                                <span key={h} className="flex-1 text-[9px] font-black text-slate-300 text-center uppercase tracking-tighter">
+                                                    {h > 12 ? `${h-12}p` : h === 12 ? '12p' : `${h}a`}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                     {/* Grid */}
                                     {heatmapData.days.map((day, dayIdx) => (
-                                        <div key={day} className="flex items-center gap-0.5 mb-0.5">
-                                            <span className="w-16 text-xs text-gray-500 text-right pr-2">
-                                                {day.slice(0, 3)}
+                                        <div key={day} className="flex items-center gap-1.5 mb-1.5">
+                                            <span className="w-24 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right pr-4">
+                                                {day}
                                             </span>
-                                            <div className="flex-1 grid grid-cols-12 gap-0.5">
+                                            <div className="flex-1 grid grid-cols-16 gap-1.5">
                                                 {heatmapData.heatmap[dayIdx].slice(6, 22).map((val, hourIdx) => (
                                                     <HeatmapCell 
                                                         key={hourIdx} 
@@ -293,14 +321,14 @@ const PeakHoursAnalytics = ({ doctorId }) => {
                                         </div>
                                     ))}
                                     {/* Legend */}
-                                    <div className="flex items-center justify-end gap-2 mt-3">
-                                        <span className="text-xs text-gray-400">Less busy</span>
-                                        <div className="flex gap-0.5">
-                                            {['bg-gray-50', 'bg-emerald-50', 'bg-green-100', 'bg-yellow-200', 'bg-orange-300', 'bg-red-400'].map((bg, i) => (
-                                                <div key={i} className={`w-4 h-4 rounded-sm ${bg}`} />
+                                    <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-slate-200/50">
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Optimized Load</span>
+                                        <div className="flex gap-1.5 grayscale-[0.5] opacity-80">
+                                            {['bg-slate-50', 'bg-indigo-50', 'bg-indigo-100', 'bg-indigo-200', 'bg-indigo-400', 'bg-indigo-600'].map((bg, i) => (
+                                                <div key={i} className={`w-5 h-5 rounded-lg border border-white/40 ${bg}`} />
                                             ))}
                                         </div>
-                                        <span className="text-xs text-gray-400">More busy</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Maximum Intensity</span>
                                     </div>
                                 </div>
                             </div>

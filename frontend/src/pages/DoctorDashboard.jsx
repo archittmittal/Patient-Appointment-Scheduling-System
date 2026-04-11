@@ -6,10 +6,10 @@ import { API, authedHeaders } from '../config/api';
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
 
 const STATUS_COLORS = {
-    WAITING:     'bg-yellow-100 text-yellow-700 border-yellow-200',
-    IN_PROGRESS: 'bg-blue-100 text-blue-700 border-blue-200',
-    COMPLETED:   'bg-green-100 text-green-700 border-green-200',
-    MISSED:      'bg-red-100 text-red-700 border-red-200',
+    WAITING:     'bg-amber-50 text-amber-700 border-amber-100',
+    IN_PROGRESS: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+    COMPLETED:   'bg-emerald-50 text-emerald-700 border-emerald-100',
+    MISSED:      'bg-rose-50 text-rose-700 border-rose-100',
 };
 
 const EMPTY_NOTES = { diagnosis: '', notes: '', prescription: '', follow_up_date: '' };
@@ -19,88 +19,100 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
     const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
     return (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
-                <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="glass-modal rounded-[2.5rem] w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="flex items-center justify-between p-10 border-b border-slate-100 bg-white/50">
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900">Complete Consultation</h3>
-                        <p className="text-sm text-gray-500">{item.first_name} {item.last_name}</p>
+                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">Clinical Assessment</h3>
+                        <p className="text-sm text-slate-500 font-medium mt-1">Patient: <span className="text-indigo-600 font-bold">{item.first_name} {item.last_name}</span></p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                        <X size={18} />
+                    <button onClick={onClose} className="p-3 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all active:scale-95">
+                        <X size={20} strokeWidth={2.5} />
                     </button>
                 </div>
 
-                <div className="p-5 space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <span className="flex items-center gap-1.5"><FileText size={14} /> Diagnosis</span>
+                <div className="p-10 space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                            Current Diagnosis
                         </label>
-                        <input
-                            name="diagnosis"
-                            value={form.diagnosis}
-                            onChange={change}
-                            placeholder="e.g. Hypertension stage 1"
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
+                        <div className="relative group">
+                            <FileText size={18} className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                            <input
+                                name="diagnosis"
+                                value={form.diagnosis}
+                                onChange={change}
+                                placeholder="Enter clinical diagnosis..."
+                                className="w-full glass-card border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 bg-white/50"
+                            />
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <span className="flex items-center gap-1.5"><Pill size={14} /> Prescription</span>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                            Prescription & Dosage
                         </label>
-                        <textarea
-                            name="prescription"
-                            value={form.prescription}
-                            onChange={change}
-                            rows={3}
-                            placeholder="Medications, dosage, instructions..."
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                        />
+                        <div className="relative group">
+                            <Pill size={18} className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                            <textarea
+                                name="prescription"
+                                value={form.prescription}
+                                onChange={change}
+                                rows={3}
+                                placeholder="List medications and instructions..."
+                                className="w-full glass-card border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 bg-white/50 resize-none"
+                            />
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <span className="flex items-center gap-1.5"><AlertCircle size={14} /> Doctor's Notes</span>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                            Doctor's Private Notes
                         </label>
-                        <textarea
-                            name="notes"
-                            value={form.notes}
-                            onChange={change}
-                            rows={3}
-                            placeholder="Observations, recommendations..."
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                        />
+                        <div className="relative group">
+                            <AlertCircle size={18} className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                            <textarea
+                                name="notes"
+                                value={form.notes}
+                                onChange={change}
+                                rows={3}
+                                placeholder="Confidential clinical observations..."
+                                className="w-full glass-card border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 bg-white/50 resize-none"
+                            />
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            <span className="flex items-center gap-1.5"><CalendarCheck size={14} /> Follow-up Date (optional)</span>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                            Follow-up Window
                         </label>
-                        <input
-                            type="date"
-                            name="follow_up_date"
-                            value={form.follow_up_date}
-                            onChange={change}
-                            min={new Date().toISOString().split('T')[0]}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
+                        <div className="relative group">
+                            <CalendarCheck size={18} className="absolute left-4 top-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                            <input
+                                type="date"
+                                name="follow_up_date"
+                                value={form.follow_up_date}
+                                onChange={change}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="w-full glass-card border-slate-100 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 bg-white/50"
+                            />
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex gap-3 px-5 pb-5">
+                <div className="flex gap-4 p-10 border-t border-slate-100 bg-slate-50/50">
                     <button
                         onClick={onClose}
-                        className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                        className="btn-secondary flex-1 py-4 font-black text-xs uppercase tracking-widest"
                     >
-                        Cancel
+                        Discard
                     </button>
                     <button
                         onClick={() => onSave(form)}
                         disabled={saving}
-                        className="flex-1 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary-hover transition-colors disabled:opacity-60"
+                        className="btn-primary flex-1 py-4 font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-60"
                     >
-                        {saving ? 'Saving...' : 'Complete & Save'}
+                        {saving ? 'Processing...' : 'Verify & Complete'}
                     </button>
                 </div>
             </div>
@@ -286,215 +298,255 @@ const DoctorDashboard = () => {
 
             {/* Issue #40: Delay Modal */}
             {showDelayModal && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-                        <div className="flex items-center justify-between p-5 border-b border-gray-100">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900">Set Running Delay</h3>
-                                <p className="text-sm text-gray-500">Notify all waiting patients</p>
-                            </div>
-                            <button onClick={() => setShowDelayModal(false)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                                <X size={18} />
-                            </button>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="glass-modal rounded-[2.5rem] w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-10 border-b border-slate-100 bg-white/50">
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Active Delay</h3>
+                            <p className="text-sm text-slate-500 font-medium mt-1">Notify patients about schedule changes.</p>
                         </div>
-                        <div className="p-5 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Delay Duration</label>
-                                <div className="flex gap-2">
-                                    {[10, 15, 20, 30, 45, 60].map(mins => (
+                        <div className="p-10 space-y-8">
+                            <div className="space-y-3">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Estimated Lag Time</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[15, 30, 45, 60, 90, 120].map(mins => (
                                         <button
                                             key={mins}
                                             onClick={() => setDelayForm(f => ({ ...f, minutes: mins }))}
-                                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                            className={`py-3 rounded-[1.25rem] text-xs font-black transition-all duration-300 ${
                                                 delayForm.minutes === mins 
-                                                    ? 'bg-amber-500 text-white' 
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                                                    : 'bg-slate-50 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600'
                                             }`}
                                         >
-                                            {mins}m
+                                            {mins} MIN
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Reason for Delay</label>
                                 <input
                                     type="text"
                                     value={delayForm.reason}
                                     onChange={e => setDelayForm(f => ({ ...f, reason: e.target.value }))}
-                                    placeholder="e.g., Emergency case, Previous appointment extended"
-                                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                                    placeholder="e.g. Critical surgery, Case overflow..."
+                                    className="w-full glass-card border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 bg-white/50 transition-all"
                                 />
                             </div>
                         </div>
-                        <div className="flex gap-3 px-5 pb-5">
+                        <div className="flex gap-4 p-10 border-t border-slate-100 bg-slate-50/50">
                             <button
                                 onClick={() => setShowDelayModal(false)}
-                                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                                className="btn-secondary flex-1 py-4 font-black text-xs uppercase tracking-widest"
                             >
-                                Cancel
+                                Discard
                             </button>
                             <button
                                 onClick={handleSetDelay}
                                 disabled={settingDelay}
-                                className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors disabled:opacity-60"
+                                className="btn-primary-indigo flex-1 py-4 font-black text-xs uppercase tracking-widest shadow-xl shadow-indigo-500/20 disabled:opacity-60"
                             >
-                                {settingDelay ? 'Setting...' : 'Set Delay'}
+                                {settingDelay ? 'Propagating...' : 'Set & Notify'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dr. {user?.first_name} {user?.last_name}'s Dashboard</h1>
-                <p className="text-gray-500 mt-1">Manage your patients and today's queue.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">
+                        Hello, <span className="text-indigo-600">Dr. {user?.last_name}</span>
+                    </h1>
+                    <p className="text-slate-500 font-bold mt-2 flex items-center gap-2">
+                        <Activity size={16} className="text-indigo-400" />
+                        Clinical Workflow Strategy • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
+                </div>
+                <div className="flex items-center gap-3 bg-white/50 backdrop-blur-md p-2 rounded-2xl border border-slate-100 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <Calendar size={20} strokeWidth={2.5} />
+                    </div>
+                    <div className="pr-4">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Schedule</p>
+                        <p className="text-sm font-bold text-slate-700">8:00 AM - 5:00 PM</p>
+                    </div>
+                </div>
             </div>
 
             {/* Issue #40: Delay Alert Banner */}
             {delayInfo.isDelayed && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 rounded-xl">
-                            <AlertTriangle className="text-amber-600" size={20} />
+                <div className="glass-card border-amber-100 bg-amber-50/30 p-6 flex items-center justify-between animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-5">
+                        <div className="w-14 h-14 bg-amber-100 rounded-[1.25rem] flex items-center justify-center shadow-inner">
+                            <AlertTriangle className="text-amber-600" size={28} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <p className="font-semibold text-amber-800">Running {delayInfo.delayMins} minutes behind</p>
-                            {delayInfo.reason && <p className="text-sm text-amber-600">{delayInfo.reason}</p>}
+                            <p className="text-lg font-black text-amber-900 tracking-tight">Queue Lag Detected: {delayInfo.delayMins}m</p>
+                            <p className="text-sm text-amber-700/80 font-bold mt-0.5">{delayInfo.reason || 'Workflow congestion in progress.'}</p>
                         </div>
                     </div>
                     <button
                         onClick={handleClearDelay}
                         disabled={settingDelay}
-                        className="px-4 py-2 text-sm font-medium text-amber-700 bg-amber-100 rounded-xl hover:bg-amber-200 transition-colors disabled:opacity-60"
+                        className="btn-secondary py-3 px-6 font-black text-xs uppercase tracking-widest bg-white/80 hover:bg-white text-amber-700 border-amber-200"
                     >
-                        {settingDelay ? 'Clearing...' : 'Clear Delay'}
+                        {settingDelay ? 'Syncing...' : 'Resolve Delay'}
                     </button>
                 </div>
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-blue-50 text-blue-600 rounded-xl"><Users size={20} /></div>
-                        <p className="text-sm font-medium text-gray-500">Total Patients</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="glass-card group hover:scale-[1.02] transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-500 shadow-sm">
+                            <Users size={24} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase tracking-widest">Active</span>
                     </div>
-                    <h3 className="text-3xl font-bold text-gray-800">{patients.length}</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Patients</p>
+                    <h3 className="text-4xl font-black text-slate-900 mt-1 tracking-tighter">{patients.length}</h3>
                 </div>
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-green-50 text-green-600 rounded-xl"><Calendar size={20} /></div>
-                        <p className="text-sm font-medium text-gray-500">Today's Queue</p>
+
+                <div className="glass-card group hover:scale-[1.02] transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all duration-500 shadow-sm">
+                            <Calendar size={24} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-[10px] font-black text-emerald-50 text-emerald-500 bg-emerald-50 px-2 py-1 rounded-lg uppercase tracking-widest">Today</span>
                     </div>
-                    <h3 className="text-3xl font-bold text-gray-800">{queue.length}</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Queue Size</p>
+                    <h3 className="text-4xl font-black text-slate-900 mt-1 tracking-tighter">{queue.length}</h3>
                 </div>
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-orange-50 text-orange-600 rounded-xl"><Activity size={20} /></div>
-                        <p className="text-sm font-medium text-gray-500">In Progress</p>
+
+                <div className="glass-card group hover:scale-[1.02] transition-all duration-300">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:bg-sky-600 group-hover:text-white transition-all duration-500 shadow-sm">
+                            <Activity size={24} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-[10px] font-black text-sky-500 bg-sky-50 px-2 py-1 rounded-lg uppercase tracking-widest">Live</span>
                     </div>
-                    <h3 className="text-3xl font-bold text-gray-800">{queue.filter(q => q.queue_status === 'IN_PROGRESS').length}</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">In Progress</p>
+                    <h3 className="text-4xl font-black text-slate-900 mt-1 tracking-tighter">{queue.filter(q => q.queue_status === 'IN_PROGRESS').length}</h3>
                 </div>
-                {/* Issue #40: Delay Management Card */}
-                <div 
+
+                <button 
                     onClick={() => !delayInfo.isDelayed && setShowDelayModal(true)}
-                    className={`rounded-2xl p-6 border shadow-sm cursor-pointer transition-all ${
-                        delayInfo.isDelayed 
-                            ? 'bg-amber-50 border-amber-200' 
-                            : 'bg-white border-gray-100 hover:border-amber-300 hover:shadow-md'
+                    className={`glass-card group hover:scale-[1.02] transition-all duration-300 text-left relative overflow-hidden ${
+                        delayInfo.isDelayed ? 'border-amber-200' : ''
                     }`}
                 >
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className={`p-2 rounded-xl ${delayInfo.isDelayed ? 'bg-amber-100 text-amber-600' : 'bg-gray-50 text-gray-600'}`}>
-                            <Clock size={20} />
+                    <div className="flex items-start justify-between mb-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm ${
+                            delayInfo.isDelayed ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 group-hover:bg-amber-500 group-hover:text-white'
+                        }`}>
+                            <Clock size={24} strokeWidth={2.5} />
                         </div>
-                        <p className="text-sm font-medium text-gray-500">
-                            {delayInfo.isDelayed ? 'Current Delay' : 'Set Delay'}
-                        </p>
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${
+                            delayInfo.isDelayed ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors'
+                        }`}>
+                            {delayInfo.isDelayed ? 'Delayed' : 'Action'}
+                        </span>
                     </div>
-                    <h3 className={`text-3xl font-bold ${delayInfo.isDelayed ? 'text-amber-600' : 'text-gray-400'}`}>
-                        {delayInfo.isDelayed ? `${delayInfo.delayMins}m` : '—'}
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Service Delay</p>
+                    <h3 className={`text-4xl font-black mt-1 tracking-tighter ${delayInfo.isDelayed ? 'text-amber-600' : 'text-slate-300'}`}>
+                        {delayInfo.isDelayed ? `${delayInfo.delayMins}M` : '0M'}
                     </h3>
-                </div>
+                </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center justify-between border-b border-gray-200">
-                <div className="flex gap-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pt-4">
+                <div className="flex gap-10">
                     <button
                         onClick={() => setActiveTab('queue')}
-                        className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'queue' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        className={`pb-4 px-1 text-sm font-black uppercase tracking-widest transition-all relative ${
+                            activeTab === 'queue' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                        }`}
                     >
-                        Today's Queue ({queue.length})
+                        Live Queue ({queue.length})
+                        {activeTab === 'queue' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full" />}
                     </button>
                     <button
                         onClick={() => setActiveTab('patients')}
-                        className={`pb-3 px-1 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'patients' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                        className={`pb-4 px-1 text-sm font-black uppercase tracking-widest transition-all relative ${
+                            activeTab === 'patients' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                        }`}
                     >
-                        All Patients ({patients.length})
+                        Patient Registry ({patients.length})
+                        {activeTab === 'patients' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-t-full" />}
                     </button>
                 </div>
                 {activeTab === 'queue' && queueLastUpdated && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400 pb-3">
-                        <RefreshCw size={12} />
-                        Updated {queueLastUpdated.toLocaleTimeString()}
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest pb-4">
+                        <RefreshCw size={12} className="text-indigo-400" />
+                        Synced {queueLastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                 )}
             </div>
 
             {/* Today's Queue */}
             {activeTab === 'queue' && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="space-y-4">
                     {queue.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500">No patients in queue for today.</div>
+                        <div className="glass-card p-20 text-center">
+                            <Calendar size={48} className="mx-auto text-slate-200 mb-4" />
+                            <p className="text-slate-500 font-bold">No clinical sessions scheduled for today.</p>
+                        </div>
                     ) : (
-                        <div className="divide-y divide-gray-50">
+                        <div className="grid gap-4">
                             {queue.map(item => (
-                                <div key={item.queue_id} className="flex items-center justify-between p-5 hover:bg-gray-50 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-                                            {item.queue_number}
+                                <div key={item.queue_id} className="glass-card p-6 flex items-center justify-between group hover:border-indigo-200 transition-all duration-300">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-[1.5rem] bg-slate-900 text-white flex flex-col items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-500">
+                                            <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">Slot</span>
+                                            <span className="text-2xl font-black">{item.queue_number}</span>
                                         </div>
                                         <div>
-                                            <h4 className="font-semibold text-gray-900">{item.first_name} {item.last_name}</h4>
-                                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                                                <Clock size={12} /> {item.time_slot}
-                                            </p>
-                                            {item.symptoms && (
-                                                <p className="text-xs text-gray-400 mt-1 max-w-xs truncate">
-                                                    <span className="font-medium">Symptoms:</span> {item.symptoms}
+                                            <h4 className="text-xl font-black text-slate-900 tracking-tight">{item.first_name} {item.last_name}</h4>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
+                                                    <Clock size={14} className="text-indigo-400" /> {item.time_slot}
                                                 </p>
+                                                <span className={`px-3 py-1 text-[10px] font-black rounded-lg border uppercase tracking-widest ${STATUS_COLORS[item.queue_status]}`}>
+                                                    {item.queue_status?.replace('_', ' ')}
+                                                </span>
+                                            </div>
+                                            {item.symptoms && (
+                                                <div className="mt-3 flex items-start gap-2 bg-slate-50/50 p-2 rounded-xl border border-slate-100 max-w-sm">
+                                                    <Activity size={12} className="text-slate-400 mt-0.5" />
+                                                    <p className="text-[11px] font-bold text-slate-600 line-clamp-1 italic">
+                                                        "{item.symptoms}"
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full border capitalize ${STATUS_COLORS[item.queue_status]}`}>
-                                            {item.queue_status?.toLowerCase().replace('_', ' ')}
-                                        </span>
                                         {item.queue_status === 'WAITING' && (
                                             <button
                                                 disabled={updatingId === item.queue_id}
                                                 onClick={() => updateQueueStatus(item.queue_id, 'IN_PROGRESS')}
-                                                className="px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                                                className="btn-primary py-2.5 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95"
                                             >
-                                                {updatingId === item.queue_id ? '...' : 'Start'}
+                                                {updatingId === item.queue_id ? '...' : 'Initiate Session'}
                                             </button>
                                         )}
                                         {item.queue_status === 'IN_PROGRESS' && (
                                             <button
                                                 disabled={updatingId === item.queue_id}
                                                 onClick={() => handleCompleteClick(item)}
-                                                className="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                                                className="btn-primary-indigo py-2.5 px-6 font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-100 active:scale-95"
                                             >
-                                                {updatingId === item.queue_id ? '...' : 'Complete'}
+                                                {updatingId === item.queue_id ? '...' : 'Complete Analysis'}
                                             </button>
                                         )}
                                         {item.queue_status === 'WAITING' && (
                                             <button
                                                 disabled={updatingId === item.queue_id}
                                                 onClick={() => markMissed(item.queue_id)}
-                                                className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                                                className="btn-secondary py-2.5 px-6 font-black text-xs uppercase tracking-widest border-rose-100 text-rose-600 hover:bg-rose-50 active:scale-95"
                                             >
                                                 Missed
                                             </button>
@@ -509,69 +561,69 @@ const DoctorDashboard = () => {
 
             {/* All Patients */}
             {activeTab === 'patients' && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="space-y-4">
                     {patients.length === 0 ? (
-                        <div className="p-12 text-center text-gray-500">No patients found.</div>
+                        <div className="glass-card p-20 text-center">
+                            <Users size={48} className="mx-auto text-slate-200 mb-4" />
+                            <p className="text-slate-500 font-bold">No patient history found in registry.</p>
+                        </div>
                     ) : (
-                        <div className="divide-y divide-gray-50">
+                        <div className="grid gap-4">
                             {patients.map((patient, idx) => (
-                                <div key={`${patient.appointment_id}-${idx}`} className="p-5 hover:bg-gray-50 transition-colors">
+                                <div key={`${patient.appointment_id}-${idx}`} className="glass-card p-6 group hover:border-indigo-200 transition-all duration-300">
                                     <div className="flex items-start justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                <User size={20} className="text-gray-400" />
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm group-hover:scale-105 transition-all duration-500">
+                                                <User size={28} strokeWidth={2} />
                                             </div>
                                             <div>
-                                                <h4 className="font-semibold text-gray-900">{patient.first_name} {patient.last_name}</h4>
-                                                <p className="text-sm text-gray-500">{patient.email}</p>
-                                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                                                    <span className="flex items-center gap-1"><Calendar size={12} />{new Date(patient.appointment_date).toLocaleDateString()}</span>
-                                                    <span className="flex items-center gap-1"><Clock size={12} />{patient.time_slot}</span>
-                                                    {patient.blood_group && <span className="text-red-500 font-medium">{patient.blood_group}</span>}
+                                                <h4 className="text-xl font-black text-slate-900 tracking-tight">{patient.first_name} {patient.last_name}</h4>
+                                                <p className="text-sm font-bold text-slate-400">{patient.email}</p>
+                                                <div className="flex items-center gap-4 mt-2">
+                                                    <span className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Calendar size={12} className="text-indigo-400" />{new Date(patient.appointment_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                    <span className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Clock size={12} className="text-indigo-400" />{patient.time_slot}</span>
+                                                    {patient.blood_group && <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md uppercase tracking-widest">Type {patient.blood_group}</span>}
                                                 </div>
                                             </div>
                                         </div>
-                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full capitalize ${patient.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : patient.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                                            {patient.status?.toLowerCase()}
+                                        <span className={`px-4 py-1.5 text-[10px] font-black rounded-full uppercase tracking-widest border ${patient.status === 'CONFIRMED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : patient.status === 'COMPLETED' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-500 border-slate-100'}`}>
+                                            {patient.status}
                                         </span>
                                     </div>
 
-                                    {patient.symptoms && (
-                                        <div className="mt-3 ml-16 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                                            <p className="text-xs font-semibold text-amber-700 mb-1 flex items-center gap-1">
-                                                <AlertCircle size={12} /> Symptoms
-                                            </p>
-                                            <p className="text-sm text-amber-800">{patient.symptoms}</p>
-                                        </div>
-                                    )}
+                                    <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {patient.symptoms && (
+                                            <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-4">
+                                                <p className="text-[10px] font-black text-amber-700 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                                                    <AlertCircle size={12} strokeWidth={2.5} /> Reported Symptoms
+                                                </p>
+                                                <p className="text-sm font-bold text-amber-900/80 leading-relaxed italic">"{patient.symptoms}"</p>
+                                            </div>
+                                        )}
 
-                                    {(patient.diagnosis || patient.notes || patient.prescription || patient.follow_up_date) && (
-                                        <div className="mt-3 ml-16 p-3 bg-blue-50 border border-blue-100 rounded-xl space-y-2">
-                                            <p className="text-xs font-semibold text-blue-700 flex items-center gap-1">
-                                                <FileText size={12} /> Consultation Summary
-                                            </p>
-                                            {patient.diagnosis && (
-                                                <p className="text-sm text-blue-800">
-                                                    <span className="font-medium">Diagnosis:</span> {patient.diagnosis}
+                                        {(patient.diagnosis || patient.notes || patient.prescription || patient.follow_up_date) && (
+                                            <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                                                <p className="text-[10px] font-black text-indigo-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                    <FileText size={12} strokeWidth={2.5} /> Consultation Record
                                                 </p>
-                                            )}
-                                            {patient.prescription && (
-                                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                                                    <span className="font-medium">Prescription:</span> {patient.prescription}
-                                                </p>
-                                            )}
-                                            {patient.notes && (
-                                                <p className="text-sm text-blue-800 whitespace-pre-wrap">
-                                                    <span className="font-medium">Notes:</span> {patient.notes}
-                                                </p>
-                                            )}
-                                            {patient.follow_up_date && (
-                                                <p className="text-sm text-blue-800">
-                                                    <span className="font-medium">Follow-up:</span> {new Date(patient.follow_up_date).toLocaleDateString()}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
+                                                {patient.diagnosis && (
+                                                    <p className="text-sm font-bold text-slate-700">
+                                                        <span className="text-indigo-600">Diagnosis:</span> {patient.diagnosis}
+                                                    </p>
+                                                )}
+                                                {patient.prescription && (
+                                                    <p className="text-sm font-bold text-slate-700 whitespace-pre-wrap">
+                                                        <span className="text-indigo-600">Rx:</span> {patient.prescription}
+                                                    </p>
+                                                )}
+                                                {patient.follow_up_date && (
+                                                    <div className="pt-2 border-t border-indigo-100/50 flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest">
+                                                        <CalendarCheck size={12} /> Suggested Follow-up: {new Date(patient.follow_up_date).toLocaleDateString()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>

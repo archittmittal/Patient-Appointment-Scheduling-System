@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const NotificationSettings = () => {
-    const { user } = useAuth();
     const [preferences, setPreferences] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -64,7 +63,7 @@ const NotificationSettings = () => {
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: process.env.REACT_APP_VAPID_PUBLIC_KEY
+                applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
             });
 
             await fetch(`${API}/api/notifications/subscribe-push`, {

@@ -414,8 +414,7 @@ const getPendingFeedbackRequests = async (patientId) => {
             SELECT 
                 a.id,
                 a.appointment_date,
-                a.appointment_time,
-                a.appointment_type,
+                a.time_slot as appointment_time,
                 CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
                 dp.specialty
             FROM appointments a
@@ -456,7 +455,7 @@ const getPatientFeedbackHistory = async (patientId) => {
             SELECT 
                 f.*,
                 a.appointment_date,
-                a.appointment_time,
+                a.time_slot as appointment_time,
                 CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
                 dp.specialty
             FROM appointment_feedback f
