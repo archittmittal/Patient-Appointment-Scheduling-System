@@ -88,4 +88,52 @@ router.get('/:id/appointments', authenticate, async (req, res) => {
     }
 });
 
+const prescriptionService = require('../services/prescriptionService');
+const vitalsService = require('../services/vitalsService');
+
+// ... (existing routes)
+
+// Issue #94: Get patient prescriptions
+router.get('/:id/prescriptions', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const data = await prescriptionService.getPatientPrescriptions(req.params.id);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching prescriptions' });
+    }
+});
+
+// Issue #95: Get patient vitals history
+router.get('/:id/vitals', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const data = await vitalsService.getPatientVitals(req.params.id);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching vitals' });
+    }
+});
+
+// Issue #95: Log new vitals
+router.post('/:id/vitals', authenticate, async (req, res) => {
+    // Both patients (self-logging) and doctors can log vitals
+    if (req.user.role !== 'DOCTOR' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const data = await vitalsService.logVitals(req.params.id, req.body);
+        res.status(201).json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error logging vitals' });
+    }
+});
+
 module.exports = router;

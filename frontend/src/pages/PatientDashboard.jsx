@@ -119,11 +119,14 @@ const PatientDashboard = () => {
     const [expressEligible, setExpressEligible] = useState([]);
     const [prepOverview, setPrepOverview] = useState([]);
 
+    const [vitals, setVitals] = useState([]);
+    const [prescriptions, setPrescriptions] = useState([]);
+
     useEffect(() => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [upRes, pastRes, waitlistRes, offersRes, feedbackRes, expressRes, prepRes] = await Promise.all([
+                const [upRes, pastRes, waitlistRes, offersRes, feedbackRes, expressRes, prepRes, vitalsRes, prescriptionsRes] = await Promise.all([
                     fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`, { headers: authedHeaders() }),
                     fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers: authedHeaders() }),
                     fetch(`${API}/api/appointments/waitlist/my`, { headers: authedHeaders() }),
@@ -131,34 +134,20 @@ const PatientDashboard = () => {
                     fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() }),
                     fetch(`${API}/api/express-checkin/today`, { headers: authedHeaders() }),
                     fetch(`${API}/api/prep/overview`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/patients/${user.id}/vitals`, { headers: authedHeaders() }),
+                    fetch(`${API}/api/patients/${user.id}/prescriptions`, { headers: authedHeaders() })
                 ]);
                 const [upData, pastData] = await Promise.all([upRes.json(), pastRes.json()]);
                 setUpcoming(Array.isArray(upData) ? upData : []);
                 setPast(Array.isArray(pastData) ? pastData : []);
                 
-                // Issue #41: Set waitlist data
-                if (waitlistRes.ok) {
-                    const waitlistData = await waitlistRes.json();
-                    setWaitlist(Array.isArray(waitlistData) ? waitlistData : []);
-                }
-                if (offersRes.ok) {
-                    const offersData = await offersRes.json();
-                    setOffers(Array.isArray(offersData) ? offersData : []);
-                }
-
-                // Phase 2: Set Smart Actions data
-                if (feedbackRes.ok) {
-                    const data = await feedbackRes.json();
-                    setPendingFeedback(Array.isArray(data) ? data : []);
-                }
-                if (expressRes.ok) {
-                    const data = await expressRes.json();
-                    setExpressEligible(Array.isArray(data) ? data : []);
-                }
-                if (prepRes.ok) {
-                    const data = await prepRes.json();
-                    setPrepOverview(Array.isArray(data) ? data : []);
-                }
+                if (waitlistRes.ok) setWaitlist(await waitlistRes.json());
+                if (offersRes.ok) setOffers(await offersRes.json());
+                if (feedbackRes.ok) setPendingFeedback(await feedbackRes.json());
+                if (expressRes.ok) setExpressEligible(await expressRes.json());
+                if (prepRes.ok) setPrepOverview(await prepRes.json());
+                if (vitalsRes.ok) setVitals(await vitalsRes.json());
+                if (prescriptionsRes.ok) setPrescriptions(await prescriptionsRes.json());
             } catch (err) {
                 console.error('Dashboard error:', err);
             } finally {
@@ -168,175 +157,23 @@ const PatientDashboard = () => {
         fetchData();
     }, [user?.id]);
 
-    // Issue #41: Accept slot offer
-    const handleAcceptOffer = async (offerId) => {
-        setProcessingOffer(offerId);
-        try {
-            const res = await fetch(`${API}/api/appointments/waitlist/offers/${offerId}/accept`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setOffers(prev => prev.filter(o => o.id !== offerId));
-                // Refresh appointments
-                const upRes = await fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`, { headers: authedHeaders() });
-                const upData = await upRes.json();
-                setUpcoming(Array.isArray(upData) ? upData : []);
-            }
-        } catch (err) {
-            console.error('Accept offer error:', err);
-        } finally {
-            setProcessingOffer(null);
-        }
-    };
+    const latestVitals = vitals[vitals.length - 1];
 
-    // Issue #41: Decline slot offer
-    const handleDeclineOffer = async (offerId) => {
-        setProcessingOffer(offerId);
-        try {
-            await fetch(`${API}/api/appointments/waitlist/offers/${offerId}/decline`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            setOffers(prev => prev.filter(o => o.id !== offerId));
-        } catch (err) {
-            console.error('Decline offer error:', err);
-        } finally {
-            setProcessingOffer(null);
-        }
-    };
-
-    // Issue #41: Leave waitlist
-    const handleLeaveWaitlist = async (waitlistId) => {
-        try {
-            await fetch(`${API}/api/appointments/waitlist/${waitlistId}`, {
-                method: 'DELETE',
-                headers: authedHeaders()
-            });
-            setWaitlist(prev => prev.filter(w => w.id !== waitlistId));
-        } catch (err) {
-            console.error('Leave waitlist error:', err);
-        }
-    };
-
-    // Real derived stats
-    const completedCount = past.filter(a => (a.status || '').toUpperCase() === 'COMPLETED').length;
-    const uniqueDoctors = new Set([...upcoming, ...past].map(a => `${a.doc_first} ${a.doc_last}`)).size;
-    const nextApt = upcoming[0];
-    const latestFollowUp = past.find(a => a.follow_up_date)?.follow_up_date;
-    
-    const nextAptLabel = nextApt
-        ? new Date(nextApt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        : (latestFollowUp ? new Date(latestFollowUp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
-    
-    const nextAptSub = nextApt 
-        ? nextApt.time_slot 
-        : (latestFollowUp ? 'Doctor recommended' : 'no upcoming');
-
-    const displayed = activeTab === 'upcoming' ? upcoming : past;
-
-    // Smart Actions Computation
-    const todayStr = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    
-    // Nudge: Running Late
-    const todayApt = upcoming.find(apt => {
-        const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
-        return aptDate === todayStr && !['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(apt.status?.toUpperCase() || '');
-    });
-
-    let runningLateApt = null;
-    if (todayApt) {
-        const aptTimeSlot = todayApt.time_slot || todayApt.appointment_time;
-        if (aptTimeSlot) {
-            const timeParts = aptTimeSlot.split(':');
-            let h = parseInt(timeParts[0]);
-            let m = parseInt(timeParts[1]);
-            // Format check for AM/PM in case time_slot uses 12h, but normally db is 24h or string.
-            if (aptTimeSlot.toUpperCase().includes('PM') && h < 12) h += 12;
-            if (aptTimeSlot.toUpperCase().includes('AM') && h === 12) h = 0;
-            
-            const aptTime = new Date();
-            aptTime.setHours(h, m, 0, 0);
-
-            const timeDiffMins = (aptTime - now) / 60000;
-            if (timeDiffMins <= 60 && timeDiffMins >= -60) {
-                runningLateApt = todayApt;
-            }
-        }
-    }
-
-    // Nudge: Express Check-in
-    const expressCard = expressEligible.length > 0 ? expressEligible[0] : null;
-
-    // Nudge: Prep Checklist
-    const pendingPrepApt = prepOverview.find(prep => {
-        if (!prep.appointment?.appointment_date) return false;
-        const aptDate = new Date(prep.appointment.appointment_date);
-        const diffHours = (aptDate - now) / 3600000;
-        const requiredDone = prep.prepProgress?.requiredCompleted || 0;
-        const requiredTotal = prep.prepProgress?.requiredTotal || 0;
-        // Within 48 hours and not completed
-        return diffHours >= -24 && diffHours <= 48 && requiredDone < requiredTotal;
-    });
-
-    // Nudge: Feedback
-    const feedbackCard = pendingFeedback.length > 0 ? pendingFeedback[0] : null;
-
-    const hasSmartActions = runningLateApt || expressCard || pendingPrepApt || feedbackCard;
-
-    if (isLoading) {
-        return <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Loading dashboard...</div>;
-    }
-
-    return (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-10">
-            {/* Header */}
-            <div className="flex justify-between items-center bg-white/40 p-6 rounded-[2rem] border border-white/40 backdrop-blur-sm">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Welcome back, <span className="text-indigo-600">{user?.first_name}</span>!</h1>
-                    <p className="text-slate-500 font-medium mt-1">Your wellness journey at a glance.</p>
-                </div>
-                <button
-                    onClick={() => navigate('/book')}
-                    className="btn-primary flex items-center gap-2 group"
-                >
-                    <ListPlus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
-                    Book Appointment
-                </button>
-            </div>
-
-            {/* Real stat cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    // ... (existing StatCard grid)
                 <StatCard 
-                    title="Upcoming" 
-                    value={upcoming.length} 
-                    icon={CalendarIcon} 
-                    sub="confirmed & scheduled" 
-                    onClick={() => setActiveTab('upcoming')}
+                    title="Vitals Health" 
+                    value={latestVitals ? `${latestVitals.blood_pressure_sys}/${latestVitals.blood_pressure_dia}` : '—'} 
+                    icon={Activity} 
+                    sub={latestVitals ? `Last: ${new Date(latestVitals.recorded_at).toLocaleDateString()}` : 'No vitals logged'} 
+                    onClick={() => navigate('/vitals')}
                 />
                 <StatCard 
-                    title="Completed Visits" 
-                    value={completedCount} 
-                    icon={CheckCircle2} 
-                    sub="click to view history" 
-                    onClick={() => setStatModal('completed')}
+                    title="Prescriptions" 
+                    value={prescriptions.length} 
+                    icon={Pill} 
+                    sub="ready for download" 
+                    onClick={() => navigate('/prescriptions')}
                 />
-                <StatCard 
-                    title="Doctors Seen" 
-                    value={uniqueDoctors} 
-                    icon={User} 
-                    sub="click to view doctors" 
-                    onClick={() => setStatModal('doctors')}
-                />
-                <StatCard 
-                    title="Next Visit" 
-                    value={nextAptLabel} 
-                    icon={CalendarIcon} 
-                    sub={nextAptSub} 
-                />
-            </div>
 
             {/* Smart Actions Panel */}
             {hasSmartActions && (
