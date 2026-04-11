@@ -13,10 +13,10 @@ const expressCheckinService = {
     async generateCheckinToken(appointmentId, patientId) {
         // Verify appointment belongs to patient
         const [appointments] = await db.query(
-            `SELECT a.*, u.first_name, u.last_name, d.first_name as doc_first, d.last_name as doc_last
+            `SELECT a.*, p.first_name, p.last_name, d.first_name as doc_first, d.last_name as doc_last
              FROM appointments a
-             JOIN users u ON a.patient_id = u.id
-             JOIN users d ON a.doctor_id = d.id
+             JOIN patients p ON a.patient_id = p.id
+             JOIN doctors d ON a.doctor_id = d.id
              WHERE a.id = ? AND a.patient_id = ?`,
             [appointmentId, patientId]
         );
@@ -66,10 +66,10 @@ const expressCheckinService = {
         // Find and validate token
         const [tokens] = await db.query(
             `SELECT ct.*, a.status as apt_status, a.patient_id, a.doctor_id,
-                    u.first_name, u.last_name
+                    p.first_name, p.last_name
              FROM checkin_tokens ct
              JOIN appointments a ON ct.appointment_id = a.id
-             JOIN users u ON a.patient_id = u.id
+             JOIN patients p ON a.patient_id = p.id
              WHERE ct.token = ? AND ct.expires_at > NOW() AND ct.used = FALSE`,
             [token]
         );
@@ -228,10 +228,9 @@ const expressCheckinService = {
     async getPrefilledInfo(patientId) {
         // Get last completed appointment details
         const [lastVisit] = await db.query(
-            `SELECT a.*, d.first_name as doc_first, d.last_name as doc_last, s.name as specialty
+            `SELECT a.*, d.first_name as doc_first, d.last_name as doc_last, d.specialty
              FROM appointments a
-             JOIN users d ON a.doctor_id = d.id
-             LEFT JOIN specialties s ON d.specialty_id = s.id
+             JOIN doctors d ON a.doctor_id = d.id
              WHERE a.patient_id = ? AND a.status = 'COMPLETED'
              ORDER BY a.appointment_date DESC
              LIMIT 1`,
@@ -240,8 +239,10 @@ const expressCheckinService = {
 
         // Get patient profile
         const [patient] = await db.query(
-            `SELECT first_name, last_name, email, phone, date_of_birth
-             FROM users WHERE id = ?`,
+            `SELECT p.first_name, p.last_name, u.email, u.phone, p.dob as date_of_birth
+             FROM patients p
+             JOIN users u ON p.id = u.id
+             WHERE p.id = ?`,
             [patientId]
         );
 
@@ -269,12 +270,11 @@ const expressCheckinService = {
      */
     async getTodayExpressEligible(patientId) {
         const [appointments] = await db.query(
-            `SELECT a.*, d.first_name as doc_first, d.last_name as doc_last, s.name as specialty,
+            `SELECT a.*, d.first_name as doc_first, d.last_name as doc_last, d.specialty,
                     (SELECT COUNT(*) FROM appointments 
                      WHERE patient_id = ? AND doctor_id = a.doctor_id AND status = 'COMPLETED') as previous_visits
              FROM appointments a
-             JOIN users d ON a.doctor_id = d.id
-             LEFT JOIN specialties s ON d.specialty_id = s.id
+             JOIN doctors d ON a.doctor_id = d.id
              WHERE a.patient_id = ?
                AND DATE(a.appointment_date) = CURDATE()
                AND a.status IN ('CONFIRMED', 'PENDING')
