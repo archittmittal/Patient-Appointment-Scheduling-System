@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2 } from 'lucide-react';
+import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
@@ -16,7 +16,7 @@ const DEFAULT_AVAILABILITY = {
     sunday:    { open: false, from: '',      to: ''       },
 };
 
-const inputClass = "w-full bg-slate-50/50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300 placeholder:text-slate-300";
+const inputClass = "w-full bg-white/5 border border-[var(--border-base)] rounded-2xl px-5 py-3.5 text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 focus:bg-white/10 transition-all duration-300 placeholder:text-slate-600 shadow-inner";
 
 const DoctorProfileEdit = () => {
     const { user, login } = useAuth();
@@ -31,34 +31,31 @@ const DoctorProfileEdit = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [savingProfile, setSavingProfile] = useState(false);
     const [savingAvail, setSavingAvail] = useState(false);
-    const [profileMsg, setProfileMsg] = useState(null);  // {type:'success'|'error', text}
-    const [availMsg, setAvailMsg]     = useState(null);
+    const [profileMsg, setProfileMsg] = useState(null);
+    const [availMsg, setAvailMsg] = useState(null);
     const [blockedDates, setBlockedDates] = useState([]);
     const [newBlockDate, setNewBlockDate] = useState('');
     const [newBlockReason, setNewBlockReason] = useState('');
     const [blockMsg, setBlockMsg] = useState(null);
 
-    // Load current doctor data
     useEffect(() => {
         if (!user?.id) return;
         fetch(`${API}/api/doctors/${user.id}`)
             .then(res => res.json())
             .then(data => {
                 setProfile({
-                    first_name:       data.first_name      || '',
-                    last_name:        data.last_name       || '',
-                    specialty:        data.specialty       || '',
-                    degree:           data.degree          || '',
+                    first_name: data.first_name || '',
+                    last_name: data.last_name || '',
+                    specialty: data.specialty || '',
+                    degree: data.degree || '',
                     experience_years: data.experience_years ?? '',
-                    about:            data.about           || '',
-                    location_room:    data.location_room   || '',
-                    image_url:              data.image_url            || '',
-                    max_patients_per_slot:  data.max_patients_per_slot ?? 15,
+                    about: data.about || '',
+                    location_room: data.location_room || '',
+                    image_url: data.image_url || '',
+                    max_patients_per_slot: data.max_patients_per_slot ?? 15,
                 });
                 if (data.availability) {
-                    const av = typeof data.availability === 'string'
-                        ? JSON.parse(data.availability)
-                        : data.availability;
+                    const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
                     setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
                 }
             })
@@ -68,7 +65,7 @@ const DoctorProfileEdit = () => {
 
     const fetchBlockedDates = () => {
         if (!user?.id) return;
-        fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates`)
+        fetch(`${API}/api/doctors/${user.id}/blocked-dates`)
             .then(r => r.json())
             .then(data => setBlockedDates(Array.isArray(data) ? data : []))
             .catch(err => console.error(err));
@@ -76,27 +73,20 @@ const DoctorProfileEdit = () => {
 
     useEffect(() => { fetchBlockedDates(); }, [user?.id]);
 
-    // Handle photo file pick — convert to base64
     const handlePhotoChange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            setProfileMsg({ type: 'error', text: 'Image must be under 2 MB' });
-            return;
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => setProfile(prev => ({ ...prev, image_url: reader.result }));
-        reader.readAsDataURL(file);
+        if (file.size > 2 * 1024 * 1024) { setProfileMsg({ type: 'error', text: 'Registry error: Payload exceeds 2MB limit' }); return; }
+        const r = new FileReader();
+        r.onloadend = () => setProfile(prev => ({ ...prev, image_url: r.result }));
+        r.readAsDataURL(file);
     };
 
-    const handleProfileChange = e =>
-        setProfile(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleProfileChange = e => setProfile(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
     const showMsg = (setter, msg) => {
         setter(msg);
-        if (msg.type === 'success') {
-            setTimeout(() => setter(null), 3000);
-        }
+        if (msg.type === 'success') setTimeout(() => setter(null), 3000);
     };
 
     const saveProfile = async () => {
@@ -108,418 +98,243 @@ const DoctorProfileEdit = () => {
                 headers: authedHeaders(true),
                 body: JSON.stringify(profile),
             });
-            if (!res.ok) throw new Error('Failed');
+            if (!res.ok) throw new Error();
             const updated = await res.json();
-            // Keep auth name in sync
             login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
-            showMsg(setProfileMsg, { type: 'success', text: 'Profile saved successfully!' });
+            showMsg(setProfileMsg, { type: 'success', text: 'Clinical Identity Synchronized' });
         } catch {
-            showMsg(setProfileMsg, { type: 'error', text: 'Failed to save profile. Try again.' });
-        } finally {
-            setSavingProfile(false);
-        }
+            showMsg(setProfileMsg, { type: 'error', text: 'Registry Link Down. Data not saved.' });
+        } finally { setSavingProfile(false); }
     };
 
-    const toggleDay = (day) =>
-        setAvailability(prev => ({
-            ...prev,
-            [day]: { ...prev[day], open: !prev[day].open }
-        }));
-
-    const updateDayTime = (day, field, value) =>
-        setAvailability(prev => ({
-            ...prev,
-            [day]: { ...prev[day], [field]: value }
-        }));
+    const toggleDay = (day) => setAvailability(prev => ({ ...prev, [day]: { ...prev[day], open: !prev[day].open } }));
+    const updateDayTime = (day, f, v) => setAvailability(prev => ({ ...prev, [day]: { ...prev[day], [f]: v } }));
 
     const saveAvailability = async () => {
-        setSavingAvail(true);
-        setAvailMsg(null);
+        setSavingAvail(true); setAvailMsg(null);
         try {
             const res = await fetch(`${API}/api/doctors/${user.id}/availability`, {
                 method: 'PATCH',
                 headers: authedHeaders(true),
                 body: JSON.stringify({ availability }),
             });
-            if (!res.ok) throw new Error('Failed');
-            showMsg(setAvailMsg, { type: 'success', text: 'Schedule saved successfully!' });
-        } catch {
-            showMsg(setAvailMsg, { type: 'error', text: 'Failed to save schedule. Try again.' });
-        } finally {
-            setSavingAvail(false);
-        }
+            if (!res.ok) throw new Error();
+            showMsg(setAvailMsg, { type: 'success', text: 'Operational Window Updated' });
+        } catch { showMsg(setAvailMsg, { type: 'error', text: 'Sync Error. Check connectivity.' }); }
+        finally { setSavingAvail(false); }
     };
 
     const addBlockedDate = async () => {
-        if (!newBlockDate) {
-            setBlockMsg({ type: 'error', text: 'Please select a date to block.' });
-            return;
-        }
+        if (!newBlockDate) { showMsg(setBlockMsg, { type: 'error', text: 'Select valid timestamp' }); return; }
         setBlockMsg(null);
         try {
-            const res = await fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates`, {
+            const res = await fetch(`${API}/api/doctors/${user.id}/blocked-dates`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ date: newBlockDate, reason: newBlockReason || null }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.message || 'Failed');
-            }
-            setNewBlockDate('');
-            setNewBlockReason('');
-            fetchBlockedDates();
-            showMsg(setBlockMsg, { type: 'success', text: 'Date blocked successfully.' });
-        } catch (err) {
-            setBlockMsg({ type: 'error', text: err.message });
-        }
+            if (!res.ok) throw new Error();
+            setNewBlockDate(''); setNewBlockReason(''); fetchBlockedDates();
+            showMsg(setBlockMsg, { type: 'success', text: 'Clinical Downtime Indexed' });
+        } catch { showMsg(setBlockMsg, { type: 'error', text: 'Exclusion Protocol Failed' }); }
     };
 
     const removeBlockedDate = async (id) => {
         try {
-            await fetch(`http://localhost:5001/api/doctors/${user.id}/blocked-dates/${id}`, {
-                method: 'DELETE',
-            });
+            await fetch(`${API}/api/doctors/${user.id}/blocked-dates/${id}`, { method: 'DELETE' });
             setBlockedDates(prev => prev.filter(d => d.id !== id));
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) { console.error(err); }
     };
 
-    if (isLoading) {
-        return <div className="p-10 text-center text-gray-400 animate-pulse">Loading profile...</div>;
-    }
+    if (isLoading) return <div className="p-20 text-center text-slate-500 font-bold animate-pulse uppercase tracking-[0.2em]">Synchronizing Workflow Metadata...</div>;
 
-    const avatarSrc = profile.image_url ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.first_name + '+' + profile.last_name)}&background=random&size=200`;
+    const avatarSrc = profile.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.first_name + '+' + profile.last_name)}&background=1e293b&color=fff&size=512`;
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 pb-20 px-4 md:px-0">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                        <span className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                            <User size={20} strokeWidth={2.5} />
-                        </span>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Practitioner Profile</h1>
+        <div className="max-w-6xl mx-auto space-y-10 pb-20 px-4 md:px-0 animate-in fade-in duration-700">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2 px-1">
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary shadow-inner">
+                        <User size={32} strokeWidth={2.5} />
                     </div>
-                    <p className="text-slate-400 font-bold text-sm">Manage your professional identity and clinical availability.</p>
+                    <div>
+                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight uppercase italic leading-none">Practitioner Workspace</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 italic">Clinical Identity & Schedule Administration</p>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Active Status Verified
-                    </span>
+                <div className="flex items-center gap-3 bg-white/5 px-6 py-2.5 rounded-full border border-[var(--border-base)] shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verified credentials active</span>
                 </div>
             </div>
 
             {/* ── PROFILE CARD ── */}
-            <div className="glass-card p-10 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
+            <div className="glass-modal rounded-[3.5rem] p-10 relative overflow-hidden group border-none">
+                <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] -z-10 translate-x-1/4 -translate-y-1/4 animate-pulse"></div>
                 
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-10 flex items-center gap-3">
-                    <span className="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
-                    Clinical Identity
-                </h2>
-
-                {profileMsg && (
-                    <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 text-sm font-black uppercase tracking-wide border transition-all ${profileMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                        {profileMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                        {profileMsg.text}
-                    </div>
-                )}
-
-                {/* Photo upload */}
-                <div className="flex flex-col md:flex-row md:items-center gap-10 mb-12 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100/50">
-                    <div className="relative group/avatar">
-                        <div className="w-40 h-40 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl relative">
-                            <img
-                                src={avatarSrc}
-                                alt="Profile"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover/avatar:scale-110"
-                            />
-                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => fileRef.current?.click()}>
-                                <Camera size={32} className="text-white transform scale-75 group-hover/avatar:scale-100 transition-transform" />
-                            </div>
+                <div className="flex items-center justify-between mb-12">
+                     <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                        <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><ShieldCheck size={20} /></span>
+                        Registry Status
+                    </h2>
+                    {profileMsg && (
+                        <div className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border animate-in slide-in-from-right-4 duration-500 ${profileMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'}`}>
+                            {profileMsg.text}
                         </div>
-                        <button
-                            onClick={() => fileRef.current?.click()}
-                            className="absolute -bottom-3 -right-3 bg-indigo-600 text-white p-3.5 rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-110 transition-all border-4 border-white active:scale-95"
-                        >
-                            <Camera size={20} strokeWidth={2.5} />
-                        </button>
-                        <input
-                            ref={fileRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handlePhotoChange}
-                        />
-                    </div>
-                    <div className="space-y-3">
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Profile Portrait</p>
-                        <h4 className="text-lg font-black text-slate-900">Your visual clinical identity</h4>
-                        <p className="text-sm font-bold text-slate-500 leading-relaxed max-w-sm">
-                            Enhanced visual presence increases patient trust. High-resolution portraits with clear clinical backgrounds are recommended. <br/>
-                            <span className="text-indigo-600 text-[10px] uppercase tracking-widest mt-2 block">Max File Size: 2 MB</span>
-                        </p>
-                        <button
-                            onClick={() => fileRef.current?.click()}
-                            className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-5 py-2.5 rounded-xl hover:bg-indigo-100 transition-all border border-indigo-100"
-                        >
-                            Upload Professional Photo
-                        </button>
-                    </div>
+                    )}
                 </div>
 
-                {/* Form fields */}
-                <div className="grid md:grid-cols-2 gap-8">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">First Name</label>
-                        <div className="relative group">
-                            <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                            <input name="first_name" value={profile.first_name} onChange={handleProfileChange}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300" />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Last Name</label>
-                        <input name="last_name" value={profile.last_name} onChange={handleProfileChange} className={inputClass} />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Specialization</label>
-                        <div className="relative group">
-                            <Award className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                            <input name="specialty" value={profile.specialty} onChange={handleProfileChange}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300"
-                                placeholder="e.g. Cardiologist" />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Academic Degree</label>
-                        <div className="relative group">
-                            <BookOpen className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                            <input name="degree" value={profile.degree} onChange={handleProfileChange}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300"
-                                placeholder="e.g. MBBS, MD" />
-                        </div>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Years of Experience</label>
-                        <input name="experience_years" type="number" min={0} value={profile.experience_years} onChange={handleProfileChange} className={inputClass} placeholder="e.g. 10" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Booking Capacity</label>
-                        <div className="relative group">
-                            <Plus className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                            <input
-                                name="max_patients_per_slot"
-                                type="number"
-                                min={1}
-                                max={100}
-                                value={profile.max_patients_per_slot}
-                                onChange={handleProfileChange}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300"
-                                placeholder="e.g. 15"
-                            />
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-400 mt-2 ml-2 italic">Maximum patients allowed per 60-minute window.</p>
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Clinical Location</label>
-                        <div className="relative group">
-                            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                            <input name="location_room" value={profile.location_room} onChange={handleProfileChange}
-                                className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300"
-                                placeholder="e.g. Hospital Wing B, Room 402" />
-                        </div>
-                    </div>
-                    <div className="md:col-span-2 space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Professional Biography</label>
-                        <textarea name="about" value={profile.about} onChange={handleProfileChange} rows={5}
-                            className="w-full bg-slate-50/50 border border-slate-200 rounded-2xl px-6 py-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all duration-300 resize-none"
-                            placeholder="Brief description of your expertise and clinical approach..." />
-                    </div>
-                </div>
-
-                <div className="mt-12 pt-8 border-t border-slate-100 flex justify-end">
-                    <button
-                        onClick={saveProfile}
-                        disabled={savingProfile}
-                        className="btn-primary px-10 py-4 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-3"
-                    >
-                        {savingProfile ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        ) : <Save size={18} strokeWidth={2.5} />}
-                        {savingProfile ? 'Synchronizing...' : 'Save Clinical Profile'}
-                    </button>
-                </div>
-            </div>
-
-            {/* ── AVAILABILITY / SCHEDULE ── */}
-            <div className="glass-card p-10 relative overflow-hidden group">
-                <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-50/30 rounded-full blur-3xl -z-10 -translate-y-1/2 -translate-x-1/2"></div>
-                
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2 flex items-center gap-3">
-                    <span className="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
-                    Clinical Calendar
-                </h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-10 ml-4">Establish your weekly operational window.</p>
-
-                {availMsg && (
-                    <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 text-sm font-black uppercase tracking-wide border transition-all ${availMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                        {availMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                        {availMsg.text}
-                    </div>
-                )}
-
-                <div className="space-y-4">
-                    {DAYS.map(day => {
-                        const slot = availability[day];
-                        return (
-                            <div
-                                key={day}
-                                className={`flex flex-col sm:flex-row items-center gap-6 p-6 rounded-[2rem] border transition-all duration-300 ${slot.open ? 'bg-white border-slate-100 shadow-sm' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}
-                            >
-                                <div className="w-24 flex-shrink-0">
-                                    <p className={`text-xs font-black uppercase tracking-[0.2em] ${slot.open ? 'text-indigo-600' : 'text-slate-400'}`}>
-                                        {DAY_LABELS[day]}
-                                    </p>
+                <div className="flex flex-col lg:flex-row gap-12">
+                    {/* Visual Cell */}
+                    <div className="lg:w-1/3 space-y-8">
+                        <div className="relative group/avatar mx-auto lg:mx-0 w-fit">
+                            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden border-4 border-white/5 shadow-2xl relative bg-slate-900/40 p-1">
+                                <img src={avatarSrc} alt="Profile" className="w-full h-full object-cover rounded-[3.2rem] opacity-90 transition-all duration-700 group-hover/avatar:scale-110 group-hover/avatar:opacity-100" />
+                                <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center cursor-pointer" onClick={() => fileRef.current?.click()}>
+                                    <Camera size={48} className="text-white transform scale-75 group-hover/avatar:scale-100 transition-transform" />
                                 </div>
-
-                                <button
-                                    onClick={() => toggleDay(day)}
-                                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition-all duration-500 flex-shrink-0 shadow-inner ${slot.open ? 'bg-indigo-600' : 'bg-slate-200'}`}
-                                >
-                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-500 ${slot.open ? 'translate-x-8' : 'translate-x-1'}`} />
-                                </button>
-
-                                {slot.open ? (
-                                    <div className="flex items-center gap-4 flex-1">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Available From</span>
-                                        <input
-                                            type="time"
-                                            value={slot.from}
-                                            onChange={e => updateDayTime(day, 'from', e.target.value)}
-                                            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-                                        />
-                                        <span className="text-slate-300 font-bold">—</span>
-                                        <input
-                                            type="time"
-                                            value={slot.to}
-                                            onChange={e => updateDayTime(day, 'to', e.target.value)}
-                                            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-black text-slate-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex items-center gap-2">
-                                        <CalendarX size={14} className="text-slate-400" />
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Facility Closed</p>
-                                    </div>
-                                )}
                             </div>
-                        );
-                    })}
-                </div>
+                            <button onClick={() => fileRef.current?.click()} className="absolute -bottom-4 -right-4 bg-primary text-white p-5 rounded-[1.5rem] shadow-xl hover:bg-primary-hover hover:scale-110 transition-all border-4 border-[var(--bg-base)] active:scale-95 group/cam">
+                                <Camera size={24} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform" />
+                            </button>
+                            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                        </div>
+                        <div className="bg-primary-light/5 rounded-[2.5rem] p-8 border border-[var(--border-base)] space-y-4">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic mb-1">UI Visual Protocol</p>
+                            <h4 className="text-sm font-black text-[var(--text-base)] uppercase tracking-tight italic">Registry Portrait</h4>
+                            <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">High-contrast clinical portraits optimize trust metrics. Ensure subject clarity and clinical grade lighting.</p>
+                        </div>
+                    </div>
 
-                <div className="mt-10 pt-8 border-t border-slate-100 flex justify-end">
-                    <button
-                        onClick={saveAvailability}
-                        disabled={savingAvail}
-                        className="btn-primary px-10 py-4 font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-3"
-                    >
-                        {savingAvail ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        ) : <Save size={18} strokeWidth={2.5} />}
-                        {savingAvail ? 'Synchronizing...' : 'Save Weekly Schedule'}
-                    </button>
+                    {/* Data Matrix */}
+                    <div className="flex-1 space-y-8">
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <Field label="Identification Primary" name="first_name" value={profile.first_name} onChange={handleProfileChange} icon={<User size={18} />} placeholder="FIRST NAME" />
+                            <Field label="Identification Secondary" name="last_name" value={profile.last_name} onChange={handleProfileChange} placeholder="LAST NAME" />
+                            <Field label="Specialist Core" name="specialty" value={profile.specialty} onChange={handleProfileChange} icon={<Award size={18} />} placeholder="e.g. NEUROLOGIST" />
+                            <Field label="Academic Weight" name="degree" value={profile.degree} onChange={handleProfileChange} icon={<BookOpen size={18} />} placeholder="e.g. MB, BCh, M.Sc" />
+                            <Field label="Clinical Tenure (Years)" name="experience_years" type="number" value={profile.experience_years} onChange={handleProfileChange} placeholder="0" />
+                            <Field label="Neural Buffer Capacity" name="max_patients_per_slot" type="number" value={profile.max_patients_per_slot} onChange={handleProfileChange} subLabel="PAX per clinical window" placeholder="15" />
+                        </div>
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Physical Deployment Zone</label>
+                            <div className="relative group/input">
+                                <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-primary transition-colors" size={20} />
+                                <input name="location_room" value={profile.location_room} onChange={handleProfileChange} className="w-full pl-16 pr-6 py-5 bg-white/5 border border-[var(--border-base)] rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all shadow-inner uppercase tracking-widest" placeholder="FACILITY COORDINATES" />
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Clinical Biography (Neural Sync)</label>
+                            <textarea name="about" value={profile.about} onChange={handleProfileChange} rows={5} className="w-full bg-white/5 border border-[var(--border-base)] rounded-[2.5rem] px-8 py-6 text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all shadow-inner resize-none italic" placeholder="ENCRYPT PROFESSIONAL HISTORY..." />
+                        </div>
+                        <div className="flex justify-end pt-4">
+                            <button onClick={saveProfile} disabled={savingProfile} className="btn-primary px-12 py-5 font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 flex items-center gap-4 transition-all group">
+                                {savingProfile ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <Save size={20} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />}
+                                {savingProfile ? 'SYNCHRONIZING...' : 'UPDATE IDENTITY'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* ── BLOCKED DATES ── */}
-            <div className="glass-card p-10 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-rose-50/30 rounded-full blur-3xl -z-10 -translate-y-1/2 translate-x-1/2"></div>
-                
-                <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2 flex items-center gap-3">
-                    <span className="w-1.5 h-6 bg-rose-500 rounded-full"></span>
-                    Clinical Downtime
-                </h2>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-10 ml-4">Block specific dates for professional leave or facility maintenance.</p>
-
-                {blockMsg && (
-                    <div className={`mb-8 p-4 rounded-2xl flex items-center gap-3 text-sm font-black uppercase tracking-wide border transition-all ${blockMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
-                        {blockMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                        {blockMsg.text}
+            {/* ── SCHEDULE ── */}
+            <div className="grid lg:grid-cols-2 gap-10">
+                <div className="glass-modal rounded-[3.5rem] p-10 border-none shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 left-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] -z-10 -translate-x-1/4 -translate-y-1/4 animate-pulse"></div>
+                    <div className="flex items-center justify-between mb-10">
+                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                            <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Clock size={20} /></span>
+                            Operational Grid
+                        </h2>
+                        {availMsg && <span className="text-[9px] font-black uppercase text-emerald-500">{availMsg.text}</span>}
                     </div>
-                )}
-
-                {/* Add new blocked date */}
-                <div className="flex flex-col md:flex-row gap-4 mb-10 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100/50 items-end">
-                    <div className="flex-1 space-y-2 w-full">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Unavailable Date</label>
-                        <input
-                            type="date"
-                            value={newBlockDate}
-                            onChange={e => setNewBlockDate(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
-                            className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all shadow-sm"
-                        />
+                    
+                    <div className="space-y-3">
+                        {DAYS.map(day => {
+                            const slot = availability[day];
+                            return (
+                                <div key={day} className={`flex items-center gap-4 p-5 rounded-[2rem] border transition-all duration-500 ${slot.open ? 'bg-white/5 border-[var(--border-base)] group-hover:border-primary/20' : 'bg-rose-500/5 border-rose-500/10 opacity-40'}`}>
+                                    <div className="w-16 flex-shrink-0"><p className={`text-[10px] font-black uppercase tracking-[0.2em] ${slot.open ? 'text-primary' : 'text-slate-500'}`}>{DAY_LABELS[day]}</p></div>
+                                    <button onClick={() => toggleDay(day)} className={`relative inline-flex h-6 w-12 items-center rounded-full transition-all duration-500 ${slot.open ? 'bg-primary shadow-lg shadow-primary/30' : 'bg-white/10'}`}>
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-500 ${slot.open ? 'translate-x-7' : 'translate-x-1'}`} />
+                                    </button>
+                                    {slot.open ? (
+                                        <div className="flex items-center gap-3 flex-1 justify-end">
+                                            <input type="time" value={slot.from} onChange={e => updateDayTime(day, 'from', e.target.value)} className="bg-white/5 border border-[var(--border-base)] rounded-xl px-3 py-2 text-[10px] font-black text-[var(--text-base)] focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                            <span className="text-slate-500 font-black">—</span>
+                                            <input type="time" value={slot.to} onChange={e => updateDayTime(day, 'to', e.target.value)} className="bg-white/5 border border-[var(--border-base)] rounded-xl px-3 py-2 text-[10px] font-black text-[var(--text-base)] focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
+                                        </div>
+                                    ) : <div className="flex-1 text-right text-[9px] font-black text-rose-500 uppercase tracking-widest italic opacity-60">Facility Offline</div>}
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div className="flex-[2] space-y-2 w-full">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Exclusion Reason</label>
-                        <input
-                            type="text"
-                            value={newBlockReason}
-                            onChange={e => setNewBlockReason(e.target.value)}
-                            placeholder="e.g. Annual Leave, Medical Conference"
-                            className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-rose-500/10 focus:border-rose-400 transition-all shadow-sm"
-                        />
+                    <div className="mt-8 flex justify-end">
+                        <button onClick={saveAvailability} disabled={savingAvail} className="btn-secondary px-8 py-4 font-black text-[9px] uppercase tracking-widest border-[var(--border-base)] text-slate-500 hover:text-primary transition-all flex items-center gap-3">
+                            <Save size={16} /> {savingAvail ? 'SYNCING...' : 'SAVE GRID'}
+                        </button>
                     </div>
-                    <button
-                        onClick={addBlockedDate}
-                        className="btn-primary bg-rose-600 hover:bg-rose-700 px-8 py-4 font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 flex items-center gap-2 h-[54px]"
-                    >
-                        <Plus size={18} /> Block Date
-                    </button>
                 </div>
 
-                {/* Existing blocked dates */}
-                {blockedDates.length === 0 ? (
-                    <div className="text-center py-16 bg-slate-50/30 rounded-[2.5rem] border border-dashed border-slate-200">
-                        <Calendar className="mx-auto text-slate-200 mb-4" size={48} strokeWidth={1} />
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No scheduled downtime</p>
+                {/* ── DOWNTIME ── */}
+                <div className="glass-modal rounded-[3.5rem] p-10 border-none shadow-2xl relative overflow-hidden group">
+                    <div className="absolute bottom-0 right-0 w-80 h-80 bg-rose-500/5 rounded-full blur-[100px] -z-10 translate-x-1/4 translate-y-1/4 animate-pulse"></div>
+                    <div className="flex items-center justify-between mb-10">
+                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                            <span className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner"><CalendarX size={20} /></span>
+                            Clinical Downtime
+                        </h2>
                     </div>
-                ) : (
-                    <div className="grid sm:grid-cols-2 gap-4">
-                        {blockedDates.map(d => (
-                            <div key={d.id} className="group relative overflow-hidden bg-rose-50/50 border border-rose-100 p-6 rounded-[2rem] transition-all hover:shadow-lg hover:shadow-rose-500/5 hover:-translate-y-1">
-                                <div className="flex justify-between items-start">
+
+                    <div className="space-y-6">
+                        <div className="p-6 bg-rose-500/5 rounded-[2.5rem] border border-rose-500/10 space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1">Exclusion Timestamp</label>
+                                <input type="date" value={newBlockDate} onChange={e => setNewBlockDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="w-full bg-white/5 border border-rose-500/20 rounded-2xl px-5 py-3 text-[10px] font-black text-[var(--text-base)] focus:ring-2 focus:ring-rose-500/30 outline-none appearance-none" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-black text-rose-500 uppercase tracking-widest ml-1">Neural Narrative (Reason)</label>
+                                <input type="text" value={newBlockReason} onChange={e => setNewBlockReason(e.target.value)} placeholder="e.g. ANNUAL LEAVE CYCLE" className="w-full bg-white/5 border border-rose-500/20 rounded-2xl px-5 py-3 text-[10px] font-black text-[var(--text-base)] focus:ring-2 focus:ring-rose-500/30 outline-none placeholder:text-rose-500/40" />
+                            </div>
+                            <button onClick={addBlockedDate} className="w-full py-4 bg-rose-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-500/20 hover:bg-rose-600 active:scale-95 transition-all flex items-center justify-center gap-2">
+                                <Plus size={16} strokeWidth={3} /> INITIALIZE DOWNTIME
+                            </button>
+                        </div>
+
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {blockedDates.length === 0 ? (
+                                <div className="py-12 text-center opacity-30 italic">
+                                    <Sparkles size={32} className="mx-auto text-slate-500 mb-2" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest">No Active Downtime Nodes</p>
+                                </div>
+                            ) : blockedDates.map(d => (
+                                <div key={d.id} className="flex items-center justify-between p-5 bg-white/5 border border-rose-500/10 rounded-[2rem] hover:border-rose-500/30 transition-all group/item">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest leading-none mb-2">Unavailable</p>
-                                        <h4 className="text-sm font-black text-rose-900 leading-tight">
-                                            {new Date(d.blocked_date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                                        </h4>
-                                        {d.reason && (
-                                            <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1.5 mt-2">
-                                                <Info size={12} /> {d.reason}
-                                            </p>
-                                        )}
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-tighter leading-none italic">{new Date(d.blocked_date).toLocaleDateString()}</p>
+                                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{d.reason || 'UNSPECIFIED LEAVE'}</p>
                                     </div>
-                                    <button
-                                        onClick={() => removeBlockedDate(d.id)}
-                                        className="w-10 h-10 rounded-xl bg-white text-rose-400 hover:text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all shadow-sm border border-rose-100"
-                                        title="Unblock this date"
-                                    >
-                                        <Trash2 size={16} strokeWidth={2.5} />
+                                    <button onClick={() => removeBlockedDate(d.id)} className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center border border-rose-500/20">
+                                        <Trash2 size={16} />
                                     </button>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                )}
+                </div>
             </div>
         </div>
     );
 };
+
+const Field = ({ label, icon, subLabel, ...props }) => (
+    <div className="space-y-2">
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic leading-none">{label}</label>
+        <div className="relative group/input">
+            {icon && <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-primary transition-colors">{icon}</div>}
+            <input {...props} className={`${inputClass} ${icon ? 'pl-16' : 'px-6'} uppercase tracking-widest italic`} />
+        </div>
+        {subLabel && <p className="text-[9px] font-bold text-slate-500 mt-2 ml-2 italic italic opacity-60">{subLabel}</p>}
+    </div>
+);
 
 export default DoctorProfileEdit;
