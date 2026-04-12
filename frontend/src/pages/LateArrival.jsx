@@ -1,21 +1,17 @@
-import { useState, useEffect } from 'react';
+/**
+ * Issue #44: Late Arrival Help Page - PREMIUM OVERHAUL
+ * High-fidelity delay re-calibration terminal with real-time protocol overrides.
+ */
+
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API } from '../config/api';
 import { 
-    Clock, 
-    AlertTriangle, 
-    CheckCircle2, 
-    Timer,
-    Calendar,
-    RefreshCw,
-    ArrowRight,
-    Hourglass,
-    ChevronRight,
-    Shield,
-    XCircle,
-    Zap,
-    AlarmClock
+    Clock, AlertTriangle, CheckCircle2, Timer, Calendar,
+    RefreshCw, ArrowRight, Hourglass, ChevronRight, Shield,
+    XCircle, Zap, AlarmClock, Activity, ShieldCheck, Compass,
+    Sparkles, Info
 } from 'lucide-react';
 
 const LateArrival = () => {
@@ -50,11 +46,7 @@ const LateArrival = () => {
                 ['scheduled', 'confirmed'].includes(apt.status)
             );
             setAppointments(todayApts);
-        } catch (err) {
-            console.error('Error fetching appointments:', err);
-        } finally {
-            setLoading(false);
-        }
+        } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
     const checkLateStatus = async (aptId) => {
@@ -63,128 +55,100 @@ const LateArrival = () => {
             const res = await API.get(`/late-arrival/check/${aptId}`);
             setStatus(res.data);
             setSelectedAppointment(aptId);
-        } catch (err) {
-            console.error('Error checking late status:', err);
-        } finally {
-            setLoading(false);
-        }
+        } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
     const handleOptionSelect = async (optionId) => {
         setSelectedOption(optionId);
         setProcessing(true);
-
         try {
             const res = await API.post('/late-arrival/process', {
                 appointmentId: selectedAppointment,
                 optionId
             });
             setResult(res.data);
-        } catch (err) {
-            console.error('Error processing option:', err);
-        } finally {
-            setProcessing(false);
-        }
+        } catch (err) { console.error(err); } finally { setProcessing(false); }
     };
 
-    const formatTime = (timeStr) => {
+    const formatTo12Hour = (timeStr) => {
         if (!timeStr) return '';
         const [hours, minutes] = timeStr.split(':');
         const h = parseInt(hours);
-        return `${h > 12 ? h - 12 : h}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
+        return `${h % 12 || 12}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
     };
 
     const getStatusColor = () => {
-        if (!status) return 'blue';
-        if (status.isWithinGrace) return 'green';
-        if (status.canStillBeAccommodated) return 'yellow';
+        if (!status) return 'primary';
+        if (status.isWithinGrace) return 'emerald';
+        if (status.canStillBeAccommodated) return 'amber';
         if (!status.shouldAutoReschedule) return 'orange';
-        return 'red';
+        return 'rose';
     };
 
     const getOptionIcon = (optionId) => {
         switch (optionId) {
-            case 'proceed': return <CheckCircle2 className="w-6 h-6" />;
-            case 'fit_in': return <Timer className="w-6 h-6" />;
-            case 'end_of_session': return <Hourglass className="w-6 h-6" />;
-            case 'reschedule': return <RefreshCw className="w-6 h-6" />;
-            default: return <Clock className="w-6 h-6" />;
+            case 'proceed': return <CheckCircle2 size={24} />;
+            case 'fit_in': return <Timer size={24} />;
+            case 'end_of_session': return <Hourglass size={24} />;
+            case 'reschedule': return <RefreshCw size={24} />;
+            default: return <Clock size={24} />;
         }
     };
 
-    const getOptionColor = (optionId, recommended) => {
-        if (recommended) {
-            switch (optionId) {
-                case 'proceed': return 'from-green-500 to-emerald-600';
-                case 'fit_in': return 'from-blue-500 to-indigo-600';
-                case 'end_of_session': return 'from-amber-500 to-orange-600';
-                case 'reschedule': return 'from-purple-500 to-violet-600';
-                default: return 'from-gray-500 to-gray-600';
-            }
-        }
-        return 'from-gray-400 to-gray-500';
-    };
+    if (loading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse italic">Synchronizing Arrival Telemetry...</div>;
 
-    // Appointment Selection View
-    if (!selectedAppointment && !loading) {
+    // Selection View
+    if (!selectedAppointment) {
         return (
-            <div className="p-6 max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-red-50 rounded-3xl p-8 mb-8 border border-amber-100">
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="p-4 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl shadow-lg">
-                            <AlarmClock className="w-8 h-8 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800">Late Arrival Help</h1>
-                            <p className="text-gray-600">Running late? We've got options for you</p>
-                        </div>
+            <div className="max-w-4xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700 px-4">
+                <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-amber-500/10 rounded-[2rem] flex items-center justify-center text-amber-500 border border-amber-500/20 shadow-inner">
+                        <AlarmClock size={32} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-3">Delay Resolver</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Clinical synchronization assist for time-sensitive nodes</p>
                     </div>
                 </div>
 
-                {/* Appointments List */}
                 {appointments.length > 0 ? (
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-semibold text-gray-700 px-2">
-                            Select Your Appointment
-                        </h2>
+                    <div className="space-y-6">
+                        <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic px-2">Pending Meridian Cycles</h2>
                         {appointments.map(apt => (
                             <button
                                 key={apt.id}
                                 onClick={() => checkLateStatus(apt.id)}
-                                className="w-full bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-amber-200 hover:shadow-md transition-all text-left group"
+                                className="w-full glass-card rounded-[3rem] p-8 border border-white/5 hover:border-amber-500/20 hover:shadow-2xl hover:shadow-amber-500/5 transition-all duration-700 text-left group relative overflow-hidden"
                             >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className="p-3 bg-gradient-to-br from-amber-100 to-orange-100 rounded-xl">
-                                            <Clock className="w-6 h-6 text-amber-600" />
+                                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={48} /></div>
+                                <div className="flex items-center justify-between relative z-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner group-hover:scale-110 transition-transform">
+                                            <Clock size={24} strokeWidth={2.5} />
                                         </div>
                                         <div>
-                                            <h3 className="font-semibold text-gray-800">
+                                            <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">
                                                 Dr. {apt.doctor_first_name} {apt.doctor_last_name}
                                             </h3>
-                                            <p className="text-gray-500">
-                                                {formatTime(apt.appointment_time)} • {apt.appointment_type || 'Consultation'}
-                                            </p>
+                                            <div className="flex items-center gap-3 mt-1">
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{formatTo12Hour(apt.appointment_time)}</span>
+                                                <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
+                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest italic">{apt.appointment_type || 'Clinical Sync'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" />
+                                    <ChevronRight className="text-slate-700 group-hover:text-amber-500 group-hover:translate-x-2 transition-all" size={24} />
                                 </div>
                             </button>
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl p-12 shadow-sm border border-gray-100 text-center">
-                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Calendar className="w-10 h-10 text-gray-400" />
-                        </div>
-                        <h3 className="text-xl font-semibold text-gray-700 mb-2">No Appointments Today</h3>
-                        <p className="text-gray-500 mb-6">You don't have any scheduled appointments for today</p>
-                        <button
-                            onClick={() => navigate('/doctors')}
-                            className="px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl font-medium hover:shadow-lg transition-all"
-                        >
-                            Book an Appointment
+                    <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none shadow-2xl space-y-8">
+                        <Calendar size={64} className="text-slate-700/20 mx-auto" />
+                        <h3 className="text-xl font-black text-slate-500 uppercase italic tracking-tighter">Registry Silent</h3>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] italic">No active cycles detected for the current meridian window.</p>
+                        <button onClick={() => navigate('/book')} className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all italic flex items-center gap-4 mx-auto">
+                            Book New Appointment <ArrowRight size={16} />
                         </button>
                     </div>
                 )}
@@ -192,280 +156,180 @@ const LateArrival = () => {
         );
     }
 
-    // Processing/Result View
     if (result) {
         const isSuccess = result.success;
-        
         return (
-            <div className="p-6 max-w-2xl mx-auto">
-                <div className={`bg-gradient-to-br ${
-                    isSuccess ? 'from-green-50 via-emerald-50 to-teal-50' : 'from-red-50 via-rose-50 to-pink-50'
-                } rounded-3xl p-8 text-center`}>
-                    {/* Success Animation */}
-                    <div className={`w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center ${
-                        isSuccess ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-gradient-to-br from-red-500 to-rose-600'
-                    } animate-bounce`}>
-                        {isSuccess ? (
-                            <CheckCircle2 className="w-12 h-12 text-white" />
-                        ) : (
-                            <XCircle className="w-12 h-12 text-white" />
-                        )}
+            <div className="max-w-2xl mx-auto pt-10 pb-20 animate-in zoom-in-95 duration-700 px-4">
+                <div className="glass-modal rounded-[3.5rem] p-12 text-center border-none shadow-2xl relative overflow-hidden">
+                    <div className={`absolute top-0 right-0 w-80 h-80 bg-${isSuccess ? 'emerald' : 'rose'}-500/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2`}></div>
+                    <div className={`w-24 h-24 mx-auto mb-10 rounded-[2.5rem] flex items-center justify-center shadow-2xl border ${isSuccess ? 'bg-emerald-500 text-white border-emerald-400/20 shadow-emerald-500/30' : 'bg-rose-500 text-white border-rose-400/20 shadow-rose-500/30'} animate-bounce`}>
+                        {isSuccess ? <CheckCircle2 size={48} strokeWidth={2.5} /> : <XCircle size={48} strokeWidth={2.5} />}
                     </div>
+                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic mb-4">{isSuccess ? 'Recalibration Complete' : 'Protocol Failure'}</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12 italic leading-relaxed max-w-md mx-auto">{result.message}</p>
 
-                    <h2 className="text-2xl font-bold text-gray-800 mb-3">
-                        {isSuccess ? 'All Set!' : 'Something Went Wrong'}
-                    </h2>
-                    <p className="text-gray-600 text-lg mb-6">{result.message}</p>
-
-                    {/* Result Details */}
                     {result.handling === 'fit_in' && (
-                        <div className="bg-white/80 rounded-2xl p-6 mb-6">
-                            <div className="flex items-center justify-center gap-8">
-                                <div className="text-center">
-                                    <p className="text-sm text-gray-500 mb-1">Queue Position</p>
-                                    <p className="text-3xl font-bold text-blue-600">{result.queuePosition}</p>
-                                </div>
-                                <div className="h-12 w-px bg-gray-200" />
-                                <div className="text-center">
-                                    <p className="text-sm text-gray-500 mb-1">Est. Wait</p>
-                                    <p className="text-3xl font-bold text-amber-600">{result.estimatedWaitMins} min</p>
-                                </div>
+                        <div className="grid grid-cols-2 gap-6 mb-12 max-w-lg mx-auto">
+                            <div className="glass-card p-8 bg-white/5 border-white/5 rounded-[2.5rem] shadow-inner">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 italic">Registry Pos.</p>
+                                <p className="text-4xl font-black text-primary italic tracking-tighter tabular-nums">#{result.queuePosition}</p>
+                            </div>
+                            <div className="glass-card p-8 bg-white/5 border-white/5 rounded-[2.5rem] shadow-inner">
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 italic">Est. Latency</p>
+                                <p className="text-4xl font-black text-amber-500 italic tracking-tighter tabular-nums">{result.estimatedWaitMins}M</p>
                             </div>
                         </div>
                     )}
 
                     {result.handling === 'end_of_session' && (
-                        <div className="bg-white/80 rounded-2xl p-6 mb-6">
-                            <p className="text-sm text-gray-500 mb-2">Your New Time</p>
-                            <p className="text-3xl font-bold text-orange-600">
-                                {formatTime(result.estimatedTime)}
-                            </p>
-                            <p className="text-gray-500 mt-2 text-sm">{result.note}</p>
+                        <div className="glass-card p-10 bg-white/5 border-white/5 rounded-[3rem] mb-12 max-w-lg mx-auto relative group overflow-hidden">
+                             <div className="absolute top-0 right-0 p-8 opacity-5"><Clock size={48} /></div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 italic">Calibrated Cycle Time</p>
+                            <p className="text-5xl font-black text-orange-500 italic tracking-tighter uppercase">{formatTo12Hour(result.estimatedTime)}</p>
+                            <p className="text-[9px] font-black text-slate-600 mt-6 uppercase tracking-widest italic">{result.note}</p>
                         </div>
                     )}
 
-                    {result.handling === 'reschedule' && (
-                        <button
-                            onClick={() => navigate(`/doctors`)}
-                            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
-                        >
-                            Book New Appointment
-                        </button>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="flex justify-center gap-4 mt-6">
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-6 py-3 bg-white text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-all border border-gray-200"
-                        >
-                            Go to Dashboard
-                        </button>
+                    <div className="flex flex-col sm:flex-row gap-5 max-w-lg mx-auto relative z-10">
+                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 py-5 bg-white/5 border border-white/5 text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all italic">Registry Home</button>
                         {(result.handling === 'fit_in' || result.handling === 'end_of_session') && (
-                            <button
-                                onClick={() => navigate('/live-queue')}
-                                className="px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-white rounded-xl font-medium hover:shadow-lg transition-all"
-                            >
-                                View Live Queue
+                            <button onClick={() => navigate('/live-queue')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic flex items-center justify-center gap-3">
+                                Live Stream <ArrowRight size={16} />
                             </button>
                         )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Loading State
-    if (loading) {
-        return (
-            <div className="p-6 max-w-2xl mx-auto">
-                <div className="bg-white rounded-3xl p-12 shadow-sm border border-gray-100 text-center">
-                    <div className="animate-spin w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-4" />
-                    <p className="text-gray-600">Checking your arrival status...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Late Status View
-    const statusColor = getStatusColor();
-    const colorClasses = {
-        green: {
-            bg: 'from-green-50 to-emerald-50',
-            border: 'border-green-200',
-            icon: 'from-green-500 to-emerald-600',
-            badge: 'bg-green-100 text-green-700'
-        },
-        yellow: {
-            bg: 'from-yellow-50 to-amber-50',
-            border: 'border-yellow-200',
-            icon: 'from-yellow-500 to-amber-600',
-            badge: 'bg-yellow-100 text-yellow-700'
-        },
-        orange: {
-            bg: 'from-orange-50 to-red-50',
-            border: 'border-orange-200',
-            icon: 'from-orange-500 to-red-600',
-            badge: 'bg-orange-100 text-orange-700'
-        },
-        red: {
-            bg: 'from-red-50 to-rose-50',
-            border: 'border-red-200',
-            icon: 'from-red-500 to-rose-600',
-            badge: 'bg-red-100 text-red-700'
-        },
-        blue: {
-            bg: 'from-blue-50 to-indigo-50',
-            border: 'border-blue-200',
-            icon: 'from-blue-500 to-indigo-600',
-            badge: 'bg-blue-100 text-blue-700'
-        }
-    };
-
-    const colors = colorClasses[statusColor];
-
-    return (
-        <div className="p-6 max-w-3xl mx-auto space-y-6">
-            {/* Status Header */}
-            <div className={`bg-gradient-to-br ${colors.bg} rounded-3xl p-8 border ${colors.border}`}>
-                <div className="flex items-start gap-6">
-                    <div className={`p-4 bg-gradient-to-br ${colors.icon} rounded-2xl shadow-lg flex-shrink-0`}>
-                        {status?.isWithinGrace ? (
-                            <Shield className="w-10 h-10 text-white" />
-                        ) : (
-                            <AlertTriangle className="w-10 h-10 text-white" />
+                        {result.handling === 'reschedule' && (
+                            <button onClick={() => navigate('/book')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic">Book New Node</button>
                         )}
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    const statusColor = getStatusColor();
+    const colorTheme = {
+        emerald: { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', icon: 'bg-emerald-500', text: 'text-emerald-500', pulse: 'shadow-emerald-500/20' },
+        amber: { bg: 'bg-amber-500/5', border: 'border-amber-500/20', icon: 'bg-amber-500', text: 'text-amber-500', pulse: 'shadow-amber-500/20' },
+        orange: { bg: 'bg-orange-500/5', border: 'border-orange-200/20', icon: 'bg-orange-500', text: 'text-orange-500', pulse: 'shadow-orange-500/20' },
+        rose: { bg: 'bg-rose-500/5', border: 'border-rose-500/20', icon: 'bg-rose-500', text: 'text-rose-500', pulse: 'shadow-rose-500/20' },
+        primary: { bg: 'bg-primary/5', border: 'border-primary/20', icon: 'bg-primary', text: 'text-primary', pulse: 'shadow-primary/20' }
+    }[statusColor];
+
+    return (
+        <div className="max-w-3xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700 px-4">
+            {/* Status Radar */}
+            <div className={`glass-modal rounded-[3.5rem] p-12 border-none shadow-2xl relative overflow-hidden group ${colorTheme.bg}`}>
+                <div className={`absolute top-0 right-0 w-80 h-80 ${colorTheme.text} opacity-5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2`}></div>
+                <div className="flex flex-col md:flex-row items-start gap-10 relative z-10">
+                    <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center text-white shadow-2xl ${colorTheme.icon} ${colorTheme.pulse} flex-shrink-0 animate-pulse`}>
+                        {status?.isWithinGrace ? <ShieldCheck size={40} strokeWidth={2.5} /> : <AlertTriangle size={40} strokeWidth={2.5} />}
+                    </div>
                     <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-2xl font-bold text-gray-800">
-                                {status?.isWithinGrace ? 'You\'re On Time!' : 
-                                 status?.canStillBeAccommodated ? 'Running a Bit Late' :
-                                 status?.shouldAutoReschedule ? 'Significantly Late' : 'Very Late'}
+                        <div className="flex flex-wrap items-center gap-4 mb-4">
+                            <h1 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">
+                                {status?.isWithinGrace ? 'Grace Sync Active' : 
+                                 status?.canStillBeAccommodated ? 'Latency Detected' :
+                                 status?.shouldAutoReschedule ? 'Critical Protocol Breach' : 'System Stall'}
                             </h1>
-                            <span className={`px-3 py-1 ${colors.badge} rounded-full text-sm font-medium`}>
-                                {status?.minutesLate > 0 ? `${status.minutesLate} min late` : 'On time'}
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest italic border ${colorTheme.border} ${colorTheme.text} bg-white/5`}>
+                                {status?.minutesLate > 0 ? `${status.minutesLate}M Threshold` : 'Baseline Delta'}
                             </span>
                         </div>
-                        <p className="text-gray-600">
-                            {status?.isWithinGrace ? 
-                                'You\'re within the grace period. Proceed to check-in normally.' :
-                             status?.canStillBeAccommodated ?
-                                'Don\'t worry! We can still accommodate you with the options below.' :
-                             status?.shouldAutoReschedule ?
-                                'We recommend rescheduling your appointment for another day.' :
-                                'Please choose an option below to proceed.'}
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic leading-relaxed">
+                            {status?.isWithinGrace ? 'Registry allows standard entry within current parameters.' :
+                             status?.canStillBeAccommodated ? 'Clinical buffer available. Recalibrate arrival index below.' :
+                             status?.shouldAutoReschedule ? 'Buffer exhausted. Mandatory node rescheduling recommended.' : 
+                             'Identify recovery path in the available protocols.'}
                         </p>
                     </div>
                 </div>
 
-                {/* Time Info */}
-                <div className="mt-6 grid grid-cols-3 gap-4">
-                    <div className="bg-white/60 rounded-xl p-4 text-center">
-                        <p className="text-xs text-gray-500 mb-1">Scheduled Time</p>
-                        <p className="text-lg font-bold text-gray-800">
-                            {status?.appointmentTime ? new Date(status.appointmentTime).toLocaleTimeString('en-US', { 
-                                hour: 'numeric', 
-                                minute: '2-digit',
-                                hour12: true 
-                            }) : '--'}
-                        </p>
-                    </div>
-                    <div className="bg-white/60 rounded-xl p-4 text-center">
-                        <p className="text-xs text-gray-500 mb-1">Current Time</p>
-                        <p className="text-lg font-bold text-gray-800">
-                            {new Date().toLocaleTimeString('en-US', { 
-                                hour: 'numeric', 
-                                minute: '2-digit',
-                                hour12: true 
-                            })}
-                        </p>
-                    </div>
-                    <div className="bg-white/60 rounded-xl p-4 text-center">
-                        <p className="text-xs text-gray-500 mb-1">Grace Period</p>
-                        <p className="text-lg font-bold text-gray-800">
-                            {status?.policy?.gracePeriodMins || 10} min
-                        </p>
-                    </div>
+                <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6 relative z-10">
+                    <MetricNode label="Scheduled Index" value={status?.appointmentTime ? new Date(status.appointmentTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'} />
+                    <MetricNode label="Current Baseline" value={new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} />
+                    <MetricNode label="Grace Buffer" value={`${status?.policy?.gracePeriodMins || 10}M`} />
                 </div>
             </div>
 
-            {/* Options */}
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-500" />
-                    Available Options
+            {/* Protocol Override Selection */}
+            <div className="glass-modal rounded-[3.5rem] p-12 border-none shadow-2xl relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={48} /></div>
+                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic px-2 flex items-center gap-3">
+                    <Sparkles size={16} className="text-primary" /> Available Overrides
                 </h2>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                     {status?.options?.map((option) => (
                         <button
                             key={option.id}
                             onClick={() => handleOptionSelect(option.id)}
                             disabled={processing}
-                            className={`w-full p-5 rounded-2xl border-2 transition-all text-left group relative overflow-hidden ${
+                            className={`w-full p-8 rounded-[2.5rem] border transition-all duration-700 text-left group relative overflow-hidden shadow-inner ${
                                 selectedOption === option.id 
                                     ? 'border-primary bg-primary/5'
                                     : option.recommended 
-                                        ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 hover:border-green-400'
-                                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                                        ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/40'
+                                        : 'border-white/5 bg-white/5 hover:border-white/10 hover:bg-white/10'
                             } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {option.recommended && (
-                                <div className="absolute top-0 right-0 px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-medium rounded-bl-xl">
+                                <div className="absolute top-0 right-0 px-6 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-[0.4em] italic rounded-bl-[1.5rem] shadow-2xl">
                                     Recommended
                                 </div>
                             )}
 
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 bg-gradient-to-br ${getOptionColor(option.id, option.recommended)} rounded-xl text-white flex-shrink-0`}>
+                            <div className="flex items-center gap-8 relative z-10">
+                                <div className={`w-16 h-16 rounded-2xl border flex items-center justify-center text-white flex-shrink-0 shadow-2xl ${
+                                    option.id === 'proceed' ? 'bg-emerald-500 border-emerald-400/20' : 
+                                    option.id === 'fit_in' ? 'bg-primary border-primary/20' : 
+                                    option.id === 'end_of_session' ? 'bg-orange-500 border-orange-400/20' : 
+                                    'bg-slate-700 border-slate-600/20'
+                                }`}>
                                     {getOptionIcon(option.id)}
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-gray-800 text-lg">{option.label}</h3>
-                                    <p className="text-gray-500 text-sm">{option.description}</p>
+                                    <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-1">{option.label}</h3>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60">{option.description}</p>
                                     {option.estimatedWaitMins && (
-                                        <p className="text-amber-600 text-sm mt-1 font-medium">
-                                            ~{option.estimatedWaitMins} min wait
+                                        <p className="text-[10px] font-black text-amber-500 mt-3 uppercase tracking-widest italic flex items-center gap-2">
+                                            <Timer size={14} className="animate-pulse" /> ~{option.estimatedWaitMins}M Potential Latency
                                         </p>
                                     )}
                                 </div>
-                                <ArrowRight className={`w-5 h-5 transition-all ${
-                                    option.recommended ? 'text-green-500' : 'text-gray-400'
-                                } group-hover:translate-x-1`} />
+                                <ArrowRight className={`group-hover:translate-x-3 transition-transform duration-700 ${option.recommended ? 'text-emerald-500 shadow-emerald-500/20' : 'text-slate-700'}`} size={24} />
                             </div>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Policy Info */}
-            <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-2xl p-6 border border-gray-100">
-                <h3 className="font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-gray-500" />
-                    Late Arrival Policy
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <p className="text-gray-500">Grace Period</p>
-                        <p className="font-medium text-gray-700">{status?.policy?.gracePeriodMins || 10} minutes</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Max Late Accommodation</p>
-                        <p className="font-medium text-gray-700">{status?.policy?.maxLateMins || 30} minutes</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Fit-In Available</p>
-                        <p className="font-medium text-gray-700">{status?.policy?.allowFitIn ? 'Yes' : 'No'}</p>
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Auto-Reschedule After</p>
-                        <p className="font-medium text-gray-700">{status?.policy?.autoRescheduleAfterMins || 45} minutes</p>
-                    </div>
+            {/* Registry Policy Cluster */}
+            <div className="glass-card rounded-[3rem] p-10 border-white/5 relative overflow-hidden group">
+                 <div className="absolute top-0 right-0 p-8 opacity-5"><Shield size={48} /></div>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic px-2">Clinical Policy Manual</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <PolicyModule label="Grace Sync" value={`${status?.policy?.gracePeriodMins || 10}M`} />
+                    <PolicyModule label="Max Tolerance" value={`${status?.policy?.maxLateMins || 30}M`} />
+                    <PolicyModule label="Fit-In Allowed" value={status?.policy?.allowFitIn ? 'YES' : 'NO'} />
+                    <PolicyModule label="Fault Cutoff" value={`${status?.policy?.autoRescheduleAfterMins || 45}M`} />
                 </div>
             </div>
         </div>
     );
 };
+
+const MetricNode = ({ label, value }) => (
+    <div className="bg-white/5 border border-white/5 rounded-[1.75rem] p-6 text-center shadow-inner group-hover:bg-white/10 transition-all">
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] mb-3 italic">{label}</p>
+        <p className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">{value}</p>
+    </div>
+);
+
+const PolicyModule = ({ label, value }) => (
+    <div className="space-y-2">
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic opacity-60 leading-none">{label}</p>
+        <p className="text-lg font-black text-slate-400 uppercase italic leading-none">{value}</p>
+    </div>
+);
 
 export default LateArrival;

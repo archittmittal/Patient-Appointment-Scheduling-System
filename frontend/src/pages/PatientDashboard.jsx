@@ -1,553 +1,400 @@
+/**
+ * Issue #40: Patient Dashboard - PREMIUM HARDENING
+ * Control Center for patient clinical overview with robust fault-tolerance.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, ChevronRight, Bell, X, ListPlus, Home, Wifi, FileText, Pill, Activity, Zap, ClipboardCheck, AlarmClock, MessageSquare, ArrowRight } from 'lucide-react';
+import { 
+    Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, 
+    ChevronRight, Bell, X, ListPlus, Home, Wifi, FileText, Pill, 
+    Activity, Zap, ClipboardCheck, AlarmClock, MessageSquare, 
+    ArrowRight, Sparkles, Navigation, Lock, Users 
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import { safeFetch } from '../utils/apiHelper';
 
 const STATUS_STYLES = {
-    CONFIRMED: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    PENDING:   'bg-amber-50 text-amber-700 border border-amber-100',
-    COMPLETED: 'bg-indigo-50 text-indigo-700 border border-indigo-100',
-    CANCELLED: 'bg-rose-50 text-rose-700 border border-rose-100',
-    LATE_ARRIVAL: 'bg-orange-50 text-orange-700 border border-orange-100',
-    NEEDS_RESCHEDULE: 'bg-purple-50 text-purple-700 border border-purple-100'
+    CONFIRMED: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    PENDING:   'bg-amber-500/10 text-amber-500 border-amber-500/20',
+    COMPLETED: 'bg-primary/10 text-primary border-primary/20',
+    CANCELLED: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+    LATE_ARRIVAL: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
+    NEEDS_RESCHEDULE: 'bg-purple-500/10 text-purple-500 border-purple-500/20'
 };
+
+const COLOR_MAP = {
+    rose: {
+        bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/20',
+        hoverBg: 'hover:bg-rose-500/5', hoverBorder: 'hover:border-rose-500/20', shadow: 'hover:shadow-rose-500/10',
+        iconBg: 'bg-rose-500/10', iconText: 'text-rose-500', iconBorder: 'border-rose-500/10'
+    },
+    amber: {
+        bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20',
+        hoverBg: 'hover:bg-amber-500/5', hoverBorder: 'hover:border-amber-500/20', shadow: 'hover:shadow-amber-500/10',
+        iconBg: 'bg-amber-500/10', iconText: 'text-amber-500', iconBorder: 'border-amber-500/10'
+    },
+    emerald: {
+        bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20',
+        hoverBg: 'hover:bg-emerald-500/5', hoverBorder: 'hover:border-emerald-500/20', shadow: 'hover:shadow-emerald-500/10',
+        iconBg: 'bg-emerald-500/10', iconText: 'text-emerald-500', iconBorder: 'border-emerald-500/10'
+    },
+    primary: {
+        bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20',
+        hoverBg: 'hover:bg-primary/5', hoverBorder: 'hover:border-primary/20', shadow: 'hover:shadow-primary/10',
+        iconBg: 'bg-primary/10', iconText: 'text-primary', iconBorder: 'border-primary/10'
+    }
+};
+
+const PulseIcon = ({ size }) => (
+    <div className="relative flex items-center justify-center">
+        <Activity size={size} />
+        <span className="absolute animate-ping h-full w-full rounded-full bg-primary/20 opacity-75"></span>
+    </div>
+);
 
 const StatCard = ({ title, value, icon: Icon, sub, onClick }) => (
     <div 
         onClick={onClick}
-        className={`glass-card p-6 rounded-[2rem] flex items-start justify-between group transition-all duration-300 ${onClick ? 'cursor-pointer hover:translate-y-[-4px] active:scale-95' : ''}`}
+        className={`glass-card p-6 rounded-[2.5rem] flex flex-col justify-between group transition-all duration-700 ${onClick ? 'cursor-pointer hover:shadow-primary/5 hover:-translate-y-1 active:scale-[0.98]' : ''} border-[var(--border-base)] relative overflow-hidden h-full min-h-[160px]`}
     >
-        <div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{title}</p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tight">{value}</h3>
-            {sub && <p className="text-[11px] text-slate-400 font-medium mt-2">{sub}</p>}
-        </div>
-        {Icon && (
-            <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm shadow-indigo-100">
-                <Icon size={24} strokeWidth={2.5} />
+        <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="flex justify-between items-start relative z-10 w-full mb-4">
+            <div className="flex-1 min-w-0 pr-2">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-3 italic truncate">{title}</p>
+                <h3 className="text-3xl font-black text-[var(--test-base)] tracking-tighter uppercase italic truncate">{String(value ?? '—')}</h3>
             </div>
-        )}
+            {Icon && (
+                <div className="p-3 bg-white/5 text-slate-400 rounded-2xl border border-white/5 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner flex-shrink-0">
+                    {typeof Icon === 'function' ? <Icon size={20} /> : <Icon size={20} />}
+                </div>
+            )}
+        </div>
+        {sub && <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-60 flex items-center gap-1.5 truncate mt-auto"><Sparkles size={10} /> {sub}</p>}
     </div>
 );
 
 const AppointmentCard = ({ apt, navigate, onViewReport }) => {
-    const doctor = `Dr. ${apt.doc_first} ${apt.doc_last}`;
-    const statusLabel = apt.status.charAt(0).toUpperCase() + apt.status.slice(1).toLowerCase();
-    const dateStr = new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    if (!apt) return null;
+    const doctor = `Dr. ${apt.doc_first || 'Unknown'} ${apt.doc_last || ''}`;
+    const statusLabel = String(apt.status || 'PENDING').toUpperCase();
+    const dateStr = apt.appointment_date ? new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date TBD';
     
-    // Check if appointment is today
     const today = new Date().toISOString().split('T')[0];
-    const aptDate = new Date(apt.appointment_date).toISOString().split('T')[0];
+    const aptDate = apt.appointment_date ? new Date(apt.appointment_date).toISOString().split('T')[0] : '';
     const isToday = today === aptDate;
-    const virtualCheckinStatuses = ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS', 'LATE_ARRIVAL'];
-    const canVirtualCheckin = isToday && virtualCheckinStatuses.includes((apt.status || '').toUpperCase());
+    const canVirtualCheckin = isToday && ['CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS', 'LATE_ARRIVAL'].includes(statusLabel);
 
     return (
-        <div className="glass-card p-6 rounded-[1.5rem] hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500 group">
-            <div className="flex justify-between items-start mb-6">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden ring-4 ring-slate-50 group-hover:ring-indigo-50 transition-all duration-300">
-                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctor)}&background=4338ca&color=fff&bold=true`} alt={doctor} className="w-full h-full object-cover" />
+        <div className="glass-card p-6 rounded-[2.5rem] border-[var(--border-base)] hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-700 group relative overflow-hidden">
+             {isToday && <div className="absolute top-0 right-0 px-4 py-1 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-bl-2xl">Today's Cycle</div>}
+            <div className="flex justify-between items-start mb-8">
+                <div className="flex items-center gap-5">
+                    <div className="w-16 h-16 rounded-[1.75rem] overflow-hidden border-2 border-white/5 p-1 bg-white/5">
+                        <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(doctor)}&background=4338ca&color=fff&size=200`} alt={doctor} className="w-full h-full object-cover rounded-[1.5rem] opacity-80 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <div>
-                        <h4 className="font-bold text-slate-900 text-base leading-tight">Dr. {apt.doc_first} {apt.doc_last}</h4>
-                        <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-0.5">{apt.specialty}</p>
+                    <div className="min-w-0">
+                        <h4 className="font-black text-[var(--test-base)] text-base tracking-tight italic uppercase truncate">{doctor}</h4>
+                        <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mt-1 truncate">{apt.specialty || 'General'}</p>
                     </div>
                 </div>
-                <span className={`px-3 py-1 text-[11px] font-bold rounded-lg uppercase tracking-wider ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-slate-100 text-slate-600'}`}>
-                    {statusLabel}
+                <span className={`px-3 py-1 text-[9px] font-black rounded-full uppercase tracking-widest border flex-shrink-0 ${STATUS_STYLES[statusLabel] || 'bg-white/5 text-slate-500 border-white/10'}`}>
+                    {statusLabel.replace('_', ' ')}
                 </span>
             </div>
-            <div className="grid grid-cols-2 gap-y-2 text-sm pt-4 border-t border-gray-50">
-                <div className="flex items-center gap-2 text-gray-600">
-                    <CalendarIcon size={14} className="text-primary flex-shrink-0" />
-                    <span className="text-xs">{dateStr}</span>
+            <div className="flex items-center gap-6 py-6 border-y border-white/5 relative z-10 mb-6">
+                <div className="flex items-center gap-3 text-slate-500">
+                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-primary border border-white/5"><CalendarIcon size={14} /></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{dateStr}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
-                    <Clock size={14} className="text-primary flex-shrink-0" />
-                    <span className="text-xs">{apt.time_slot}</span>
+                <div className="flex items-center gap-3 text-slate-500">
+                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-primary border border-white/5"><Clock size={14} /></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest">{apt.time_slot || '--:--'}</span>
                 </div>
-                {apt.location_room && (
-                    <div className="flex items-center gap-2 text-gray-600 col-span-2">
-                        <MapPin size={14} className="text-primary flex-shrink-0" />
-                        <span className="text-xs truncate">{apt.location_room}</span>
-                    </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+                {canVirtualCheckin && (
+                    <button onClick={() => navigate(`/virtual-waiting/${apt.id}`)} className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-2 hover:bg-primary-hover shadow-xl shadow-primary/20 transition-all active:scale-95 group/btn">
+                        <Wifi size={14} className="animate-pulse" /> Virtual Check-in <ChevronRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                    </button>
+                )}
+                {statusLabel === 'COMPLETED' && (apt.diagnosis || apt.prescription || apt.notes) && (
+                    <button onClick={() => onViewReport(apt)} className="w-full py-4 bg-white/5 border border-[var(--border-base)] text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl flex items-center justify-center gap-2 hover:bg-white/10 hover:text-[var(--text-base)] transition-all">
+                        <FileText size={14} /> Access Clinical Dossier
+                    </button>
                 )}
             </div>
-            {/* Issue #39: Virtual Check-in Button */}
-            {canVirtualCheckin && (
-                <button
-                    onClick={() => navigate(`/virtual-waiting/${apt.id}`)}
-                    className="w-full mt-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-medium rounded-xl flex items-center justify-center gap-2 hover:shadow-md hover:shadow-emerald-500/20 transition-all"
-                >
-                    <Wifi size={14} />
-                    Virtual Check-in
-                </button>
-            )}
-            {/* View Report Button */}
-            {(apt.status || '').toUpperCase() === 'COMPLETED' && (apt.diagnosis || apt.prescription || apt.notes) && (
-                <button
-                    onClick={() => onViewReport(apt)}
-                    className="w-full mt-4 py-2.5 bg-blue-50 text-blue-600 text-sm font-medium rounded-xl flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
-                >
-                    <FileText size={14} />
-                    View Report & Prescription
-                </button>
-            )}
+        </div>
+    );
+};
+
+const SmartActionCard = ({ icon: Icon, title, desc, color, onClick, cta }) => {
+    const theme = COLOR_MAP[color] || COLOR_MAP.primary;
+    return (
+        <div onClick={onClick} className={`bg-white/5 rounded-[2.5rem] border-[var(--border-base)] p-8 ${theme.hoverBg} ${theme.hoverBorder} ${theme.shadow} transition-all duration-700 group cursor-pointer relative overflow-hidden h-full flex flex-col`}>
+            <div className={`absolute top-0 left-0 w-24 h-24 ${theme.bg} rounded-full blur-3xl -translate-y-12 -translate-x-12`}></div>
+            <div className={`p-4 ${theme.iconBg} ${theme.iconText} rounded-2xl w-fit mb-6 border ${theme.iconBorder} transition-transform duration-700 group-hover:scale-110 shadow-inner`}><Icon size={24} strokeWidth={2.5} /></div>
+            <h3 className={`text-lg font-black ${theme.text} mb-2 uppercase tracking-tight italic`}>{title}</h3>
+            <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest mb-6 opacity-70 group-hover:opacity-100 transition-opacity flex-1">{desc}</p>
+            <span className={`text-[9px] font-black ${theme.text} flex items-center gap-2 uppercase tracking-[0.3em] group-hover:translate-x-2 transition-transform italic mt-auto`}>{cta} <ArrowRight size={14} /></span>
         </div>
     );
 };
 
 const PatientDashboard = () => {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const [upcoming, setUpcoming] = useState([]);
-    const [past, setPast] = useState([]);
-    const [activeTab, setActiveTab] = useState('upcoming');
+    const [stats, setStats] = useState({ upcoming: [], past: [], waitlist: [], offers: [], feedback: [], express: [], prep: [], vitals: [], prescriptions: [] });
     const [isLoading, setIsLoading] = useState(true);
-    
-    // Issue #41: Waitlist state
-    const [waitlist, setWaitlist] = useState([]);
-    const [offers, setOffers] = useState([]);
-    const [processingOffer, setProcessingOffer] = useState(null);
+    const [activeTab, setActiveTab] = useState('upcoming');
     const [selectedReportApt, setSelectedReportApt] = useState(null);
-    const [statModal, setStatModal] = useState(null); // 'doctors' | 'completed'
-    
-    // Smart Actions state
-    const [pendingFeedback, setPendingFeedback] = useState([]);
-    const [expressEligible, setExpressEligible] = useState([]);
-    const [prepOverview, setPrepOverview] = useState([]);
-
-    const [vitals, setVitals] = useState([]);
-    const [prescriptions, setPrescriptions] = useState([]);
 
     useEffect(() => {
-        if (!user?.id) return;
+        if (authLoading) return;
+        if (!user?.id) {
+            const timer = setTimeout(() => setIsLoading(false), 2000);
+            return () => clearTimeout(timer);
+        }
+        
         const fetchData = async () => {
+            setIsLoading(true);
             try {
-                const [upRes, pastRes, waitlistRes, offersRes, feedbackRes, expressRes, prepRes, vitalsRes, prescriptionsRes] = await Promise.all([
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=upcoming`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/appointments/waitlist/my`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/appointments/waitlist/offers`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/express-checkin/today`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/prep/overview`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/patients/${user.id}/vitals`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/patients/${user.id}/prescriptions`, { headers: authedHeaders() })
-                ]);
-                const [upData, pastData] = await Promise.all([upRes.json(), pastRes.json()]);
-                setUpcoming(Array.isArray(upData) ? upData : []);
-                setPast(Array.isArray(pastData) ? pastData : []);
+                const headers = authedHeaders();
+                const endpoints = [
+                    { key: 'upcoming', url: `${API}/api/patients/${user.id}/appointments?type=upcoming` },
+                    { key: 'past', url: `${API}/api/patients/${user.id}/appointments?type=past` },
+                    { key: 'waitlist', url: `${API}/api/appointments/waitlist/my` },
+                    { key: 'offers', url: `${API}/api/appointments/waitlist/offers` },
+                    { key: 'feedback', url: `${API}/api/feedback/pending` },
+                    { key: 'express', url: `${API}/api/express-checkin/today` },
+                    { key: 'prep', url: `${API}/api/prep/overview` },
+                    { key: 'vitals', url: `${API}/api/patients/${user.id}/vitals` },
+                    { key: 'prescriptions', url: `${API}/api/patients/${user.id}/prescriptions` }
+                ];
+
+                const results = await Promise.all(endpoints.map(ep => safeFetch(ep.url, { headers })));
                 
-                if (waitlistRes.ok) setWaitlist(await waitlistRes.json());
-                if (offersRes.ok) setOffers(await offersRes.json());
-                if (feedbackRes.ok) setPendingFeedback(await feedbackRes.json());
-                if (expressRes.ok) setExpressEligible(await expressRes.json());
-                if (prepRes.ok) setPrepOverview(await prepRes.json());
-                if (vitalsRes.ok) setVitals(await vitalsRes.json());
-                if (prescriptionsRes.ok) setPrescriptions(await prescriptionsRes.json());
-            } catch (err) {
-                console.error('Dashboard error:', err);
-            } finally {
-                setIsLoading(false);
+                const newStats = {};
+                endpoints.forEach((ep, i) => {
+                    const rawData = results[i];
+                    // Strict Pruning: Ensure we only store valid object arrays
+                    const parsedData = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+                    newStats[ep.key] = parsedData.filter(item => item !== null && typeof item === 'object');
+                });
+
+                setStats(prev => ({ ...prev, ...newStats }));
+            } catch (err) { 
+                console.error('[Dashboard] Registry sync failed:', err); 
+            } finally { 
+                setIsLoading(false); 
             }
         };
         fetchData();
-    }, [user?.id]);
+    }, [user?.id, authLoading]);
 
-    const latestVitals = vitals[vitals.length - 1];
-
-    // ... (existing StatCard grid)
-                <StatCard 
-                    title="Vitals Health" 
-                    value={latestVitals ? `${latestVitals.blood_pressure_sys}/${latestVitals.blood_pressure_dia}` : '—'} 
-                    icon={Activity} 
-                    sub={latestVitals ? `Last: ${new Date(latestVitals.recorded_at).toLocaleDateString()}` : 'No vitals logged'} 
-                    onClick={() => navigate('/vitals')}
-                />
-                <StatCard 
-                    title="Prescriptions" 
-                    value={prescriptions.length} 
-                    icon={Pill} 
-                    sub="ready for download" 
-                    onClick={() => navigate('/prescriptions')}
-                />
-
-            {/* Smart Actions Panel */}
-            {hasSmartActions && (
-                <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Zap size={18} className="text-amber-500" />
-                        <h2 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Recommended Actions</h2>
+    if (authLoading || (isLoading && user)) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center p-10 space-y-12 animate-in fade-in duration-700">
+                <div className="relative">
+                    <div className="w-32 h-32 border-[12px] border-primary/5 border-t-primary rounded-full animate-[spin_1.5s_linear_infinite]"></div>
+                    <div className="absolute inset-0 flex items-center justify-center text-primary group">
+                        <Zap size={40} className="animate-pulse drop-shadow-[0_0_15px_rgba(67,56,202,0.5)]" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {runningLateApt && (
-                            <div className="bg-gradient-to-br from-rose-50 to-red-50 p-5 rounded-2xl border border-rose-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate(`/late-arrival?appointment=${runningLateApt.id}`)}>
-                                <div className="p-3 bg-rose-100 text-rose-600 rounded-xl w-fit mb-4">
-                                    <AlarmClock size={20} />
-                                </div>
-                                <h3 className="font-bold text-rose-900 mb-1">Running Late?</h3>
-                                <p className="text-xs text-rose-600 mb-3">You have an appointment soon. Let us know if you'll be delayed.</p>
-                                <span className="text-xs font-bold text-rose-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Get Options <ArrowRight size={14} /></span>
-                            </div>
-                        )}
-                        {expressCard && (
-                            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 p-5 rounded-2xl border border-amber-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate('/express-checkin')}>
-                                <div className="p-3 bg-amber-100 text-amber-600 rounded-xl w-fit mb-4">
-                                    <Zap size={20} />
-                                </div>
-                                <h3 className="font-bold text-amber-900 mb-1">Express Check-in</h3>
-                                <p className="text-xs text-amber-600 mb-3">Skip the line for your appointment with {expressCard.doctor}.</p>
-                                <span className="text-xs font-bold text-amber-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Check in now <ArrowRight size={14} /></span>
-                            </div>
-                        )}
-                        {pendingPrepApt && (
-                            <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-5 rounded-2xl border border-indigo-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate(`/prep-checklist/${pendingPrepApt.appointment.id}`)}>
-                                <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl w-fit mb-4">
-                                    <ClipboardCheck size={20} />
-                                </div>
-                                <h3 className="font-bold text-indigo-900 mb-1">Prep Checklist</h3>
-                                <p className="text-xs text-indigo-600 mb-3">You have pending items for your upcoming appointment.</p>
-                                <span className="text-xs font-bold text-indigo-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Complete prep <ArrowRight size={14} /></span>
-                            </div>
-                        )}
-                        {feedbackCard && (
-                            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-2xl border border-emerald-100 hover:shadow-lg transition-all group cursor-pointer" onClick={() => navigate('/feedback')}>
-                                <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl w-fit mb-4">
-                                    <MessageSquare size={20} />
-                                </div>
-                                <h3 className="font-bold text-emerald-900 mb-1">Rate Your Visit</h3>
-                                <p className="text-xs text-emerald-600 mb-3">How was your visit with {feedbackCard.doctor_name}?</p>
-                                <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 group-hover:translate-x-1 transition-transform">Leave feedback <ArrowRight size={14} /></span>
-                            </div>
-                        )}
+                </div>
+                <div className="text-center space-y-4">
+                    <h2 className="text-2xl font-black text-[var(--test-base)] uppercase italic tracking-widest animate-pulse">Synchronizing Personal Registry</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic opacity-60">Authentication handshake in progress...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center p-10 text-center space-y-8 animate-in fade-in duration-1000">
+                <div className="w-24 h-24 bg-rose-500/10 text-rose-500 rounded-[3.5rem] flex items-center justify-center border border-rose-500/20 shadow-inner group">
+                    <Lock size={40} className="group-hover:scale-110 transition-transform duration-500" />
+                </div>
+                <div>
+                    <h2 className="text-4xl font-black text-[var(--test-base)] uppercase italic tracking-tighter">Access Denied</h2>
+                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mt-4 italic opacity-80 max-w-sm mx-auto">Neural key signature not detected. Active session required for registry access.</p>
+                </div>
+                <button 
+                    onClick={() => navigate('/login')} 
+                    className="px-12 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/30 hover:shadow-primary/50 transition-all active:scale-95 italic group"
+                >
+                    <span className="flex items-center gap-3">Initialize Handshake <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" /></span>
+                </button>
+            </div>
+        );
+    }
+
+    // Defensive Dervivations
+    const upcoming = stats.upcoming || [];
+    const past = stats.past || [];
+    const vitals = stats.vitals || [];
+    const prescriptions = stats.prescriptions || [];
+    const feedback = stats.feedback || [];
+    const express = stats.express || [];
+    const prep = stats.prep || [];
+
+    const completedCount = past.filter(a => a && a.status?.toUpperCase() === 'COMPLETED').length;
+    const uniqueDoctors = new Set([...upcoming, ...past].filter(a => a && a.doc_first).map(a => `${a.doc_first} ${a.doc_last}`)).size || 0;
+    const nextApt = upcoming[0];
+    const latestVitals = Array.isArray(vitals) && vitals.length > 0 ? vitals[0] : null;
+
+    const nextAptLabel = nextApt?.appointment_date ? new Date(nextApt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+    const nextAptSub = nextApt?.time_slot || 'no scheduled cycle';
+    
+    const displayed = activeTab === 'upcoming' ? upcoming : past;
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const todayApt = upcoming.find(apt => {
+        if (!apt?.appointment_date) return false;
+        const d = new Date(apt.appointment_date).toISOString().split('T')[0];
+        return d === todayStr && !['CHECKED_IN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(apt.status?.toUpperCase() || '');
+    });
+
+    let runningLateApt = null;
+    if (todayApt?.time_slot) {
+        try {
+            const parts = todayApt.time_slot.split(':');
+            if (parts.length >= 2) {
+                let h = parseInt(parts[0]);
+                let m = parseInt(parts[1]);
+                const isPM = todayApt.time_slot.toUpperCase().includes('PM');
+                if (isPM && h < 12) h += 12;
+                if (!isPM && h === 12) h = 0;
+                const aptT = new Date(); 
+                aptT.setHours(h, m, 0, 0);
+                const diff = (aptT - now) / 60000;
+                if (diff <= 60 && diff >= -60) runningLateApt = todayApt;
+            }
+        } catch (e) {
+            console.warn('[Dashboard] Time slot parsing deviation:', e);
+        }
+    }
+    
+    const expressCard = express[0];
+    const feedbackCard = feedback[0];
+    const pendingPrepApt = prep.find(p => {
+        if (!p?.appointment?.appointment_date) return false;
+        const diffH = (new Date(p.appointment.appointment_date) - now) / 3600000;
+        return diffH >= -24 && diffH <= 48 && (p.prepProgress?.requiredCompleted || 0) < (p.prepProgress?.requiredTotal || 0);
+    });
+    const hasSmartActions = !!(runningLateApt || expressCard || pendingPrepApt || feedbackCard);
+
+    return (
+        <div className="max-w-7xl mx-auto space-y-12 pb-24 px-4 md:px-0 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            {/* Header / Hero */}
+            <div className="glass-modal rounded-[4rem] p-12 flex flex-col md:flex-row justify-between items-center gap-10 relative overflow-hidden border-none shadow-2xl transition-all duration-1000 hover:shadow-primary/15 group">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+                <div>
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 bg-primary/15 rounded-2xl flex items-center justify-center text-primary shadow-inner rotate-6 transition-transform group-hover:rotate-12 duration-700"><Home size={24} /></div>
+                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] italic opacity-70">Clinical Node Activated</span>
+                    </div>
+                    <h1 className="text-5xl md:text-6xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-[0.9]">Registry: <span className="text-primary drop-shadow-sm">{user?.first_name || 'Subject'}</span></h1>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-6 italic opacity-60 flex items-center gap-3">
+                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Telemetry live • Encrypted handshake success
+                    </p>
+                </div>
+                <button onClick={() => navigate('/doctor-search')} className="py-6 px-12 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2.5rem] shadow-[0_20px_50px_rgba(67,56,202,0.3)] hover:shadow-[0_25px_60px_rgba(67,56,202,0.5)] hover:-translate-y-1.5 transition-all active:scale-95 flex items-center gap-5 group/btn italic">
+                    <ListPlus size={22} className="group-hover/btn:rotate-180 transition-transform duration-700" /> New Reservation
+                </button>
+            </div>
+
+            {/* Smart Metrics Dashboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+                <StatCard title="Reservations" value={upcoming.length} icon={CalendarIcon} sub="Confirmed Nodes" onClick={() => setActiveTab('upcoming')} />
+                <StatCard title="Clinical Visits" value={completedCount} icon={CheckCircle2} sub="Total History" />
+                <StatCard title="Practitioners" value={uniqueDoctors} icon={User} sub="Verified Contacts" />
+                <StatCard title="Cycle Index" value={nextAptLabel} icon={Activity} sub={nextAptSub} />
+                <StatCard title="Biometry" value={latestVitals ? `${latestVitals.blood_pressure_sys || '—'}/${latestVitals.blood_pressure_dia || '—'}` : '—'} icon={() => <PulseIcon size={20} />} sub="Latest Vitals" onClick={() => navigate('/vitals')} />
+                <StatCard title="Dossiers" value={prescriptions.length} icon={Pill} sub="Medical Logs" onClick={() => navigate('/prescriptions')} />
+            </div>
+
+            {/* Recommended Actions */}
+            {hasSmartActions && (
+                <div className="animate-in slide-in-from-bottom-12 duration-1000">
+                    <div className="flex items-center gap-4 mb-10 pl-2">
+                        <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner"><Zap size={24} className="animate-pulse" /></div>
+                        <h2 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tight italic">Recommended Protocols</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {runningLateApt && <SmartActionCard icon={AlarmClock} title="Sync Delay" desc="Cycle deviation detected. Notify facility ops?" color="rose" onClick={() => navigate(`/late-arrival?appointment=${runningLateApt.id}`)} cta="Execute Protocol" />}
+                        {expressCard && <SmartActionCard icon={Zap} title="Express Entry" desc="Registry verified. Bypassing standard intake." color="amber" onClick={() => navigate('/express-checkin')} cta="Initiate Check-in" />}
+                        {pendingPrepApt && <SmartActionCard icon={ClipboardCheck} title="Pre-Op Check" desc="Pending biometric packets for upcoming cycle." color="primary" onClick={() => navigate(`/prep-checklist/${pendingPrepApt.appointment.id}`)} cta="Complete Packets" />}
+                        {feedbackCard && <SmartActionCard icon={MessageSquare} title="Cycle Rating" desc="Help optimize clinical experience for node sync." color="emerald" onClick={() => navigate('/feedback')} cta="Transmit Feed" />}
                     </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main appointments panel */}
-                <div className="lg:col-span-2 space-y-4">
-                    {/* Tabs */}
-                    <div className="flex gap-4 border-b border-slate-100 mb-6">
-                        <button
-                            onClick={() => setActiveTab('upcoming')}
-                            className={`pb-4 px-2 text-sm font-bold border-b-2 transition-all duration-300 ${activeTab === 'upcoming' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Upcoming ({upcoming.length})
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('past')}
-                            className={`pb-4 px-2 text-sm font-bold border-b-2 transition-all duration-300 ${activeTab === 'past' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-                        >
-                            Past Visits ({past.length})
-                        </button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+                <div className="lg:col-span-2 space-y-12">
+                    <div className="flex gap-12 border-b border-white/5 mb-10 overflow-x-auto no-scrollbar scroll-smooth px-2">
+                        <TabButton active={activeTab === 'upcoming'} onClick={() => setActiveTab('upcoming')} label={`Active Nodes (${upcoming.length})`} />
+                        <TabButton active={activeTab === 'past'} onClick={() => setActiveTab('past')} label={`Registry Logs (${past.length})`} />
                     </div>
-
-                    {/* Appointment cards */}
                     {displayed.length > 0 ? (
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            {displayed.map((apt) => (
-                                <AppointmentCard key={apt.id} apt={apt} navigate={navigate} onViewReport={setSelectedReportApt} />
-                            ))}
+                        <div className="grid sm:grid-cols-2 gap-8">
+                            {displayed.map(apt => apt && <AppointmentCard key={apt.id || Math.random()} apt={apt} navigate={navigate} onViewReport={setSelectedReportApt} />)}
                         </div>
                     ) : (
-                        <div className="py-12 text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                                {activeTab === 'upcoming'
-                                    ? <CalendarIcon size={28} className="text-gray-400" />
-                                    : <CheckCircle2 size={28} className="text-gray-400" />
-                                }
-                            </div>
-                            <p className="text-gray-500 font-medium">
-                                {activeTab === 'upcoming' ? 'No upcoming appointments.' : 'No past visits yet.'}
-                            </p>
-                            {activeTab === 'upcoming' && (
-                                <button onClick={() => navigate('/book')} className="mt-4 text-primary text-sm font-medium hover:underline">
-                                    Book your first appointment →
-                                </button>
-                            )}
+                        <div className="py-32 text-center glass-card rounded-[4rem] border-none flex flex-col items-center group">
+                            <CalendarIcon size={64} className="text-slate-500 opacity-10 mb-8 group-hover:scale-110 transition-transform duration-700" />
+                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic leading-relaxed opacity-60">No data packets found in this sector.</p>
+                            {activeTab === 'upcoming' && <button onClick={() => navigate('/doctor-search')} className="mt-12 text-primary font-black text-[11px] uppercase tracking-[0.4em] hover:opacity-70 transition-opacity italic flex items-center gap-3">Initialize first Reservation <ChevronRight size={14} /></button>}
                         </div>
                     )}
                 </div>
-
-                {/* Medical history sidebar — real past appointments */}
-                <div className="space-y-4">
-                    {/* Issue #41: Slot Offers Alert */}
-                    {offers.length > 0 && (
-                        <div className="bg-emerald-50/50 rounded-3xl border border-emerald-100 p-6 animate-pulse-slow">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Bell className="text-emerald-600" size={20} strokeWidth={2.5} />
-                                <h3 className="font-black text-emerald-900 uppercase tracking-wider text-sm">Slot Available!</h3>
-                            </div>
-                            {offers.map(offer => (
-                                <div key={offer.id} className="bg-white rounded-xl p-3 mb-2 last:mb-0 border border-green-100">
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        Dr. {offer.doctor_first_name} {offer.doctor_last_name}
-                                    </p>
-                                    <p className="text-xs text-gray-500">{offer.specialization}</p>
-                                    <p className="text-sm text-gray-700 mt-1">
-                                        {new Date(offer.offered_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {offer.offered_time?.slice(0, 5)}
-                                    </p>
-                                    <p className="text-xs text-orange-600 font-medium mt-1">
-                                        Expires in {offer.minutes_remaining} mins
-                                    </p>
-                                    <div className="flex gap-2 mt-2">
-                                        <button
-                                            onClick={() => handleAcceptOffer(offer.id)}
-                                            disabled={processingOffer === offer.id}
-                                            className="flex-1 py-1.5 bg-green-600 text-white text-xs font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                        >
-                                            {processingOffer === offer.id ? '...' : 'Accept'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeclineOffer(offer.id)}
-                                            disabled={processingOffer === offer.id}
-                                            className="flex-1 py-1.5 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                                        >
-                                            Decline
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                <div className="space-y-16">
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-5 px-4">
+                             <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center text-slate-500 border border-white/5 shadow-inner"><Activity size={20} /></div>
+                             <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic">Telemetry History</h2>
                         </div>
-                    )}
-
-                    {/* Issue #41: Active Waitlists */}
-                    {waitlist.length > 0 && (
-                        <div className="glass-card rounded-[2rem] p-6">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                                    <ListPlus size={18} strokeWidth={2.5} />
+                        <div className="glass-card rounded-[3.5rem] p-12 border-[var(--border-base)] relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-15 transition-opacity duration-1000 rotate-12"><Navigation size={64} /></div>
+                            {past.length === 0 ? <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] italic text-center py-12 opacity-40">Registry Empty</p> : (
+                                <div className="space-y-12 relative">
+                                    <div className="absolute left-[3px] top-2 bottom-8 w-[1px] bg-white/5"></div>
+                                    {past.slice(0, 5).map(apt => apt && (
+                                        <div key={apt.id || Math.random()} className="relative pl-10 group/item">
+                                            <div className="absolute left-0 top-[8px] w-2 h-2 rounded-full border border-white/20 bg-[var(--bg-base)] group-hover/item:border-primary group-hover/item:scale-150 transition-all duration-500 shadow-inner"></div>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 italic opacity-50">{apt.appointment_date ? new Date(apt.appointment_date).toLocaleDateString() : 'TBD'}</p>
+                                            <h4 className="text-[13px] font-black text-[var(--test-base)] uppercase tracking-tight italic transition-colors group-hover/item:text-primary leading-none truncate">Dr. {apt.doc_first} {apt.doc_last}</h4>
+                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2.5 truncate opacity-70">{apt.specialty}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                                <h3 className="font-black text-slate-900 uppercase tracking-widest text-xs">My Waitlists</h3>
-                            </div>
-                            {waitlist.map(entry => (
-                                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900">
-                                            Dr. {entry.doctor_first_name} {entry.doctor_last_name}
-                                        </p>
-                                        <p className="text-xs text-gray-500">
-                                            {new Date(entry.preferred_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • Position #{entry.queue_position}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleLeaveWaitlist(entry.id)}
-                                        className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                        title="Leave waitlist"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            ))}
+                            )}
                         </div>
-                    )}
-
-                    <div className="flex items-center gap-3 mb-2">
-                         <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
-                            <Activity size={18} strokeWidth={2.5} />
-                        </div>
-                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Recent History</h2>
-                    </div>
-                    <div className="glass-card rounded-[2rem] p-8">
-                        {past.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic text-center py-4">No visit history yet.</p>
-                        ) : (
-                            <div className="relative pl-6 border-l-2 border-primary/20 space-y-6">
-                                {past.slice(0, 5).map((apt, idx) => (
-                                    <div key={apt.id} className="relative">
-                                        <span className={`absolute -left-[31px] w-4 h-4 rounded-full border-2 bg-white ${idx === 0 ? 'border-primary' : 'border-gray-300'}`}></span>
-                                        <p className="text-xs text-gray-500 font-medium tracking-wide uppercase">
-                                            {new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </p>
-                                        <h4 className="text-sm font-semibold text-gray-900 mt-0.5">
-                                            Dr. {apt.doc_first} {apt.doc_last}
-                                        </h4>
-                                        <p className="text-xs text-gray-500">{apt.specialty}</p>
-                                        <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_STYLES[(apt.status || '').toUpperCase()] || 'bg-gray-100 text-gray-600'}`}>
-                                            {(apt.status || 'pending').toLowerCase()}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {past.length > 0 && (
-                            <button
-                                onClick={() => setActiveTab('past')}
-                                className="w-full mt-6 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1"
-                            >
-                                View all history <ChevronRight size={14} />
-                            </button>
-                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Report/Prescription Modal */}
             {selectedReportApt && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="glass-modal rounded-[2.5rem] w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white/50">
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Consultation Report</h3>
-                                <p className="text-sm text-slate-500 font-medium mt-1">
-                                    Dr. {selectedReportApt.doc_first} {selectedReportApt.doc_last} • {new Date(selectedReportApt.appointment_date).toLocaleDateString()}
-                                </p>
+                <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-6 z-[100] animate-in fade-in duration-700">
+                    <div className="glass-modal rounded-[4.5rem] w-full max-w-2xl overflow-hidden border-none shadow-[0_50px_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-700">
+                        <div className="p-12 border-b border-white/10 flex justify-between items-center bg-white/5 relative">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+                            <div className="min-w-0 pr-6">
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.5em] mb-3 italic">Clinical Dossier: Verified</p>
+                                <h3 className="text-3xl font-black text-[var(--test-base)] tracking-tighter uppercase italic truncate">Registry Entry #{selectedReportApt.id}</h3>
+                                <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mt-3 truncate">{selectedReportApt.doc_first} {selectedReportApt.doc_last} • {selectedReportApt.appointment_date}</p>
                             </div>
-                            <button
-                                onClick={() => setSelectedReportApt(null)}
-                                className="p-3 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
-                            >
-                                <X size={20} />
-                            </button>
+                            <button onClick={() => setSelectedReportApt(null)} className="p-5 text-slate-500 hover:text-rose-500 rounded-3xl bg-white/5 hover:bg-rose-500/10 transition-all flex-shrink-0"><X size={28} /></button>
                         </div>
-                        <div className="p-6 space-y-6">
-                            {selectedReportApt.diagnosis && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
-                                        <Activity size={16} className="text-primary" /> Diagnosis
-                                    </h4>
-                                    <p className="text-gray-700 bg-gray-50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-gray-100">
-                                        {selectedReportApt.diagnosis}
-                                    </p>
-                                </div>
-                            )}
-
-                            {selectedReportApt.prescription && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
-                                        <Pill size={16} className="text-primary" /> Prescription
-                                    </h4>
-                                    <p className="text-gray-700 bg-blue-50/50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-blue-100">
-                                        {selectedReportApt.prescription}
-                                    </p>
-                                </div>
-                            )}
-
-                            {selectedReportApt.notes && (
-                                <div>
-                                    <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2 mb-2">
-                                        <FileText size={16} className="text-primary" /> Doctor's Notes
-                                    </h4>
-                                    <p className="text-gray-700 bg-gray-50 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap border border-gray-100">
-                                        {selectedReportApt.notes}
-                                    </p>
-                                </div>
-                            )}
-
-                            {selectedReportApt.follow_up_date && (
-                                <div className="flex items-center gap-3 bg-amber-50 text-amber-800 p-4 rounded-xl border border-amber-100">
-                                    <CalendarIcon size={20} className="text-amber-500" />
-                                    <div>
-                                        <p className="text-sm font-medium">Follow-up Recommended</p>
-                                        <p className="text-xs text-amber-700">Please schedule your next visit on or around {new Date(selectedReportApt.follow_up_date).toLocaleDateString()}</p>
-                                    </div>
-                                    <button 
-                                        onClick={() => navigate('/book')}
-                                        className="ml-auto px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-lg transition-colors"
-                                    >
-                                        Book Now
-                                    </button>
-                                </div>
-                            )}
+                        <div className="p-12 space-y-12 max-h-[65vh] overflow-y-auto custom-scrollbar italic">
+                            <DocSec icon={<Activity size={20} />} title="Clinical Findings" text={selectedReportApt.diagnosis} />
+                            <DocSec icon={<Pill size={20} />} title="Neural Protocols (Scripts)" text={selectedReportApt.prescription} accent="primary" />
+                            <DocSec icon={<FileText size={20} />} title="Physician Observations" text={selectedReportApt.notes} />
                         </div>
-                        <div className="p-8 border-t border-slate-100 bg-slate-50 flex justify-end">
-                            <button
-                                onClick={() => setSelectedReportApt(null)}
-                                className="btn-secondary px-8 font-bold"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Stat Details Modal */}
-            {statModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-white/50">
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                                {statModal === 'doctors' ? 'My Doctors' : 'Visit Registry'}
-                            </h3>
-                            <button
-                                onClick={() => setStatModal(null)}
-                                className="p-3 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all active:scale-95"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="p-8 max-h-[60vh] overflow-y-auto">
-                            {statModal === 'doctors' ? (
-                                <div className="space-y-8">
-                                    {Array.from(new Set([...upcoming, ...past].map(a => a.doctor_id))).map(docId => {
-                                        const apts = [...upcoming, ...past].filter(a => a.doctor_id === docId);
-                                        const doc = apts[0];
-                                        return (
-                                            <div key={docId} className="space-y-4">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg shadow-indigo-200">
-                                                        {(doc.doc_first || '?')[0]}{(doc.doc_last || '?')[0]}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-slate-900 text-xl tracking-tight">Dr. {doc.doc_first} {doc.doc_last}</h4>
-                                                        <p className="text-sm text-indigo-500 font-bold uppercase tracking-widest">{doc.specialty}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="grid gap-3">
-                                                    {apts.map(apt => (
-                                                        <div key={apt.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-indigo-500/5 transition-all">
-                                                            <div>
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                                                                <p className="text-sm font-bold text-slate-800">{apt.time_slot} • <span className={`uppercase text-[11px] font-black ${(apt.status || '').toUpperCase() === 'COMPLETED' ? 'text-indigo-600' : 'text-emerald-600'}`}>{apt.status || 'Pending'}</span></p>
-                                                            </div>
-                                                            {apt.status === 'COMPLETED' && (
-                                                                <button 
-                                                                    onClick={() => {
-                                                                        setSelectedReportApt(apt);
-                                                                        setStatModal(null);
-                                                                    }}
-                                                                    className="px-4 py-2 bg-white text-[11px] font-bold text-indigo-600 border border-indigo-100 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
-                                                                >
-                                                                    Summary
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {past.filter(a => a.status === 'COMPLETED').map(apt => (
-                                        <div key={apt.id} className="p-6 bg-white rounded-3xl border border-slate-100 flex items-center justify-between hover:shadow-2xl hover:shadow-indigo-500/5 transition-all">
-                                            <div>
-                                                <p className="text-[10px] font-black text-indigo-600 mb-2 uppercase tracking-widest">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                                                <h4 className="text-lg font-black text-slate-900 tracking-tight">Dr. {apt.doc_first} {apt.doc_last}</h4>
-                                                <p className="text-sm text-slate-500 font-medium">{apt.symptoms || 'General Checkup'}</p>
-                                            </div>
-                                            <button 
-                                                onClick={() => {
-                                                    setSelectedReportApt(apt);
-                                                    setStatModal(null);
-                                                }}
-                                                className="btn-primary py-2 px-5 text-xs font-bold"
-                                            >
-                                                Clinical Summary
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {past.filter(a => a.status === 'COMPLETED').length === 0 && (
-                                        <p className="text-center py-12 text-slate-400 font-medium italic">No completed records found yet.</p>
-                                    )}
-                                </div>
-                            )}
+                        <div className="p-12 border-t border-white/10 bg-white/5 flex justify-end">
+                            <button onClick={() => setSelectedReportApt(null)} className="px-14 py-5 bg-white/5 border border-white/10 rounded-3xl text-[11px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white transition-all active:scale-95 italic shadow-lg">Terminate View</button>
                         </div>
                     </div>
                 </div>
@@ -555,5 +402,16 @@ const PatientDashboard = () => {
         </div>
     );
 };
+
+const TabButton = ({ active, onClick, label }) => (
+    <button onClick={onClick} className={`pb-8 px-6 text-[11px] font-black uppercase tracking-[0.4em] border-b-2 transition-all duration-700 italic flex-shrink-0 ${active ? 'border-primary text-primary opacity-100' : 'border-transparent text-slate-600 hover:text-slate-400 opacity-60'}`}>{label}</button>
+);
+
+const DocSec = ({ icon, title, text, accent }) => text ? (
+    <div className="space-y-5 animate-in slide-in-from-left-6 duration-1000">
+        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] flex items-center gap-4 italic"><span className={`text-${accent || 'slate-500'} opacity-50`}>{icon}</span> {title}</h4>
+        <div className={`bg-white/5 border border-white/5 rounded-[3.5rem] p-10 text-[15px] font-bold text-[var(--test-base)] leading-[1.8] italic border-l-8 border-l-${accent || 'primary'}/30 shadow-inner overflow-hidden break-words`}>{text}</div>
+    </div>
+) : null;
 
 export default PatientDashboard;
