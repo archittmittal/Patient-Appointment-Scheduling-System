@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronRight } from 'lucide-react';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
@@ -36,10 +36,10 @@ const DoctorProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
+        const headers = authedHeaders();
         Promise.all([
-            fetch(`${API}/api/doctors/${id}`).then(res => res.json()),
-            fetch(`${API}/api/doctors/${id}/reviews`).then(res => res.json())
+            fetch(`${API}/api/doctors/${id}`, { headers }).then(res => res.json()),
+            fetch(`${API}/api/doctors/${id}/reviews`, { headers }).then(res => res.json())
         ]).then(([docData, reviewData]) => {
             setDoctor({
                 ...docData,

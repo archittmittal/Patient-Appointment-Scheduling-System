@@ -173,10 +173,12 @@ Algorithmic approach to optimize scheduling:
 
 ## 🔧 Tech Stack
 
-- **Backend**: Java + Spring Boot
-- **Database**: MySQL
-- **Frontend**: React/Thymeleaf (planned)
-- **Notifications**: JavaMail / Twilio SMS
+- **Backend**: Node.js + Express.js
+- **Database**: MySQL (relational constraints, stored procedures)
+- **Frontend**: React.js + Tailwind CSS + Lucide Icons
+- **Design System**: Premium "HealthSync" Glassmorphism UI
+- **Notifications**: Nodemailer (SMTP/Gmail)
+- **Authentication**: JWT (Stateless) + OTP (Password Recovery)
 
 ## 📊 Expected Outcomes
 
@@ -193,16 +195,41 @@ Algorithmic approach to optimize scheduling:
 
 ## 🚀 Setup
 
+### 1. Database Setup
 ```bash
-# Create database
-mysql -u root -p < database/schema.sql
+# Create database and tables
+mysql -u root -p < backend/database/schema.sql
+```
 
-# Load views and procedures
-mysql -u root -p hospital_db < database/views.sql
-mysql -u root -p hospital_db < database/procedures.sql
+### 2. Backend Configuration
+Create a `.env` file in the `backend` directory:
+```env
+PORT=5000
+DB_HOST=localhost
+DB_USER=root
+DB_PASS=your_password
+DB_NAME=hospital_db
+JWT_SECRET=your_secret_key
+EMAIL_USER=your_gmail@gmail.com
+EMAIL_PASS=your_app_password
+```
 
-# Load sample data
-mysql -u root -p hospital_db < database/sample_data.sql
+### 3. Install Dependencies
+```bash
+# Backend
+cd backend && npm install
+
+# Frontend
+cd frontend && npm install
+```
+
+### 4. Run Locally
+```bash
+# Backend
+cd backend && npm run dev
+
+# Frontend
+cd frontend && npm run dev
 ```
 
 ## 📈 Algorithm Complexity
@@ -718,6 +745,32 @@ Located in `dailyOptimizerService.js`, this suite focuses on maximizing clinical
 
 ---
 
+
+---
+
+## 💎 Recent Enhancements & Stabilizations (April 2026)
+
+The system has undergone a major stabilization audit to ensure production readiness and a premium user experience.
+
+### **1. UI/UX Redesign ("HealthSync Premium")**
+- **Aesthetic Overhaul**: Transitioned to a modern, human-centric design using the **Inter** typeface, glassmorphic containers, and a curated HSL color palette.
+- **Micro-interactions**: Added smooth state transitions, hover effects, and animated loading states (Lucide-react icons).
+- **Responsive Layouts**: Resolved critical overlap issues in authentication pages (`Login`, `Register`) to ensure accessibility across all device sizes.
+
+### **2. Security & Account Management**
+- **SMTP Password Recovery**: Implemented a secure "Forgot Password" flow using 6-digit OTP codes sent via Gmail (SMTP).
+- **Session Consistency**: Standardized JWT-based `authedHeaders` across all frontend modules, ensuring secure and authorized data transmission.
+- **Unified Profile State**: Synchronized patient and doctor profile data across the `AuthContext` to prevent stale UI states.
+
+### **3. Data Flow Optimization**
+- **Real-time Queue Sync**: Added a **20-second polling interval** to the Doctor Dashboard, ensuring appointments and waitlist updates reflect instantly.
+- **Clinical Connectivity**: Audited and fixed the data flow between Doctor consultations and Patient health records. Prescriptions now populate correctly in real-time.
+- **Relational Integrity**: Updated database triggers and foreign key constraints (`ON DELETE CASCADE`) to maintain perfect referential integrity between Users, Patients, and Appointments.
+
+### **4. Stability Fixes**
+- Fixed missing `ShieldCheck` icon crash in `PatientPrescriptions.jsx`.
+- Resolved `null` name derivations in the Patient Profile header.
+- Cleaned up residual CSS strings from JSX components for a cleaner codebase.
 
 ---
 
