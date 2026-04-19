@@ -12,24 +12,27 @@ export function AuthProvider({ children }) {
         }
     });
 
-    function login(userData) {
-        // userData may include a `token` field on initial login; store it separately
-        const { token, ...rest } = userData;
-        setUser(rest);
-        localStorage.setItem('hs_user', JSON.stringify(rest));
-        if (token) {
-            localStorage.setItem('hs_token', token);
-        }
-    }
+    const [loading, setLoading] = useState(false);
 
-    function logout() {
+    const login = (userData) => {
+        setUser(userData.user || userData);
+        localStorage.setItem('hs_token', userData.token);
+        localStorage.setItem('hs_user', JSON.stringify(userData.user || userData));
+    };
+
+    const logout = () => {
         setUser(null);
-        localStorage.removeItem('hs_user');
         localStorage.removeItem('hs_token');
-    }
+        localStorage.removeItem('hs_user');
+        localStorage.removeItem('pendingBooking');
+        // Clear all keys starting with hs_ to be safe
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('hs_')) localStorage.removeItem(key);
+        });
+    };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

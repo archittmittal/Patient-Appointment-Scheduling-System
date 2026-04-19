@@ -66,7 +66,7 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col items-center p-6 relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col items-center px-6 pt-6 pb-20 relative overflow-hidden">
             <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse delay-1000"></div>
             
@@ -167,8 +167,8 @@ const Register = () => {
                 </div>
             </div>
             
-            <div className="mt-auto text-center text-[11px] font-medium text-[var(--text-base)]/30 pb-8 z-10">
-                &copy; 2026 HealthSync. Secure Healthcare Portal.
+            <div className="w-full mt-12 mb-8 text-center text-[11px] font-medium text-[var(--text-base)]/30 z-10">
+                &copy; 2026 HealthSync. All healthcare data is encrypted and secure.
             </div>
         </div>
     );
