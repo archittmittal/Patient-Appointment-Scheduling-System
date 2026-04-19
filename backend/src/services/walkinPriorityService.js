@@ -4,6 +4,7 @@
  */
 
 const db = require('../config/db');
+const notificationService = require('./notificationService');
 
 const walkinPriorityService = {
     /**
@@ -39,6 +40,17 @@ const walkinPriorityService = {
 
         // Get estimated wait time
         const waitTime = await this.estimateWaitTime(result.insertId);
+
+        // If EMERGENCY, notify the doctor immediately
+        if (urgencyLevel === 'EMERGENCY') {
+            try {
+                const [[patient]] = await db.query('SELECT first_name, last_name FROM patients WHERE id = ?', [patientId]);
+                const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown Patient';
+                await notificationService.notifyEmergency(doctorId, patientName, reason);
+            } catch (err) {
+                console.error('Failed to send emergency notification:', err);
+            }
+        }
 
         return {
             success: true,
@@ -198,9 +210,9 @@ const walkinPriorityService = {
      */
     async getNextWalkin(doctorId) {
         const [next] = await db.query(
-            `SELECT wq.*, u.first_name, u.last_name, u.phone
+            `SELECT wq.*, p.first_name, p.last_name, p.phone
              FROM walkin_queue wq
-             JOIN users u ON wq.patient_id = u.id
+             JOIN patients p ON wq.patient_id = p.id
              WHERE wq.doctor_id = ? AND wq.status = 'WAITING'
              ORDER BY wq.queue_position ASC
              LIMIT 1`,
@@ -215,10 +227,10 @@ const walkinPriorityService = {
      */
     async getWalkinQueue(doctorId) {
         const [queue] = await db.query(
-            `SELECT wq.*, u.first_name, u.last_name, u.phone,
+            `SELECT wq.*, p.first_name, p.last_name, p.phone,
                     TIMESTAMPDIFF(MINUTE, wq.registered_at, NOW()) as wait_minutes
              FROM walkin_queue wq
-             JOIN users u ON wq.patient_id = u.id
+             JOIN patients p ON wq.patient_id = p.id
              WHERE wq.doctor_id = ? AND wq.status = 'WAITING'
              ORDER BY wq.queue_position ASC`,
             [doctorId]

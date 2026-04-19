@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import EmergencyModal from '../components/EmergencyModal';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
 
 const STATUS_COLORS = {
-    WAITING:     'bg-amber-100/10 text-amber-500 border-amber-500/20',
+    WAITING: 'bg-amber-100/10 text-amber-500 border-amber-500/20',
     IN_PROGRESS: 'bg-indigo-100/10 text-indigo-500 border-indigo-500/20',
-    COMPLETED:   'bg-emerald-100/10 text-emerald-500 border-emerald-500/20',
-    MISSED:      'bg-rose-100/10 text-rose-500 border-rose-500/20',
+    COMPLETED: 'bg-emerald-100/10 text-emerald-500 border-emerald-500/20',
+    MISSED: 'bg-rose-100/10 text-rose-500 border-rose-500/20',
 };
 
 const EMPTY_NOTES = { diagnosis: '', notes: '', prescription: '', follow_up_date: '' };
@@ -116,12 +117,13 @@ const DoctorDashboard = () => {
     const [updatingId, setUpdatingId] = useState(null);
     const [queueLastUpdated, setQueueLastUpdated] = useState(null);
     const [notesModal, setNotesModal] = useState(null);
-    
+
     // Issue #40: Delay propagation state
     const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0, reason: '' });
     const [showDelayModal, setShowDelayModal] = useState(false);
     const [delayForm, setDelayForm] = useState({ minutes: 15, reason: '' });
     const [settingDelay, setSettingDelay] = useState(false);
+    const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
 
     const fetchData = async () => {
         if (!user?.id) return;
@@ -134,7 +136,7 @@ const DoctorDashboard = () => {
             setPatients(await patientsRes.json());
             setQueue(await queueRes.json());
             setQueueLastUpdated(new Date());
-            
+
             if (delayRes.ok) {
                 const delayData = await delayRes.json();
                 setDelayInfo({
@@ -245,11 +247,10 @@ const DoctorDashboard = () => {
                                         <button
                                             key={mins}
                                             onClick={() => setDelayForm(f => ({ ...f, minutes: mins }))}
-                                            className={`py-3 rounded-2xl text-xs font-black transition-all duration-300 border ${
-                                                delayForm.minutes === mins 
-                                                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                                            className={`py-3 rounded-2xl text-xs font-black transition-all duration-300 border ${delayForm.minutes === mins
+                                                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
                                                     : 'bg-white/5 text-slate-500 border-[var(--border-base)] hover:border-primary/50'
-                                            }`}
+                                                }`}
                                         >
                                             {mins} MIN
                                         </button>
@@ -282,7 +283,7 @@ const DoctorDashboard = () => {
             )}
 
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
                 <div>
                     <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight">
                         Daily <span className="text-primary italic">Ops</span> Center
@@ -292,13 +293,29 @@ const DoctorDashboard = () => {
                         Dr. {user?.last_name} • {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                     </p>
                 </div>
-                <div className="glass-card p-4 flex items-center gap-4 border-primary/10">
-                    <div className="w-12 h-12 rounded-2xl bg-primary-light/30 flex items-center justify-center text-primary shadow-inner">
-                        <Calendar size={24} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Schedule</p>
-                        <p className="text-base font-black text-[var(--text-base)]">08:00 AM — 05:00 PM</p>
+
+                <div className="flex flex-wrap items-center gap-4">
+                    <button
+                        onClick={() => setIsEmergencyOpen(true)}
+                        className="btn-primary bg-danger hover:bg-red-700 border-none px-6"
+                    >
+                        <AlertCircle size={18} strokeWidth={2.5} /> Emergency Override
+                    </button>
+
+                    <button
+                        onClick={() => setShowDelayModal(true)}
+                        className="btn-secondary px-6 flex items-center gap-2"
+                    >
+                        <Clock size={18} strokeWidth={2.5} /> Report Delay
+                    </button>
+                    <div className="glass-card p-4 flex items-center gap-4 border-primary/10">
+                        <div className="w-12 h-12 rounded-2xl bg-primary-light/30 flex items-center justify-center text-primary shadow-inner">
+                            <Calendar size={24} strokeWidth={2.5} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Schedule</p>
+                            <p className="text-base font-black text-[var(--text-base)]">08:00 AM — 05:00 PM</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -330,8 +347,8 @@ const DoctorDashboard = () => {
                 <StatCard icon={<Users size={24} />} label="Patient Registry" value={patients.length} color="indigo" tag="Total" />
                 <StatCard icon={<Calendar size={24} />} label="Daily Queue" value={queue.length} color="emerald" tag="Today" />
                 <StatCard icon={<Activity size={24} />} label="Live Sessions" value={queue.filter(q => q.queue_status === 'IN_PROGRESS').length} color="sky" tag="Active" />
-                
-                <button 
+
+                <button
                     onClick={() => !delayInfo.isDelayed && setShowDelayModal(true)}
                     className={`glass-card p-6 text-left group transition-all duration-300 hover:translate-y-[-4px] ${delayInfo.isDelayed ? 'border-amber-500/30' : ''}`}
                 >
@@ -358,9 +375,8 @@ const DoctorDashboard = () => {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`pb-4 px-1 text-sm font-black uppercase tracking-widest transition-all relative ${
-                                    activeTab === tab ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
-                                }`}
+                                className={`pb-4 px-1 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === tab ? 'text-primary' : 'text-slate-400 hover:text-slate-600'
+                                    }`}
                             >
                                 {tab === 'queue' ? 'Live Queue' : 'Patient History'}
                                 {activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full" />}
@@ -444,6 +460,15 @@ const DoctorDashboard = () => {
                     </div>
                 )}
             </div>
+
+            {/* Emergency Modal */}
+            <EmergencyModal
+                isOpen={isEmergencyOpen}
+                onClose={() => setIsEmergencyOpen(false)}
+                onSuccess={() => {
+                    fetchData();
+                }}
+            />
         </div>
     );
 };

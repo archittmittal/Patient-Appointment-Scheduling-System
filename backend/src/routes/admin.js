@@ -131,6 +131,27 @@ router.delete('/patients/:id', async (req, res) => {
     }
 });
 
+// GET /api/admin/patients/search?q=... — search patients by name or phone
+router.get('/patients/search', async (req, res) => {
+    try {
+        const query = req.query.q || '';
+        if (query.length < 2) return res.json([]);
+
+        const [patients] = await db.query(`
+            SELECT p.id, p.first_name, p.last_name, p.phone, p.blood_group, u.email
+            FROM patients p
+            JOIN users u ON p.id = u.id
+            WHERE p.first_name LIKE ? OR p.last_name LIKE ? OR p.phone LIKE ?
+            LIMIT 10
+        `, [`%${query}%`, `%${query}%`, `%${query}%`]);
+
+        res.json(patients);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/admin/appointments — all appointments
 router.get('/appointments', async (req, res) => {
     try {

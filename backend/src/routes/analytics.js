@@ -6,6 +6,17 @@
 const express = require('express');
 const router = express.Router();
 const peakHoursService = require('../services/peakHoursService');
+const { 
+    getDoctorPredictiveAnalytics, 
+    getNoShowRisk, 
+    getPatientChurnRisk 
+} = require('../services/predictionService');
+
+const {
+    getDoctorWorkloads,
+    suggestDoctorForWalkin,
+    getOptimalSequence
+} = require('../services/dailyOptimizerService');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
@@ -105,6 +116,97 @@ router.get('/clinic', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Clinic analytics error:', error);
         res.status(500).json({ error: 'Failed to get clinic analytics' });
+    }
+});
+
+/**
+ * GET /api/analytics/doctor/:doctorId/predictive
+ * Get predictive analytics for a specific doctor
+ */
+router.get('/doctor/:doctorId/predictive', authenticate, async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        const analysis = await predictionService.getDoctorPredictiveAnalytics(doctorId);
+        res.json(analysis);
+    } catch (error) {
+        console.error('Predictive analytics error:', error);
+        res.status(500).json({ error: 'Failed to get predictive analytics' });
+    }
+});
+
+/**
+ * GET /api/analytics/appointment/:appointmentId/no-show-risk
+ * Get no-show risk for a specific appointment
+ */
+router.get('/appointment/:appointmentId/no-show-risk', authenticate, async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        const prediction = await predictionService.predictNoShowProbability(appointmentId);
+        res.json(prediction);
+    } catch (error) {
+        console.error('No-show prediction error:', error);
+        res.status(500).json({ error: 'Failed to predict no-show risk' });
+    }
+});
+
+/**
+ * GET /api/analytics/patient/:patientId/churn-risk
+ * Get churn risk for a specific patient
+ */
+router.get('/patient/:patientId/churn-risk', authenticate, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const prediction = await predictionService.predictChurnRisk(patientId);
+        res.json(prediction);
+    } catch (error) {
+        console.error('Churn prediction error:', error);
+        res.status(500).json({ error: 'Failed to predict churn risk' });
+    }
+});
+
+/**
+ * GET /api/analytics/optimizer/workloads
+ * Get real-time workload/congestion for all active doctors
+ */
+router.get('/optimizer/workloads', authenticate, async (req, res) => {
+    try {
+        const workloads = await getDoctorWorkloads();
+        res.json(workloads);
+    } catch (error) {
+        console.error('Error in workload analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch doctor workloads' });
+    }
+});
+
+/**
+ * POST /api/analytics/optimizer/suggest-doctor
+ * Suggest the best doctor for a new walk-in based on congestion
+ */
+router.post('/optimizer/suggest-doctor', authenticate, async (req, res) => {
+    try {
+        const { symptoms } = req.body;
+        const patientId = req.user.id;
+        
+        const suggestion = await suggestDoctorForWalkin(patientId, symptoms);
+        res.json(suggestion);
+    } catch (error) {
+        console.error('Error in doctor suggestion:', error);
+        res.status(500).json({ error: 'Failed to suggest doctor' });
+    }
+});
+
+/**
+ * GET /api/analytics/optimizer/optimal-sequence/:doctorId
+ * Get theoretically optimal sequence of waiting patients using DP
+ */
+router.get('/optimizer/optimal-sequence/:doctorId', authenticate, async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        const result = await getOptimalSequence(doctorId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error in schedule optimization:', error);
+        res.status(500).json({ error: 'Failed to generate optimal sequence' });
     }
 });
 

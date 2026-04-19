@@ -1,15 +1,10 @@
-/**
- * Issue #45: Vitals Hub - PREMIUM OVERHAUL & STABILIZATION
- * Biometric Analytics Core for high-fidelity health monitoring.
- */
-
 import React, { useState, useEffect } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { 
     Activity, Heart, Scale, Thermometer, Plus, ChevronRight, 
-    Activity as Pulse, Zap, ShieldCheck, Target, Sparkles,
+    Zap, ShieldCheck, Target, Sparkles,
     Calendar, Clock, Info, ArrowRight, X, FlaskConical, Pill, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,7 +39,7 @@ const VitalsHub = () => {
                 setVitals(formatted);
             }
         } catch (error) {
-            console.error('[Biometrics] Sync failed:', error);
+            console.error('[Vitals] Sync failed:', error);
         } finally {
             setLoading(false);
         }
@@ -72,135 +67,146 @@ const VitalsHub = () => {
                 setFormData({ weight_kg: '', blood_pressure_sys: '', blood_pressure_dia: '', heart_rate: '', temperature_c: '' });
             } else {
                 const err = await res.json();
-                alert(err.message || 'Registry log failure');
+                alert(err.message || 'Failed to save vitals');
             }
         } catch (error) {
-            console.error('[Biometrics] Log error:', error);
+            console.error('[Vitals] Log error:', error);
         }
     };
 
     if (loading) return (
-        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-8 animate-in fade-in duration-1000">
-             <div className="w-24 h-24 border-8 border-primary/10 border-t-primary rounded-full animate-spin"></div>
-             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic animate-pulse">Synchronizing Biometric Core...</p>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-4">
+             <Activity className="text-primary animate-pulse" size={48} />
+             <p className="text-sm font-medium text-slate-500 tracking-wide">Loading your health data...</p>
         </div>
     );
 
     const latest = Array.isArray(vitals) && vitals.length > 0 ? vitals[vitals.length - 1] : {};
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-24 animate-in fade-in duration-1000 px-4">
+        <div className="section-container space-y-12 animate-in fade-in duration-700">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8 group">
-                <div className="flex items-center gap-6">
-                    <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary shadow-inner border border-primary/20 group-hover:rotate-12 transition-transform duration-700">
-                        <Pulse size={36} strokeWidth={2.5} className="animate-pulse" />
-                    </div>
-                    <div>
-                        <h1 className="text-5xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none">Biometric Core</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity health telemetry & trend analytics</p>
-                    </div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                    <h1 className="text-4xl font-bold tracking-tight mb-2">Vitals & Trends</h1>
+                    <p className="text-slate-500">Track your key health metrics and monitor progress over time.</p>
                 </div>
                 <button 
                     onClick={() => setShowLogModal(true)}
-                    className="group relative px-10 py-5 bg-primary text-white font-black text-[12px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic flex items-center gap-4"
+                    className="btn-primary"
                 >
-                    <Plus size={20} strokeWidth={3} />
-                    Log Node Data
+                    <Plus size={20} />
+                    Log New Vitals
                 </button>
             </div>
 
             {/* Vitals Summary Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <VitalCard icon={<Scale size={28} strokeWidth={2.5} className="text-indigo-500" />} label="Mass Index" value={latest.weight_kg} unit="KG" theme="indigo" />
-                <VitalCard icon={<Heart size={28} strokeWidth={2.5} className="text-rose-500" />} label="Force Sync" value={latest.blood_pressure_sys ? `${latest.blood_pressure_sys}/${latest.blood_pressure_dia}` : null} unit="MMHG" theme="rose" />
-                <VitalCard icon={<Activity size={28} strokeWidth={2.5} className="text-emerald-500" />} label="Pulse Delta" value={latest.heart_rate} unit="BPM" theme="emerald" />
-                <VitalCard icon={<Thermometer size={28} strokeWidth={2.5} className="text-amber-500" />} label="Thermal Reg" value={latest.temperature_c} unit="°C" theme="amber" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <VitalCard 
+                    icon={<Scale size={24} className="text-indigo-500" />} 
+                    label="Weight" 
+                    value={latest.weight_kg} 
+                    unit="kg" 
+                    color="indigo" 
+                />
+                <VitalCard 
+                    icon={<Heart size={24} className="text-rose-500" />} 
+                    label="Blood Pressure" 
+                    value={latest.blood_pressure_sys ? `${latest.blood_pressure_sys}/${latest.blood_pressure_dia}` : null} 
+                    unit="mmHg" 
+                    color="rose" 
+                />
+                <VitalCard 
+                    icon={<Activity size={24} className="text-emerald-500" />} 
+                    label="Heart Rate" 
+                    value={latest.heart_rate} 
+                    unit="bpm" 
+                    color="emerald" 
+                />
+                <VitalCard 
+                    icon={<Thermometer size={24} className="text-amber-500" />} 
+                    label="Temperature" 
+                    value={latest.temperature_c} 
+                    unit="°C" 
+                    color="amber" 
+                />
             </div>
 
             {/* Trends Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Blood Pressure Chart */}
-                <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={64} /></div>
-                    <h3 className="text-2xl font-black text-[var(--test-base)] mb-12 flex items-center gap-6 italic uppercase tracking-tighter">
-                        <span className="w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner border border-rose-500/20"><Heart size={24} /></span>
-                        Pressure Meridian
-                    </h3>
-                    <div className="h-80 w-full">
+                <div className="apple-card p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+                            <Heart size={20} />
+                        </div>
+                        <h3 className="text-xl font-bold">Blood Pressure Trends</h3>
+                    </div>
+                    <div className="h-72 w-full">
                         {vitals.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={vitals} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 9, fontWeight: 900, textTransform: 'uppercase'}} dy={20} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 9, fontWeight: 900, textTransform: 'uppercase'}} dx={-20} />
+                                <LineChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
                                     <Tooltip 
                                         contentStyle={{ 
-                                            backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                                            borderRadius: '2rem', 
-                                            border: '1px solid rgba(255,255,255,0.05)',
-                                            backdropFilter: 'blur(20px)',
-                                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                                            color: '#fff',
-                                            fontSize: '10px',
-                                            fontWeight: '900',
-                                            textTransform: 'uppercase',
-                                            letterSpacing: '0.1em',
-                                            padding: '20px'
+                                            backgroundColor: '#fff', 
+                                            borderRadius: '12px', 
+                                            border: 'none',
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                            padding: '12px'
                                         }}
-                                        itemStyle={{ paddingBottom: '4px' }}
                                     />
-                                    <Line type="monotone" dataKey="blood_pressure_sys" stroke="#6366f1" strokeWidth={5} dot={{ r: 8, fill: '#6366f1', strokeWidth: 3, stroke: '#fff' }} activeDot={{ r: 12, strokeWidth: 0, shadow: '0 0 20px #6366f1' }} name="Systolic" />
-                                    <Line type="monotone" dataKey="blood_pressure_dia" stroke="#818cf8" strokeWidth={5} dot={{ r: 8, fill: '#818cf8', strokeWidth: 3, stroke: '#fff' }} activeDot={{ r: 12, strokeWidth: 0, shadow: '0 0 20px #818cf8' }} name="Diastolic" />
+                                    <Line type="monotone" dataKey="blood_pressure_sys" stroke="#0071e3" strokeWidth={3} dot={{ r: 4, fill: '#0071e3', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Systolic" />
+                                    <Line type="monotone" dataKey="blood_pressure_dia" stroke="#60a5fa" strokeWidth={3} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Diastolic" />
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center space-y-6 opacity-20 italic">
-                                <Zap size={48} />
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em]">Awaiting Baseline Trends...</p>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+                                <Activity size={32} className="opacity-20" />
+                                <p className="text-sm">No data available for trends</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 {/* Heart Rate Chart */}
-                <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><RefreshCw size={64} /></div>
-                    <h3 className="text-2xl font-black text-[var(--test-base)] mb-12 flex items-center gap-6 italic uppercase tracking-tighter">
-                        <span className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shadow-inner border border-emerald-500/20"><Pulse size={24} /></span>
-                        Pulse Resonance
-                    </h3>
-                    <div className="h-80 w-full">
+                <div className="apple-card p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                            <Activity size={20} />
+                        </div>
+                        <h3 className="text-xl font-bold">Heart Rate</h3>
+                    </div>
+                    <div className="h-72 w-full">
                         {vitals.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={vitals} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                                <AreaChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="colorHr" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
                                     <XAxis dataKey="date" hide />
-                                    <YAxis hide domain={['dataMin - 15', 'dataMax + 15']} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} domain={['dataMin - 10', 'dataMax + 10']} />
                                     <Tooltip 
                                         contentStyle={{ 
-                                            backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                                            borderRadius: '2rem', 
-                                            border: '1px solid rgba(255,255,255,0.05)',
-                                            backdropFilter: 'blur(20px)',
-                                            color: '#fff',
-                                            fontSize: '10px',
-                                            fontWeight: '900',
-                                            padding: '20px'
+                                            backgroundColor: '#fff', 
+                                            borderRadius: '12px', 
+                                            border: 'none',
+                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                            padding: '12px'
                                         }}
                                     />
-                                    <Area type="monotone" dataKey="heart_rate" stroke="#10b981" fillOpacity={1} fill="url(#colorHr)" strokeWidth={5} />
+                                    <Area type="monotone" dataKey="heart_rate" stroke="#10b981" fillOpacity={1} fill="url(#colorHr)" strokeWidth={3} />
                                 </AreaChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center space-y-6 opacity-20 italic">
-                                <RefreshCw size={48} />
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em]">Synchronizing Waveforms...</p>
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+                                <Activity size={32} className="opacity-20" />
+                                <p className="text-sm">No data available for trends</p>
                             </div>
                         )}
                     </div>
@@ -209,89 +215,82 @@ const VitalsHub = () => {
 
             {/* Log Vitals Modal */}
             {showLogModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-                    <div className="glass-modal w-full max-w-xl p-16 rounded-[4rem] border-none shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-12 opacity-5"><Plus size={64} /></div>
-                        <div className="flex justify-between items-center mb-12">
-                            <h2 className="text-3xl font-black text-[var(--test-base)] uppercase italic tracking-tighter leading-none">Record Biometric Node</h2>
-                            <button onClick={() => setShowLogModal(false)} className="p-3 hover:bg-white/5 rounded-2xl transition-all">
-                                <X size={24} className="text-slate-500" />
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="apple-card w-full max-w-lg p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-2xl font-bold">Log Your Vitals</h2>
+                            <button onClick={() => setShowLogModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-all">
+                                <X size={20} className="text-slate-500" />
                             </button>
                         </div>
-                        <form onSubmit={handleLog} className="space-y-10">
-                            <div className="grid grid-cols-2 gap-10">
-                                <div className="block space-y-4">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">Mass Index (kg)</span>
-                                    <input type="number" step="0.1" className="bg-white/5 border border-white/5 w-full p-6 rounded-[1.75rem] focus:ring-4 focus:ring-primary/20 outline-none text-[var(--test-base)] font-black italic tracking-tight shadow-inner" value={formData.weight_kg} onChange={e => setFormData({...formData, weight_kg: e.target.value})} required placeholder="0.0" />
+                        <form onSubmit={handleLog} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="form-label">Weight (kg)</label>
+                                    <input type="number" step="0.1" className="input-field" value={formData.weight_kg} onChange={e => setFormData({...formData, weight_kg: e.target.value})} required placeholder="70.0" />
                                 </div>
-                                <div className="block space-y-4">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">Thermal Reg (°C)</span>
-                                    <input type="number" step="0.1" className="bg-white/5 border border-white/5 w-full p-6 rounded-[1.75rem] focus:ring-4 focus:ring-primary/20 outline-none text-[var(--test-base)] font-black italic tracking-tight shadow-inner" value={formData.temperature_c} onChange={e => setFormData({...formData, temperature_c: e.target.value})} placeholder="36.5" />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-10">
-                                <div className="block space-y-4">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">BP Systolic</span>
-                                    <input type="number" className="bg-white/5 border border-white/5 w-full p-6 rounded-[1.75rem] focus:ring-4 focus:ring-primary/20 outline-none text-[var(--test-base)] font-black italic tracking-tight shadow-inner" value={formData.blood_pressure_sys} onChange={e => setFormData({...formData, blood_pressure_sys: e.target.value})} placeholder="120" />
-                                </div>
-                                <div className="block space-y-4">
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">BP Diastolic</span>
-                                    <input type="number" className="bg-white/5 border border-white/5 w-full p-6 rounded-[1.75rem] focus:ring-4 focus:ring-primary/20 outline-none text-[var(--test-base)] font-black italic tracking-tight shadow-inner" value={formData.blood_pressure_dia} onChange={e => setFormData({...formData, blood_pressure_dia: e.target.value})} placeholder="80" />
+                                <div className="space-y-1.5">
+                                    <label className="form-label">Temperature (°C)</label>
+                                    <input type="number" step="0.1" className="input-field" value={formData.temperature_c} onChange={e => setFormData({...formData, temperature_c: e.target.value})} placeholder="36.5" />
                                 </div>
                             </div>
-                            <div className="block space-y-4">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">Pulse Velocity (bpm)</span>
-                                <input type="number" className="bg-white/5 border border-white/5 w-full p-6 rounded-[1.75rem] focus:ring-4 focus:ring-primary/20 outline-none text-[var(--test-base)] font-black italic tracking-tight shadow-inner" value={formData.heart_rate} onChange={e => setFormData({...formData, heart_rate: e.target.value})} placeholder="72" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="form-label">BP Systolic</label>
+                                    <input type="number" className="input-field" value={formData.blood_pressure_sys} onChange={e => setFormData({...formData, blood_pressure_sys: e.target.value})} placeholder="120" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="form-label">BP Diastolic</label>
+                                    <input type="number" className="input-field" value={formData.blood_pressure_dia} onChange={e => setFormData({...formData, blood_pressure_dia: e.target.value})} placeholder="80" />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="form-label">Heart Rate (bpm)</label>
+                                <input type="number" className="input-field" value={formData.heart_rate} onChange={e => setFormData({...formData, heart_rate: e.target.value})} placeholder="72" />
                             </div>
                             
-                            <div className="flex gap-6 pt-8">
-                                <button type="button" onClick={() => setShowLogModal(false)} className="flex-1 py-6 bg-white/5 border border-white/5 text-slate-400 font-black text-[12px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all italic">Discard Sync</button>
-                                <button type="submit" className="flex-1 py-6 bg-primary text-white font-black text-[12px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic">Execute Data Log</button>
+                            <div className="flex gap-4 pt-4">
+                                <button type="button" onClick={() => setShowLogModal(false)} className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 rounded-full font-medium hover:bg-slate-200 transition-all">Cancel</button>
+                                <button type="submit" className="flex-1 btn-primary py-3">Save Vitals</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* Insight Module */}
-            <div className="glass-card rounded-[3.5rem] p-12 border-none bg-white/5 relative overflow-hidden group shadow-2xl">
-                 <div className="absolute top-0 right-0 p-12 opacity-5"><Info size={64} /></div>
-                <div className="flex flex-col md:flex-row items-center gap-12 relative z-10">
-                    <div className="w-24 h-24 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary border border-primary/20 shadow-inner group-hover:rotate-12 transition-transform duration-700">
-                        <Sparkles size={40} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                        <h4 className="text-xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-4">Neural Health Insight</h4>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic leading-relaxed max-w-2xl opacity-80">
-                            {vitals.length > 0 ? "Telemetry synchronization detects steady biometric patterns within standard clinical windows. Maintain current baseline for optimal meridian alignment." : "Awaiting biometric baseline synchronization. Log your first node data to activate neural insight protocols."}
-                        </p>
-                    </div>
+            {/* Health Insight Card */}
+            <div className="apple-card p-8 border-none bg-primary-light flex items-center gap-6">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm">
+                    <Sparkles size={24} />
+                </div>
+                <div>
+                    <h4 className="text-lg font-bold mb-1">Health Insight</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed max-w-2xl">
+                        {vitals.length > 0 ? "Your health metrics are within a healthy range. Consistency is key to long-term wellness. Keep logging your data to see more accurate trends." : "Start logging your vitals to see health insights and personalized trends. This helps your doctors provide better care."}
+                    </p>
                 </div>
             </div>
         </div>
     );
 };
 
-const VitalCard = ({ icon, label, value, unit, theme }) => {
-    const themeColors = {
-        indigo: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500 shadow-indigo-500/10',
-        rose: 'bg-rose-500/10 border-rose-500/20 text-rose-500 shadow-rose-500/10',
-        emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500 shadow-emerald-500/10',
-        amber: 'bg-amber-500/10 border-amber-500/20 text-amber-500 shadow-amber-500/10'
+const VitalCard = ({ icon, label, value, unit, color }) => {
+    const colors = {
+        indigo: 'bg-indigo-50 text-indigo-600',
+        rose: 'bg-rose-50 text-rose-600',
+        emerald: 'bg-emerald-50 text-emerald-600',
+        amber: 'bg-amber-50 text-amber-600'
     };
 
     return (
-        <div className="glass-card p-10 flex flex-col items-center text-center gap-8 hover:translate-y-[-8px] hover:shadow-2xl transition-all duration-700 rounded-[3.5rem] group relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-32 h-32 opacity-5 rounded-full blur-3xl transition-opacity group-hover:opacity-10 ${themeColors[theme] ? themeColors[theme].split(' ')[2].replace('text-', 'bg-') : 'bg-primary'}`}></div>
-            <div className={`w-20 h-20 rounded-[2rem] flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-700 border ${themeColors[theme] || ''}`}>
+        <div className="apple-card p-6 hover:shadow-md transition-all duration-300">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${colors[color]}`}>
                 {icon}
             </div>
-            <div className="space-y-3 relative z-10">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] italic opacity-60 leading-none">{label}</p>
-                <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-5xl font-black text-[var(--test-base)] tracking-tighter italic tabular-nums leading-none">{value || '—'}</span>
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic leading-none">{unit}</span>
-                </div>
+            <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
+            <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{value || '—'}</span>
+                <span className="text-xs font-medium text-slate-400">{unit}</span>
             </div>
         </div>
     );
