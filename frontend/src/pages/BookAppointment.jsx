@@ -1,14 +1,10 @@
-/**
- * Issue #43: Secure Booking Page - PREMIUM OVERHAUL & STABILIZATION
- * High-fidelity clinical reservation matrix with real-time slot telemetry.
- */
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
     CheckCircle2, Users, Bell, ArrowRight, Sparkles, AlertCircle,
-    Activity, ShieldCheck, Zap, Compass, MapPin, Search, FileText
+    Activity, ShieldCheck, Zap, Compass, MapPin, Search, FileText,
+    Stethoscope, User, CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
@@ -21,7 +17,6 @@ const parseAvailability = (av) => {
     try {
         return typeof av === 'string' ? JSON.parse(av) : av;
     } catch (e) {
-        console.error('[Booking] Availability parse error:', e);
         return null;
     }
 };
@@ -50,47 +45,31 @@ const generateHourlySlots = (from, to) => {
     }
 };
 
-const TimeSlot = ({ slot, isSelected, isFull, booked, capacity, onClick }) => (
-    <button
-        onClick={isFull ? undefined : onClick}
-        disabled={isFull}
-        className={`group p-4 rounded-[1.75rem] text-[10px] font-black uppercase tracking-widest transition-all duration-700 border flex flex-col items-center gap-2 relative overflow-hidden ${
-            isFull
-                ? 'bg-white/5 text-slate-600 cursor-not-allowed border-[var(--border-base)] opacity-40'
-                : isSelected
-                    ? 'bg-primary text-white shadow-2xl shadow-primary/30 border-primary -translate-y-1 z-10 scale-105'
-                    : 'bg-white/5 text-slate-500 hover:border-primary/40 hover:text-primary border-[var(--border-base)] hover:bg-white/10'
-        }`}
-    >
-        {isSelected && <div className="absolute top-0 right-0 w-12 h-12 bg-white/20 rounded-full blur-xl"></div>}
-        <span className="relative z-10">{slot.label.replace(' – ', '-')}</span>
-        <span className={`relative z-10 text-[9px] px-2.5 py-1 rounded-lg border transition-colors ${
-            isFull 
-                ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' 
-                : isSelected 
-                    ? 'bg-white/20 border-white/20 text-white' 
-                    : 'bg-primary/5 border-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-700'
-        }`}>
-            {isFull ? 'Limit Reached' : `${booked}/${capacity} Synched`}
-        </span>
-    </button>
-);
-
 const BookAppointment = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [doctors, setDoctors] = useState([]);
-    const [selectedDoctor, setSelectedDoctor] = useState('');
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [selectedSlot, setSelectedSlot] = useState(null);
-    const [slotCounts, setSlotCounts] = useState({});
-    const [symptoms, setSymptoms] = useState('');
+    
+    // UI State
+    const [step, setStep] = useState(1);
     const [isBooked, setIsBooked] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Data State
+    const [doctors, setDoctors] = useState([]);
+    const [specialties, setSpecialties] = useState([]);
+    const [selectedSpecialty, setSelectedSpecialty] = useState('');
+    const [selectedDoctorId, setSelectedDoctorId] = useState('');
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [symptoms, setSymptoms] = useState('');
+    
+    // Calendar & Slots
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [blockedDates, setBlockedDates] = useState(new Set());
+    const [slotCounts, setSlotCounts] = useState({});
     const [bookingResult, setBookingResult] = useState(null);
     
+    // Waitlist State
     const [waitlistJoining, setWaitlistJoining] = useState(false);
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
@@ -101,258 +80,220 @@ const BookAppointment = () => {
             if (Array.isArray(data)) {
                 const pruned = data.filter(d => d && typeof d === 'object' && d.id);
                 setDoctors(pruned);
-                if (pruned.length > 0) setSelectedDoctor(pruned[0].id);
+                
+                // Extract unique specialties
+                const specs = [...new Set(pruned.map(d => d.specialty))].filter(Boolean).sort();
+                setSpecialties(specs);
             }
         };
         fetchDocs();
     }, []);
 
     useEffect(() => {
-        setSelectedSlot(null);
-        setSlotCounts({});
-        setBlockedDates(new Set());
-        if (!selectedDoctor) return;
+        if (!selectedDoctorId) return;
         
         const fetchBlocked = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctor}/blocked-dates`);
+            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/blocked-dates`);
             if (Array.isArray(data)) {
                 setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
             }
         };
         fetchBlocked();
-    }, [selectedDoctor]);
+    }, [selectedDoctorId]);
 
     useEffect(() => {
-        if (!selectedDoctor || !selectedDate) return;
-        setSelectedSlot(null);
-        setWaitlistJoined(false);
+        if (!selectedDoctorId || !selectedDate) return;
         
         const fetchSlots = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctor}/slot-counts?date=${selectedDate}`, {}, {});
-            setSlotCounts(data);
+            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
+            setSlotCounts(data || {});
         };
         fetchSlots();
-    }, [selectedDoctor, selectedDate]);
+    }, [selectedDoctorId, selectedDate]);
 
     const handleJoinWaitlist = async () => {
-        if (!selectedDoctor || !selectedDate) return;
+        if (!selectedDoctorId || !selectedDate) return;
         setWaitlistJoining(true);
         try {
             const res = await fetch(`${API}/api/appointments/waitlist/join`, {
                 method: 'POST',
                 headers: authedHeaders(true),
                 body: JSON.stringify({
-                    doctorId: selectedDoctor,
+                    doctorId: selectedDoctorId,
                     preferredDate: selectedDate,
                     timePreference: waitlistTimePreference,
                     maxNoticeHours: 24,
-                    reason: symptoms || 'Earlier availability calibration'
+                    reason: symptoms || 'Patient requested earlier availability'
                 })
             });
             if (res.ok) setWaitlistJoined(true);
-        } catch (err) { console.error(err); } finally { setWaitlistJoining(false); }
+        } catch (err) {
+            console.error('[Booking] Waitlist error:', err);
+        } finally {
+            setWaitlistJoining(false);
+        }
     };
 
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-
-    const selectedDoctorObj = doctors.find(d => String(d.id) === String(selectedDoctor));
-    const doctorAvail = parseAvailability(selectedDoctorObj?.availability);
-    const capacity = selectedDoctorObj?.max_patients_per_slot || 15;
-
-    const isDocClosed = (dateStr) => {
-        const day = getDayOfWeek(dateStr);
-        return doctorAvail && doctorAvail[day] && !doctorAvail[day].open;
+    const handleBook = async () => {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`${API}/api/appointments/book`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({ 
+                    patientId: user.id, 
+                    doctorId: selectedDoctorId, 
+                    date: selectedDate, 
+                    timeSlot: selectedSlot, 
+                    symptoms: symptoms || null 
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                setBookingResult(result);
+                setIsBooked(true);
+            } else {
+                alert(result.message || 'Unable to complete booking. Please try again.');
+            }
+        } catch (err) {
+            alert('A connection error occurred. Please check your network.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const currentDayAvail = selectedDate && doctorAvail ? doctorAvail[getDayOfWeek(selectedDate)] : null;
-    const allSlots = currentDayAvail?.open ? generateHourlySlots(currentDayAvail.from, currentDayAvail.to) : [];
-    const morningSlots = allSlots.filter(s => s.hour < 12);
-    const afternoonSlots = allSlots.filter(s => s.hour >= 12);
+    const selectedDoctor = doctors.find(d => String(d.id) === String(selectedDoctorId));
+    const doctorAvail = parseAvailability(selectedDoctor?.availability);
+    const capacity = selectedDoctor?.max_patients_per_slot || 15;
 
-    if (isBooked) {
-        return (
-            <div className="max-w-3xl mx-auto p-10 animate-in zoom-in-95 duration-700">
-                <div className="glass-modal rounded-[3.5rem] p-16 text-center border-none relative overflow-hidden shadow-2xl">
-                    <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="w-24 h-24 bg-emerald-500 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-emerald-500/30 animate-bounce">
-                        <CheckCircle2 size={48} strokeWidth={2.5} />
-                    </div>
-                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic mb-4">Reservation Indexed</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12 italic">Your session with Dr. {selectedDoctorObj?.first_name} {selectedDoctorObj?.last_name} has been synchronized.</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-lg mx-auto mb-12">
-                        <div className="glass-card p-8 bg-white/5 border-[var(--border-base)] rounded-[2.5rem]">
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] italic mb-3">Sync Date</p>
-                            <p className="text-xl font-black text-[var(--test-base)] uppercase italic tracking-tighter">{selectedDate}</p>
-                        </div>
-                        <div className="glass-card p-8 bg-white/5 border-[var(--border-base)] rounded-[2.5rem]">
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] italic mb-3">Telemetry Node</p>
-                            <p className="text-xl font-black text-[var(--test-base)] uppercase italic tracking-tighter">{selectedSlot}</p>
-                        </div>
-                    </div>
+    const filteredDoctors = selectedSpecialty 
+        ? doctors.filter(d => d.specialty === selectedSpecialty)
+        : doctors;
 
-                    {bookingResult && (
-                        <div className="bg-primary/5 border border-primary/20 rounded-[3rem] p-10 max-w-lg mx-auto mb-12 relative overflow-hidden group">
-                             <div className="absolute top-0 left-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={64} /></div>
-                            <p className="text-[10px] font-black text-primary mb-8 flex items-center justify-center gap-3 uppercase tracking-[0.4em] italic">
-                                <Sparkles size={16} /> Clinical Intelligence Metrics
-                            </p>
-                            <div className="grid grid-cols-2 gap-10 text-center">
-                                <div>
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 mb-2">Duration Prop.</p>
-                                    <p className="text-3xl font-black text-primary italic">~{bookingResult.predictedDuration || 15}M</p>
-                                </div>
-                                <div>
-                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 mb-2">Registry Rank</p>
-                                    <p className="text-3xl font-black text-primary italic">#{bookingResult.queueNumber || '1'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    <div className="flex flex-col sm:flex-row gap-5 max-w-lg mx-auto">
-                        <button onClick={() => navigate('/live-queue')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic flex items-center justify-center gap-3">
-                            Live Stream <ArrowRight size={16} className="animate-pulse" />
-                        </button>
-                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 py-5 bg-white/5 text-slate-400 border border-white/5 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all italic">
-                            Core Home
-                        </button>
+    // Helper: Step Progress
+    const StepIndicator = () => (
+        <div className="flex items-center justify-center gap-4 mb-12">
+            {[1, 2, 3, 4, 5].map(s => (
+                <div key={s} className="flex items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                        step === s ? 'bg-primary text-white scale-110 shadow-lg' : 
+                        step > s ? 'bg-success text-white' : 'bg-slate-200 text-slate-400'
+                    }`}>
+                        {step > s ? <CheckCircle2 size={16} /> : s}
                     </div>
+                    {s < 5 && <div className={`w-8 md:w-16 h-0.5 mx-2 rounded-full ${step > s ? 'bg-success' : 'bg-slate-200'}`}></div>}
                 </div>
-            </div>
-        );
-    }
+            ))}
+        </div>
+    );
 
-    const SlotGroup = ({ label, slots }) => slots.length > 0 && (
-        <div className="space-y-6">
-            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-3 italic leading-none ml-2">
-                <Sparkles size={14} className="text-primary" /> {label} Frequency
-            </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {slots.map(s => {
-                    const booked = (slotCounts && slotCounts[s.label]) || 0;
-                    return (
-                        <TimeSlot
-                            key={s.label}
-                            slot={s}
-                            isSelected={selectedSlot === s.label}
-                            isFull={booked >= capacity}
-                            booked={booked}
-                            capacity={capacity}
-                            onClick={() => setSelectedSlot(s.label)}
-                        />
-                    );
-                })}
+    // --- Renderers for Steps ---
+
+    const renderStep1 = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-2xl font-semibold mb-8 text-center">Which department do you need?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {specialties.map(spec => (
+                    <button
+                        key={spec}
+                        onClick={() => { setSelectedSpecialty(spec); setStep(2); }}
+                        className={`apple-card p-8 text-left hover:border-primary/50 border border-transparent group transition-all ${selectedSpecialty === spec ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    >
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                            <Stethoscope size={24} />
+                        </div>
+                        <h3 className="text-lg font-bold mb-1">{spec}</h3>
+                        <p className="text-sm text-slate-500">View available consultants</p>
+                    </button>
+                ))}
             </div>
         </div>
     );
 
-    return (
-        <div className="max-w-6xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary border border-primary/20 shadow-inner">
-                        <CalendarIcon size={32} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none mb-3">Registry Matrix</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">High-fidelity clinical synchronization interface</p>
-                    </div>
-                </div>
-                
-                <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-3 rounded-2xl">
-                     <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center shadow-inner"><ShieldCheck size={20} /></div>
-                     <div className="pr-4">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-right italic leading-none mb-1">Status</p>
-                        <p className="text-[11px] font-black text-primary uppercase tracking-widest text-right italic leading-none">Live Sync Active</p>
-                     </div>
-                </div>
+    const renderStep2 = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(1)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Change Department
+                </button>
+                <h2 className="text-2xl font-semibold">Select a Doctor</h2>
             </div>
-
-            <div className="glass-modal rounded-[3.5rem] p-12 border-none shadow-2xl relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
-                
-                 {/* Doctor Interface */}
-                <div className="pb-12 border-b border-white/5 space-y-8">
-                    <div className="flex items-center gap-4 px-2">
-                        <div className="w-8 h-8 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-slate-600"><Search size={16} /></div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Consultant Calibration</label>
-                    </div>
-                    <div className="relative group">
-                        <select
-                            value={selectedDoctor}
-                            onChange={e => setSelectedDoctor(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] px-8 py-6 text-[var(--text-base)] font-black uppercase tracking-[0.2em] focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all outline-none appearance-none italic shadow-inner relative z-10"
-                        >
-                            <option value="" disabled className="bg-slate-900">Select Consultant Node...</option>
-                            {doctors.map(doc => (
-                                <option key={doc.id} value={doc.id} className="bg-slate-900 text-white">DR. {doc.first_name} {doc.last_name} — {doc.specialty}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-8 top-1/2 -translate-y-1/2 text-primary opacity-40 group-hover:opacity-100 transition-opacity z-20"><Compass size={24} /></div>
-                    </div>
-
-                    {selectedDoctorObj && (
-                        <div className="flex flex-col md:flex-row items-center justify-between mt-8 p-8 bg-white/5 rounded-[3rem] border border-white/5 group-hover:border-primary/20 transition-all duration-700 relative overflow-hidden">
-                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <div className="flex items-center gap-6 relative z-10">
-                                <div className="w-20 h-20 rounded-[1.75rem] overflow-hidden border-2 border-white/5 group-hover:border-primary/30 transition-all p-1 bg-white/5">
-                                    <img src={selectedDoctorObj.image_url || `https://ui-avatars.com/api/?name=${selectedDoctorObj.first_name}+${selectedDoctorObj.last_name}&background=1e293b&color=fff`} className="w-full h-full object-cover rounded-[1.5rem]" />
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter italic leading-none">Dr. {selectedDoctorObj.first_name} {selectedDoctorObj.last_name}</h3>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[10px] font-black text-primary uppercase tracking-widest italic leading-none">{selectedDoctorObj.specialty}</span>
-                                        <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic leading-none">{selectedDoctorObj.location_room}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mt-6 md:mt-0 flex flex-col items-end gap-2 px-8 py-4 bg-primary/10 rounded-[1.5rem] border border-primary/20 relative z-10">
-                                <span className="text-[9px] font-black text-primary uppercase tracking-[0.4em] italic opacity-60">Unit Capacity</span>
-                                <span className="text-xl font-black text-primary italic tracking-tight">{capacity} PKT/Cycle</span>
-                            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredDoctors.map(doc => (
+                    <button
+                        key={doc.id}
+                        onClick={() => { setSelectedDoctorId(doc.id); setStep(3); }}
+                        className={`apple-card p-6 flex items-center gap-6 text-left border border-transparent hover:border-primary/50 transition-all ${selectedDoctorId === doc.id ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    >
+                        <img 
+                            src={doc.image_url || `https://ui-avatars.com/api/?name=${doc.first_name}+${doc.last_name}&background=e8f2ff&color=0071e3`} 
+                            className="w-20 h-20 rounded-2xl object-cover"
+                            alt={doc.first_name}
+                        />
+                        <div>
+                            <h3 className="text-lg font-bold">Dr. {doc.first_name} {doc.last_name}</h3>
+                            <p className="text-sm text-primary font-medium">{doc.specialty}</p>
+                            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                                <MapPin size={12} /> {doc.location_room || 'Main Clinic'}
+                            </p>
                         </div>
-                    )}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderStep3 = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        
+        const currentDayAvail = selectedDate ? doctorAvail?.[getDayOfWeek(selectedDate)] : null;
+        const allSlots = currentDayAvail?.open ? generateHourlySlots(currentDayAvail.from, currentDayAvail.to) : [];
+
+        return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between mb-8">
+                    <button onClick={() => setStep(2)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                        <ChevronLeft size={16} /> Choose Doctor
+                    </button>
+                    <h2 className="text-2xl font-semibold">Choose Date & Time</h2>
                 </div>
 
-                <div className="mt-12 flex flex-col xl:flex-row gap-16 relative z-10">
-                    <div className="flex-1 space-y-10">
-                        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
-                            <h4 className="text-[11px] font-black text-[var(--test-base)] uppercase tracking-[0.4em] flex items-center gap-3 italic">
-                                <CalendarIcon size={18} className="text-primary" /> Matrix Date
-                            </h4>
-                            <div className="flex items-center gap-8">
-                                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-primary hover:text-white transition-all shadow-inner"><ChevronLeft size={20} /></button>
-                                <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] italic min-w-[140px] text-center">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
-                                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl border border-white/10 hover:bg-primary hover:text-white transition-all shadow-inner"><ChevronRight size={20} /></button>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* Calendar Part */}
+                    <div className="apple-card p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <span className="font-bold text-lg">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                            <div className="flex gap-2">
+                                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
+                                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-7 gap-3 text-center">
-                            {days.map(day => <div key={day} className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic mb-2">{day}</div>)}
+                        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                            {days.map(d => <div key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>)}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
                             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
                             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(date => {
                                 const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                                 const isPast = new Date(year, month, date) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                                const closed = !isPast && isDocClosed(dStr);
+                                const closed = !isPast && doctorAvail?.[getDayOfWeek(dStr)]?.open === false;
                                 const isBlocked = !isPast && blockedDates.has(dStr);
                                 const disabled = isPast || closed || isBlocked;
+                                
                                 return (
                                     <button
                                         key={date}
                                         disabled={disabled}
                                         onClick={() => setSelectedDate(dStr)}
-                                        className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-[11px] font-black transition-all duration-700 border uppercase italic
-                                            ${selectedDate === dStr ? 'bg-primary text-white shadow-2xl shadow-primary/30 border-primary scale-110 z-10' : 
-                                              isBlocked ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 cursor-not-allowed opacity-40' :
-                                              disabled ? 'text-slate-800 opacity-10 cursor-not-allowed border-transparent' : 'bg-white/5 text-slate-500 border-white/5 hover:border-primary/40 hover:text-primary hover:bg-white/10 shadow-inner'}`}
+                                        className={`h-10 md:h-12 w-full rounded-xl flex items-center justify-center text-sm font-medium transition-all ${
+                                            selectedDate === dStr ? 'bg-primary text-white shadow-md' :
+                                            disabled ? 'text-slate-200 cursor-not-allowed' : 'hover:bg-primary-light hover:text-primary'
+                                        }`}
                                     >
                                         {date}
                                     </button>
@@ -361,96 +302,232 @@ const BookAppointment = () => {
                         </div>
                     </div>
 
-                    <div className="hidden xl:block w-[1px] bg-white/5"></div>
-
-                    <div className="flex-1 space-y-12">
-                        <div className="bg-white/5 p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
-                            <h4 className="text-[11px] font-black text-[var(--test-base)] uppercase tracking-[0.4em] flex items-center gap-3 italic">
-                                <Clock size={18} className="text-primary" /> Availability Grid
-                            </h4>
-                        </div>
+                    {/* Slots Part */}
+                    <div className="space-y-6">
                         {!selectedDate ? (
-                            <div className="py-20 text-center glass-card rounded-[3rem] border-dashed border-white/10 flex flex-col items-center gap-6 animate-pulse">
-                                <Compass size={48} className="text-slate-700 opacity-20" />
-                                <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.4em] italic">Awaiting Matrix Baseline Calibration...</p>
+                            <div className="h-full flex flex-col items-center justify-center apple-card p-12 border-dashed border-2 border-slate-100 bg-transparent text-slate-400">
+                                <CalendarDays size={40} className="mb-4 opacity-20" />
+                                <p className="text-sm font-medium">Select a date to view available times</p>
                             </div>
-                        ) : currentDayAvail && !currentDayAvail.open ? (
-                            <div className="p-10 bg-rose-500/5 border border-rose-500/20 rounded-[3rem] animate-in fade-in duration-700 text-center space-y-4">
-                                <Zap size={32} className="text-rose-500/40 mx-auto" />
-                                <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest italic leading-relaxed">
-                                    Protocol Halt: Consultant offline on {getDayOfWeek(selectedDate)}s.<br/>Please select alternative cycle baseline.
-                                </p>
+                        ) : allSlots.length === 0 ? (
+                            <div className="space-y-6">
+                                <div className="apple-card p-8 bg-amber-500/5 border-amber-500/10 text-center">
+                                    <Zap size={32} className="mx-auto mb-3 text-amber-500/50" />
+                                    <p className="text-sm font-semibold text-amber-700">No slots available on this date.</p>
+                                    <p className="text-xs text-amber-600/80 mt-1">Join our priority waitlist to get notified of cancellations.</p>
+                                </div>
+                                {!waitlistJoined ? (
+                                    <div className="apple-card p-6 border-amber-200 bg-amber-50/30">
+                                        <div className="flex flex-col gap-4">
+                                            <select 
+                                                value={waitlistTimePreference} 
+                                                onChange={e => setWaitlistTimePreference(e.target.value)} 
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                            >
+                                                <option value="ANY">Any time of day</option>
+                                                <option value="MORNING">Morning only</option>
+                                                <option value="AFTERNOON">Afternoon only</option>
+                                            </select>
+                                            <button 
+                                                onClick={handleJoinWaitlist} 
+                                                disabled={waitlistJoining}
+                                                className="w-full py-4 bg-amber-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all active:scale-[0.98]"
+                                            >
+                                                {waitlistJoining ? 'Joining...' : 'Join Priority Waitlist'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="apple-card p-6 border-success/20 bg-success/5 text-center">
+                                        <CheckCircle2 size={24} className="mx-auto mb-2 text-success" />
+                                        <p className="text-sm font-bold text-success">You're on the waitlist!</p>
+                                        <p className="text-xs text-success/70">We'll notify you as soon as a spot opens up.</p>
+                                    </div>
+                                )}
                             </div>
                         ) : (
-                            <div className="space-y-12 px-2 animate-in slide-in-from-right-8 duration-700">
-                                <SlotGroup label="Meridian" slots={morningSlots} />
-                                <SlotGroup label="Post-Meridian" slots={afternoonSlots} />
+                            <div className="space-y-4">
+                                <p className="text-sm font-semibold text-slate-500 flex items-center gap-2">
+                                    <Clock size={16} /> Available Times for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {allSlots.map(s => {
+                                        const booked = slotCounts[s.label] || 0;
+                                        const isFull = booked >= capacity;
+                                        return (
+                                            <button
+                                                key={s.label}
+                                                disabled={isFull}
+                                                onClick={() => setSelectedSlot(s.label)}
+                                                className={`p-4 rounded-2xl border transition-all text-center ${
+                                                    selectedSlot === s.label ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' :
+                                                    isFull ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' :
+                                                    'bg-white border-slate-100 hover:border-primary/30 hover:bg-primary-light/30'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold">{s.label}</div>
+                                                <div className={`text-[10px] mt-1 ${selectedSlot === s.label ? 'text-white/80' : 'text-slate-400'}`}>
+                                                    {isFull ? 'Fully Booked' : `${capacity - booked} slots left`}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <button 
+                                    disabled={!selectedSlot}
+                                    onClick={() => setStep(4)}
+                                    className="w-full btn-primary py-4 mt-8"
+                                >
+                                    Continue <ArrowRight size={18} />
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
+        );
+    };
 
-                <div className="mt-16 pt-12 border-t border-white/5 space-y-8">
-                    <div className="flex items-center gap-4 px-2">
-                        <div className="w-8 h-8 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-slate-600"><FileText size={16} /></div>
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Clinical Nuance Feed</label>
-                    </div>
-                    <textarea
-                        value={symptoms}
-                        onChange={e => setSymptoms(e.target.value)}
-                        rows={3}
-                        placeholder="Transmit preliminary symptomatic patterns for consultant analysis..."
-                        className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] px-10 py-8 text-sm font-bold text-[var(--test-base)] italic focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all outline-none resize-none shadow-inner uppercase tracking-wider"
+    const renderStep4 = () => (
+        <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(3)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Change Time
+                </button>
+                <h2 className="text-2xl font-semibold">Tell us more</h2>
+            </div>
+            <div className="apple-card p-8">
+                <label className="form-label mb-4">What brings you in today?</label>
+                <textarea
+                    value={symptoms}
+                    onChange={e => setSymptoms(e.target.value)}
+                    rows={5}
+                    placeholder="Briefly describe your symptoms or reason for visit..."
+                    className="input-field mb-8 text-lg"
+                />
+                <button 
+                    onClick={() => setStep(5)}
+                    className="w-full btn-primary py-4"
+                >
+                    Review Appointment <ArrowRight size={18} />
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderStep5 = () => (
+        <div className="max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(4)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Edit Details
+                </button>
+                <h2 className="text-2xl font-semibold">Confirm Appointment</h2>
+            </div>
+            <div className="apple-card overflow-hidden">
+                <div className="bg-primary-light p-8 flex items-center gap-6">
+                    <img 
+                        src={selectedDoctor?.image_url || `https://ui-avatars.com/api/?name=${selectedDoctor?.first_name}+${selectedDoctor?.last_name}&background=ffffff&color=0071e3`} 
+                        className="w-20 h-20 rounded-2xl object-cover shadow-sm"
+                        alt="Doctor"
                     />
+                    <div>
+                        <h3 className="text-xl font-bold">Dr. {selectedDoctor?.first_name} {selectedDoctor?.last_name}</h3>
+                        <p className="text-primary font-medium">{selectedDoctor?.specialty}</p>
+                    </div>
                 </div>
-
-                {selectedDate && selectedDoctor && !waitlistJoined && (
-                    <div className="mt-12 p-10 bg-amber-500/5 border border-amber-500/20 rounded-[3.5rem] animate-in slide-in-from-bottom-8 duration-700 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Bell size={64} /></div>
-                        <div className="flex flex-col lg:flex-row items-center gap-12 relative z-10">
-                            <div className="flex items-center gap-8 text-center lg:text-left flex-1">
-                                <div className="w-20 h-20 bg-amber-500 text-white rounded-[2rem] flex items-center justify-center shadow-2xl shadow-amber-500/30 group-hover:rotate-12 transition-transform duration-700">
-                                    <Zap size={32} strokeWidth={2.5} />
-                                </div>
-                                <div className="space-y-2">
-                                    <h4 className="text-2xl font-black text-amber-600 uppercase tracking-tighter italic leading-none">Priority Protocol Active</h4>
-                                    <p className="text-[10px] font-bold text-slate-500 italic uppercase tracking-[0.3em] leading-relaxed opacity-80">Join the neural waitlist. Decrypt earlier priority nodes automatically.</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-center gap-5 w-full lg:w-auto">
-                                <select value={waitlistTimePreference} onChange={e => setWaitlistTimePreference(e.target.value)} className="w-full sm:w-auto bg-white/10 border border-amber-500/20 rounded-2xl px-6 py-4 text-[10px] font-black text-amber-600 uppercase tracking-widest outline-none italic">
-                                    <option value="ANY">Omni-Cycle</option>
-                                    <option value="MORNING">Meridian</option>
-                                    <option value="AFTERNOON">Post-Meridian</option>
-                                </select>
-                                <button onClick={handleJoinWaitlist} disabled={waitlistJoining} className="w-full sm:w-auto px-10 py-5 bg-amber-500 text-white rounded-[1.75rem] text-[10px] font-black uppercase tracking-[0.4em] hover:bg-amber-600 shadow-2xl shadow-amber-500/20 transition-all hover:scale-105 italic">
-                                    {waitlistJoining ? 'Syncing...' : 'Engage Priority'}
-                                </button>
-                            </div>
+                <div className="p-8 space-y-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500"><CalendarIcon size={20} /></div>
+                        <div>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Date</p>
+                            <p className="font-semibold">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
                         </div>
                     </div>
-                )}
-
-                <div className="mt-16 flex justify-end relative z-10">
-                    <button
-                        disabled={!selectedDate || !selectedSlot || !selectedDoctor || isSubmitting}
-                        onClick={async () => {
-                            setIsSubmitting(true);
-                            try {
-                                const response = await fetch(`${API}/api/appointments/book`, {
-                                    method: 'POST',
-                                    headers: authedHeaders(true),
-                                    body: JSON.stringify({ patientId: user.id, doctorId: selectedDoctor, date: selectedDate, timeSlot: selectedSlot, symptoms: symptoms || null })
-                                });
-                                const result = await response.json();
-                                if (response.ok) { setBookingResult(result); setIsBooked(true); } else { alert(result.message || 'Registry sync error'); }
-                            } finally { setIsSubmitting(false); }
-                        }}
-                        className={`px-16 py-6 rounded-[2.5rem] font-black text-[11px] uppercase tracking-[0.5em] transition-all shadow-2xl italic flex items-center gap-4 ${selectedDate && selectedSlot && !isSubmitting ? 'bg-primary text-white shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1' : 'bg-white/5 text-slate-800 opacity-20 cursor-not-allowed'}`}
-                    >
-                        {isSubmitting ? <><Activity size={18} className="animate-spin" /> Indexing Feed...</> : <><ShieldCheck size={18} /> Seal Reservation</>}
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500"><Clock size={20} /></div>
+                        <div>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Time</p>
+                            <p className="font-semibold">{selectedSlot}</p>
+                        </div>
+                    </div>
+                    {symptoms && (
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 mt-1"><FileText size={20} /></div>
+                            <div>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Reason for Visit</p>
+                                <p className="text-sm italic text-slate-600">"{symptoms}"</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="pt-6 border-t border-slate-100">
+                        <button 
+                            disabled={isSubmitting}
+                            onClick={handleBook}
+                            className="w-full btn-primary py-4 text-lg"
+                        >
+                            {isSubmitting ? <Activity size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
+                            {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                        </button>
+                        <p className="text-center text-[10px] text-slate-400 mt-4 px-4 leading-relaxed">
+                            By confirming, you agree to our clinical guidelines and cancellation policy. A confirmation notification will be sent to your health portal.
+                        </p>
+                    </div>
                 </div>
+            </div>
+        </div>
+    );
+
+    if (isBooked) {
+        return (
+            <div className="max-w-2xl mx-auto py-12 px-4 animate-in zoom-in-95 duration-500">
+                <div className="apple-card p-12 text-center">
+                    <div className="w-20 h-20 bg-success text-white rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-success/20">
+                        <CheckCircle2 size={40} />
+                    </div>
+                    <h2 className="text-3xl font-bold mb-4">Appointment Confirmed</h2>
+                    <p className="text-slate-500 mb-10 max-w-sm mx-auto">Your visit with Dr. {selectedDoctor?.first_name} {selectedDoctor?.last_name} is successfully scheduled.</p>
+                    
+                    <div className="bg-slate-50 rounded-[2rem] p-8 mb-10 grid grid-cols-2 gap-4">
+                        <div className="text-left">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Queue ID</p>
+                            <p className="text-xl font-bold text-primary">#{bookingResult?.queueNumber || '1'}</p>
+                        </div>
+                        <div className="text-left">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Est. Time</p>
+                            <p className="text-xl font-bold text-primary">{selectedSlot?.split('–')[0]}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <button onClick={() => navigate('/queue')} className="flex-1 btn-primary py-4">
+                            Track Status <ArrowRight size={18} />
+                        </button>
+                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 btn-secondary py-4">
+                            Go Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="section-container">
+            {/* Header */}
+            <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold mb-3 tracking-tight">Book an Appointment</h1>
+                <p className="text-slate-500">Follow the simple steps below to schedule your visit.</p>
+            </div>
+
+            <StepIndicator />
+
+            {/* Content Area */}
+            <div className="min-h-[400px]">
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+                {step === 4 && renderStep4()}
+                {step === 5 && renderStep5()}
             </div>
         </div>
     );

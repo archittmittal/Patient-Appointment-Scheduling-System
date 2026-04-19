@@ -110,10 +110,35 @@ const WalkinRegistration = () => {
     const [reason, setReason] = useState('');
     const [symptoms, setSymptoms] = useState('');
     const [vitals, setVitals] = useState({});
+    const [workloads, setWorkloads] = useState([]);
 
     useEffect(() => {
-        fetch(`${API}/api/doctors`).then(res => res.json()).then(data => setDoctors(Array.isArray(data) ? data : [])).catch(console.error);
+        const loadData = async () => {
+            try {
+                const docRes = await fetch(`${API}/api/doctors`);
+                const docData = await docRes.json();
+                setDoctors(Array.isArray(docData) ? docData : []);
+
+                const workRes = await fetch(`${API}/api/analytics/optimizer/workloads`, { headers: authedHeaders() });
+                if (workRes.ok) {
+                    const workData = await workRes.json();
+                    setWorkloads(workData);
+                }
+            } catch (err) {
+                console.error('Error loading registration data:', err);
+            }
+        };
+        loadData();
     }, []);
+
+    const getCongestion = (doctorId) => {
+        const work = workloads.find(w => w.doctorId === doctorId);
+        if (!work) return { label: 'Optimizing', theme: 'slate' };
+        
+        if (work.estimatedTotalMins < 30) return { label: 'Low Wait', theme: 'emerald' };
+        if (work.estimatedTotalMins < 60) return { label: 'Moderate', theme: 'amber' };
+        return { label: 'High Traffic', theme: 'rose' };
+    };
 
     const handleSubmit = async () => {
         if (!selectedDoctor || !reason) return alert('Protocol Denied: Selection required');
@@ -206,7 +231,16 @@ const WalkinRegistration = () => {
                                     </div>
                                     <div className="flex-1">
                                         <h4 className="text-lg font-black text-[var(--test-base)] uppercase italic tracking-tighter leading-none mb-2">Dr. {doc.first_name} {doc.last_name}</h4>
-                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 leading-none">{doc.specialty}</p>
+                                        <div className="flex items-center gap-3">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 leading-none">{doc.specialty}</p>
+                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${
+                                                getCongestion(doc.id).theme === 'emerald' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                getCongestion(doc.id).theme === 'amber' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                                'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                            }`}>
+                                                {getCongestion(doc.id).label}
+                                            </span>
+                                        </div>
                                     </div>
                                     {selectedDoctor?.id === doc.id && <div className="p-2 bg-primary text-white rounded-full"><CheckCircle2 size={16} /></div>}
                                 </button>

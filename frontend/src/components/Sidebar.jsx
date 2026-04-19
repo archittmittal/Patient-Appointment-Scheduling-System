@@ -1,44 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { 
+    LayoutDashboard, Users, User, Calendar, Activity, LogOut, 
+    ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, 
+    Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart,
+    ChevronRight, Sparkles, HeartPulse, FileText, Search
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
 const PATIENT_MENU = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/patient-dashboard' },
+    { name: 'Overview', icon: LayoutDashboard, path: '/patient-dashboard' },
     { name: 'Health Hub', icon: LineChart, path: '/vitals' },
-    { name: 'Prescriptions', icon: Pill, path: '/prescriptions' },
-    { name: 'Find a Doctor', icon: Users, path: '/doctors' },
-    { name: 'Book Appointment', icon: Calendar, path: '/book' },
-    { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
-    { name: 'Batch Appointments', icon: Layers, path: '/batch-appointments' },
-    { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
-    { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
-    { name: 'Live Queue', icon: Activity, path: '/queue' },
-    { name: 'Late Arrival Help', icon: AlarmClock, path: '/late-arrival' },
+    { name: 'Medications', icon: Pill, path: '/prescriptions' },
+    { name: 'Find Doctors', icon: Search, path: '/doctors' },
+    { name: 'Book Visit', icon: Calendar, path: '/book' },
+    { name: 'Live Queue', icon: HeartPulse, path: '/queue' },
+    { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
-    { name: 'Profile', icon: User, path: '/profile' },
+    { name: 'My Profile', icon: User, path: '/profile' },
 ];
 
 const DOCTOR_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/doctor-dashboard' },
-    { name: 'Weekly Schedule', icon: CalendarDays, path: '/doctor-schedule' },
-    { name: 'Feedback Analytics', icon: BarChart3, path: '/doctor-feedback' },
-    { name: 'My Profile', icon: User, path: '/doctor-profile' },
+    { name: 'My Schedule', icon: CalendarDays, path: '/doctor-schedule' },
+    { name: 'Patient Feedback', icon: BarChart3, path: '/doctor-feedback' },
+    { name: 'Profile', icon: User, path: '/doctor-profile' },
 ];
 
 const ADMIN_MENU = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/admin-dashboard' },
-    { name: 'Manage Users', icon: Users, path: '/admin-users' },
-    { name: 'All Appointments', icon: ClipboardList, path: '/admin-appointments' },
+    { name: 'Admin Hub', icon: LayoutDashboard, path: '/admin-dashboard' },
+    { name: 'Users Control', icon: Users, path: '/admin-users' },
+    { name: 'Appointment Log', icon: ClipboardList, path: '/admin-appointments' },
 ];
 
 const ROLE_MENU = { PATIENT: PATIENT_MENU, DOCTOR: DOCTOR_MENU, ADMIN: ADMIN_MENU };
-const ROLE_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Doctor Portal', ADMIN: 'Admin Panel' };
+const ROLE_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Care Team', ADMIN: 'System Admin' };
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const menuItems = ROLE_MENU[user?.role] || [];
     const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
 
@@ -68,56 +70,91 @@ const Sidebar = () => {
     };
 
     return (
-        <div className="w-68 h-screen bg-[var(--surface)] shadow-2xl flex flex-col border-r border-[var(--border-base)] flex-shrink-0 z-20 transition-colors duration-300">
-            <div className="p-8">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                        <Activity className="text-white" size={24} />
+        <aside className="w-72 h-screen bg-white flex flex-col border-r border-slate-100 flex-shrink-0 z-20 transition-all duration-300">
+            {/* Header / Brand */}
+            <div className="p-8 pb-4">
+                <div className="flex items-center gap-3 mb-10 group cursor-pointer" onClick={() => navigate('/')}>
+                    <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-all">
+                        <Activity className="text-white" size={18} />
                     </div>
-                    <h1 className="text-2xl font-black bg-gradient-to-r from-primary to-primary-soft bg-clip-text text-transparent tracking-tight">HealthSync</h1>
+                    <span className="text-xl font-bold tracking-tight text-slate-900">HealthSync</span>
                 </div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
+                
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
             </div>
 
-            <nav className="flex-1 px-4 space-y-2 mt-2 overflow-y-auto">
-                {menuItems.map((item) => (
-                    <NavLink
-                        key={item.name}
-                        to={item.path}
-                        className={({ isActive }) =>
-                            `flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 ${isActive
-                                ? 'bg-primary text-white font-bold scale-[1.05] shadow-lg shadow-primary/20'
-                                : 'text-slate-500 hover:bg-primary-light/5 hover:text-primary hover:translate-x-1'
-                            }`
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <div className="flex items-center gap-3">
-                                    <item.icon size={20} />
-                                    <span className="text-sm">{item.name}</span>
-                                </div>
+            {/* Navigation */}
+            <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+                {menuItems.map((item) => {
+                    const isActive = location.pathname === item.path;
+                    return (
+                        <NavLink
+                            key={item.name}
+                            to={item.path}
+                            className={`flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all duration-300 group relative ${
+                                isActive
+                                    ? 'bg-primary/5 text-primary font-bold shadow-sm'
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                            <div className="flex items-center gap-4 relative z-10">
+                                <item.icon 
+                                    size={18} 
+                                    strokeWidth={isActive ? 2.5 : 1.5} 
+                                    className={`transition-all duration-300 ${isActive ? 'text-primary scale-110' : 'text-slate-400 group-hover:text-slate-600'}`} 
+                                />
+                                <span className={`text-[13px] tracking-tight transition-all ${isActive ? 'translate-x-1' : ''}`}>{item.name}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
                                 {item.name === 'Feedback' && pendingFeedbackCount > 0 && (
-                                    <span className={`px-2 py-0.5 text-[10px] font-black tracking-wider rounded-full transition-colors ${isActive ? 'bg-white text-primary' : 'bg-red-500 text-white shadow-sm shadow-red-500/30'}`}>
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full animate-bounce ${isActive ? 'bg-primary text-white' : 'bg-red-500 text-white shadow-md shadow-red-200'}`}>
                                         {pendingFeedbackCount}
                                     </span>
                                 )}
-                            </>
-                        )}
-                    </NavLink>
-                ))}
+                                {isActive && <ChevronRight size={14} className="text-primary/40 animate-in slide-in-from-left-2 duration-300" />}
+                            </div>
+
+                            {isActive && (
+                                <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full animate-in slide-in-from-left-4 duration-500" />
+                            )}
+                        </NavLink>
+                    );
+                })}
             </nav>
 
-            <div className="p-4 border-t border-[var(--border-base)]">
+            {/* User Section & Footer */}
+            <div className="p-4 mt-auto">
+                <div className="p-4 bg-slate-50 rounded-3xl mb-4 border border-slate-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
+                            <img 
+                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name + ' ' + user?.last_name)}&background=ffffff&color=0071e3&bold=true`} 
+                                alt="User" 
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[13px] font-bold text-slate-900 truncate">{user?.first_name} {user?.last_name}</p>
+                            <p className="text-[10px] text-slate-500 font-medium truncate">Medical ID: #HS-{user?.id?.toString().padStart(4, '0')}</p>
+                        </div>
+                    </div>
+                </div>
+
                 <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-500/10 rounded-xl transition-colors font-semibold"
+                    className="w-full flex items-center gap-3 px-6 py-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all text-sm font-bold group"
                 >
-                    <LogOut size={20} />
-                    <span>Logout</span>
+                    <LogOut size={18} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
+                    <span>Sign Out</span>
+                    <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
+                
+                <p className="text-[9px] text-center text-slate-300 font-bold uppercase tracking-widest mt-6">
+                    HealthSync v2.4.0
+                </p>
             </div>
-        </div>
+        </aside>
     );
 };
 
