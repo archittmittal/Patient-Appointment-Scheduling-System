@@ -678,9 +678,46 @@ def allocate_buffer_time(schedule, doctor):
 5. "Outpatient Appointment Scheduling" - Operations Research literature
 6. CLRS - Introduction to Algorithms (Greedy, DP, Heaps, Interval Scheduling)
 7. Spring Boot Documentation
-8. MySQL Stored Procedures Guide
-9. HealthIT.gov - EHR implementation best practices
-10. No-show prediction research papers - Patient behavior modeling
+## 🤖 AI-Driven Intelligence & Optimization (Phases 2 & 3)
+
+The system now features a sophisticated intelligence layer that proactively manages clinical workflows and patient risks.
+
+### 1. Predictive Intelligence (Phase 2)
+Located in `predictionService.js`, this module uses historical appointment data and patient behavior patterns to generate risk scores.
+
+*   **No-Show Risk Assessment**:
+    *   **Logic**: Factors in appointment lead time (longer lead times = higher risk), historical patient reliability, and time-of-day trends.
+    *   **Impact**: High-risk appointments trigger automated follow-ups and allow staff to overbook slots strategically.
+*   **Patient Churn Risk**:
+    *   **Logic**: Analyzes feedback sentiment, follow-up compliance, and visit frequency.
+    *   **Impact**: Enables retention strategies for patients likely to discontinue their treatment journey.
+*   **Predictive Dashboard**: A real-time visualization tool for doctors to monitor their daily patient risk profiles.
+
+### 2. Advanced Optimization Suite (Phase 3)
+Located in `dailyOptimizerService.js`, this suite focuses on maximizing clinical throughput and minimizing patient distress.
+
+*   **Optimal Sequence Reordering (DP)**:
+    *   **Algorithm**: Bitmask-based **Dynamic Programming** to minimize the "Weighted Total Wait Time".
+    *   **Formula**: $\text{Minimize} \sum (\text{Wait Time}_i \times \text{Urgency}_i)$
+    *   **Impact**: Reorders the daily queue to ensure the most critical patients are seen with minimal total clinical delay.
+*   **Global Load Balancing**:
+    *   **Real-time Congestion Logic**: Calculates total expected workload (Current Patient + Waiting Queue $\times$ Predicted Durations) for all active doctors.
+    *   **Routing Suggestions**: Automatically suggests the "Least Congested" doctor for new walk-in registrations.
+*   **Walk-in Congestion Indicators**: Real-time "Traffic" badges (Low/Moderate/High) displayed on the registration portal to manage patient expectations and balance staff load.
+
+---
+
+## 📈 Technical Implementation Details
+
+| Feature | Logic Location | Algorithm/Technique |
+|---------|----------------|----------------------|
+| No-Show Prediction | `predictionService.js` | Weighted Feature Scoring |
+| Optimal Sequencing | `dailyOptimizerService.js` | Bitmask DP ($O(2^n \cdot n)$) |
+| Workload Balancing | `dailyOptimizerService.js` | Real-time Telemetry Aggregation |
+| Consultation Duration | `durationPrediction.js` | Multi-Factor Linear Estimation |
+
+---
+
 
 ---
 

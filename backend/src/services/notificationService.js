@@ -116,7 +116,8 @@ function getPreferenceField(type) {
         'DELAY_ALERT': 'delay_alerts',
         'WAITLIST_OFFER': 'waitlist_offers',
         'CANCELLATION': 'cancellation_confirm',
-        'MISSED': 'queue_updates'
+        'MISSED': 'queue_updates',
+        'EMERGENCY_ALERT': 'queue_updates'
     };
     return mapping[type] || null;
 }
@@ -473,6 +474,16 @@ async function notifyMissed(userId, doctorName, position, shift) {
     }, { priority: 'HIGH' });
 }
 
+/**
+ * Notify doctor about an emergency override
+ */
+async function notifyEmergency(doctorId, patientName, reason) {
+    return sendNotification(doctorId, 'EMERGENCY_ALERT', {
+        patient_name: patientName,
+        reason: reason || 'Urgent attention required'
+    }, { priority: 'URGENT' });
+}
+
 module.exports = {
     getUserPreferences,
     updatePreferences,
@@ -488,5 +499,6 @@ module.exports = {
     notifyDelay,
     notifyWaitlistOffer,
     notifyCancellation,
-    notifyMissed
+    notifyMissed,
+    notifyEmergency
 };

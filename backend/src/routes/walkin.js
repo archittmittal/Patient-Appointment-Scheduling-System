@@ -14,8 +14,13 @@ const { authenticate } = require('../middleware/authenticate');
  */
 router.post('/register', authenticate, async (req, res) => {
     try {
-        const patientId = req.user.id;
-        const { doctorId, specialtyId, urgencyLevel, reason, symptoms, vitalSigns } = req.body;
+        let patientId = req.user.id;
+        const { doctorId, specialtyId, urgencyLevel, reason, symptoms, vitalSigns, overridePatientId } = req.body;
+
+        // Allow ADMIN or DOCTOR to register for a specific patient
+        if ((req.user.role === 'ADMIN' || req.user.role === 'DOCTOR') && overridePatientId) {
+            patientId = overridePatientId;
+        }
 
         const result = await walkinPriorityService.registerWalkin(patientId, {
             doctorId,
