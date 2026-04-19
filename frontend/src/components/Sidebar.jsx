@@ -35,13 +35,17 @@ const ADMIN_MENU = [
 ];
 
 const ROLE_MENU = { PATIENT: PATIENT_MENU, DOCTOR: DOCTOR_MENU, ADMIN: ADMIN_MENU };
+const GUEST_MENU = [
+    { name: 'Find Doctors', icon: Search, path: '/doctors' },
+    { name: 'Book Visit', icon: Calendar, path: '/book' },
+];
 const ROLE_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Care Team', ADMIN: 'System Admin' };
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const menuItems = ROLE_MENU[user?.role] || [];
+    const menuItems = user ? (ROLE_MENU[user.role] || []) : GUEST_MENU;
     const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
 
     useEffect(() => {
@@ -125,30 +129,51 @@ const Sidebar = () => {
 
             {/* User Section & Footer */}
             <div className="p-4 mt-auto">
-                <div className="p-4 bg-slate-50 rounded-3xl mb-4 border border-slate-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
-                            <img 
-                                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name + ' ' + user?.last_name)}&background=ffffff&color=0071e3&bold=true`} 
-                                alt="User" 
-                                className="w-full h-full object-cover"
-                            />
+                {user ? (
+                    <>
+                        <div className="p-4 bg-slate-50 rounded-3xl mb-4 border border-slate-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
+                                    <img 
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name + ' ' + user?.last_name)}&background=ffffff&color=0071e3&bold=true`} 
+                                        alt="User" 
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-[13px] font-bold text-slate-900 truncate">{user?.first_name} {user?.last_name}</p>
+                                    <p className="text-[10px] text-slate-500 font-medium truncate">Medical ID: #HS-{user?.id?.toString().padStart(4, '0')}</p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-bold text-slate-900 truncate">{user?.first_name} {user?.last_name}</p>
-                            <p className="text-[10px] text-slate-500 font-medium truncate">Medical ID: #HS-{user?.id?.toString().padStart(4, '0')}</p>
-                        </div>
-                    </div>
-                </div>
 
-                <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-6 py-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all text-sm font-bold group"
-                >
-                    <LogOut size={18} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
-                    <span>Sign Out</span>
-                    <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-6 py-4 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all text-sm font-bold group"
+                        >
+                            <LogOut size={18} strokeWidth={2} className="group-hover:-translate-x-1 transition-transform" />
+                            <span>Sign Out</span>
+                            <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </button>
+                    </>
+                ) : (
+                    <div className="space-y-3">
+                        <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/10 text-center">
+                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-slate-100">
+                                <User size={24} className="text-primary/40" />
+                            </div>
+                            <p className="text-xs font-bold text-slate-900">Guest Patient</p>
+                            <p className="text-[10px] text-slate-500 mt-1">Sign in to sync your data</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white rounded-2xl transition-all text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98]"
+                        >
+                            <span>Sign In</span>
+                            <ArrowRight size={16} />
+                        </button>
+                    </div>
+                )}
                 
                 <p className="text-[9px] text-center text-slate-300 font-bold uppercase tracking-widest mt-6">
                     HealthSync v2.4.0

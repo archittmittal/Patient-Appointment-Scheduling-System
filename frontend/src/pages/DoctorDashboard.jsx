@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 import EmergencyModal from '../components/EmergencyModal';
@@ -13,11 +13,31 @@ const STATUS_COLORS = {
     MISSED: 'bg-rose-100/10 text-rose-500 border-rose-500/20',
 };
 
-const EMPTY_NOTES = { diagnosis: '', notes: '', prescription: '', follow_up_date: '' };
+const EMPTY_NOTES = { 
+    diagnosis: '', 
+    notes: '', 
+    prescription: '', 
+    follow_up_date: '',
+    vitals: {
+        weight_kg: '',
+        height_cm: '',
+        blood_pressure_sys: '',
+        blood_pressure_dia: '',
+        heart_rate: '',
+        temperature_c: ''
+    }
+};
 
 const NotesModal = ({ item, onSave, onClose, saving }) => {
     const [form, setForm] = useState(EMPTY_NOTES);
     const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    const changeVitals = e => {
+        const { name, value } = e.target;
+        setForm(f => ({
+            ...f,
+            vitals: { ...f.vitals, [name]: value }
+        }));
+    };
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -89,6 +109,68 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                                 min={new Date().toISOString().split('T')[0]}
                                 className="input-field pl-12"
                             />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-[var(--border-base)]/10">
+                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Vitals Checklist</label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="relative group">
+                                <Scale size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" />
+                                <input
+                                    name="weight_kg"
+                                    placeholder="Weight (kg)"
+                                    value={form.vitals.weight_kg}
+                                    onChange={changeVitals}
+                                    className="input-field pl-12 py-3 text-sm"
+                                    type="number"
+                                />
+                            </div>
+                            <div className="relative group">
+                                <Ruler size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" />
+                                <input
+                                    name="height_cm"
+                                    placeholder="Height (cm)"
+                                    value={form.vitals.height_cm}
+                                    onChange={changeVitals}
+                                    className="input-field pl-12 py-3 text-sm"
+                                    type="number"
+                                />
+                            </div>
+                            <div className="relative group">
+                                <Activity size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" />
+                                <div className="flex gap-1 pl-12 pr-4 bg-[var(--bg-base)]/50 rounded-2xl border border-[var(--border-base)]/10">
+                                    <input
+                                        name="blood_pressure_sys"
+                                        placeholder="SYS"
+                                        value={form.vitals.blood_pressure_sys}
+                                        onChange={changeVitals}
+                                        className="w-full bg-transparent py-3 text-sm focus:outline-none"
+                                        type="number"
+                                    />
+                                    <span className="text-slate-400 py-3">/</span>
+                                    <input
+                                        name="blood_pressure_dia"
+                                        placeholder="DIA"
+                                        value={form.vitals.blood_pressure_dia}
+                                        onChange={changeVitals}
+                                        className="w-full bg-transparent py-3 text-sm focus:outline-none"
+                                        type="number"
+                                    />
+                                </div>
+                            </div>
+                            <div className="relative group">
+                                <Thermometer size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors" />
+                                <input
+                                    name="temperature_c"
+                                    placeholder="Temp (°C)"
+                                    value={form.vitals.temperature_c}
+                                    onChange={changeVitals}
+                                    className="input-field pl-12 py-3 text-sm"
+                                    type="number"
+                                    step="0.1"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

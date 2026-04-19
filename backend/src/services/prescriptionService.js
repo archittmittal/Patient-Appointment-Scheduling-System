@@ -5,7 +5,8 @@ class PrescriptionService {
      * Fetch all prescriptions for a specific patient
      * Includes doctor info and medication details
      */
-    async getPatientPrescriptions(patientId) {
+    async getPatientPrescriptions(patientId, conn = null) {
+        const executor = conn || db;
         const query = `
             SELECT 
                 p.id,
@@ -20,19 +21,20 @@ class PrescriptionService {
             WHERE p.patient_id = ?
             ORDER BY p.date_prescribed DESC
         `;
-        const [rows] = await db.query(query, [patientId]);
+        const [rows] = await executor.query(query, [patientId]);
         return rows;
     }
 
     /**
      * Create a new prescription
      */
-    async createPrescription(doctorId, patientId, medications, instructions) {
+    async createPrescription(doctorId, patientId, medications, instructions, conn = null) {
+        const executor = conn || db;
         const query = `
             INSERT INTO prescriptions (doctor_id, patient_id, medications, instructions, date_prescribed)
             VALUES (?, ?, ?, ?, NOW())
         `;
-        const [result] = await db.query(query, [doctorId, patientId, medications, instructions]);
+        const [result] = await executor.query(query, [doctorId, patientId, medications, instructions]);
         return { id: result.insertId, status: 'created' };
     }
 }

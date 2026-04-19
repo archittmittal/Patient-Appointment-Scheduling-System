@@ -74,6 +74,40 @@ const BookAppointment = () => {
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
 
+    // Persistence Logic
+    useEffect(() => {
+        const saved = localStorage.getItem('pendingBooking');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.doctorId) setSelectedDoctorId(data.doctorId);
+                if (data.specialty) setSelectedSpecialty(data.specialty);
+                if (data.date) setSelectedDate(data.date);
+                if (data.slot) setSelectedSlot(data.slot);
+                if (data.symptoms) setSymptoms(data.symptoms);
+                if (data.step) setStep(data.step);
+                
+                // Clear after loading
+                localStorage.removeItem('pendingBooking');
+            } catch (e) {
+                console.error('Failed to parse saved booking');
+            }
+        }
+    }, []);
+
+    const saveAndRedirect = (target) => {
+        const state = {
+            doctorId: selectedDoctorId,
+            specialty: selectedSpecialty,
+            date: selectedDate,
+            slot: selectedSlot,
+            symptoms: symptoms,
+            step: 5
+        };
+        localStorage.setItem('pendingBooking', JSON.stringify(state));
+        navigate(target);
+    };
+
     useEffect(() => {
         const fetchDocs = async () => {
             const data = await safeFetch(`${API}/api/doctors`);
@@ -460,16 +494,43 @@ const BookAppointment = () => {
                         </div>
                     )}
                     <div className="pt-6 border-t border-slate-100">
-                        <button 
-                            disabled={isSubmitting}
-                            onClick={handleBook}
-                            className="w-full btn-primary py-4 text-lg"
-                        >
-                            {isSubmitting ? <Activity size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
-                            {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
-                        </button>
+                        {user ? (
+                            <button 
+                                disabled={isSubmitting}
+                                onClick={handleBook}
+                                className="w-full btn-primary py-4 text-lg"
+                            >
+                                {isSubmitting ? <Activity size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
+                                {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                            </button>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 items-start">
+                                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                        You are booking as a guest. Please sign in or create an account to secure your appointment and sync it with your medical history.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                        onClick={() => saveAndRedirect('/login')}
+                                        className="btn-primary py-4 text-sm"
+                                    >
+                                        Sign In
+                                    </button>
+                                    <button 
+                                        onClick={() => saveAndRedirect('/register')}
+                                        className="bg-white border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold py-4 rounded-2xl text-sm transition-all"
+                                    >
+                                        Register
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <p className="text-center text-[10px] text-slate-400 mt-4 px-4 leading-relaxed">
-                            By confirming, you agree to our clinical guidelines and cancellation policy. A confirmation notification will be sent to your health portal.
+                            {user 
+                                ? "By confirming, you agree to our clinical guidelines and cancellation policy." 
+                                : "Your selection will be saved during authentication."}
                         </p>
                     </div>
                 </div>
