@@ -10,6 +10,8 @@ const {
 } = require('../services/durationPrediction');
 const waitlistService = require('../services/waitlistService');
 const smartArrivalService = require('../services/smartArrivalService');
+const prescriptionService = require('../services/prescriptionService');
+const vitalsService = require('../services/vitalsService');
 
 // POST /api/appointments/book
 router.post('/book', authenticate, async (req, res) => {
@@ -162,7 +164,7 @@ const notificationService = require('../services/notificationService');
 // Now also records consultation duration for AI prediction training (Issue #48)
 router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
     const status = (req.body.status || '').toUpperCase();
-    const { diagnosis, notes, prescription, follow_up_date } = req.body;
+    const { diagnosis, notes, prescription, follow_up_date, vitals } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
@@ -259,6 +261,26 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                     queueRow.appointment_id
                 ]
             );
+            
+            // 3. Formal Prescription Storage
+            if (prescription) {
+                await prescriptionService.createPrescription(
+                    queueRow.doctor_id,
+                    queueRow.patient_id,
+                    prescription,
+                    notes || 'Prescribed during consultation',
+                    conn
+                );
+            }
+
+            // 4. Vitals Storage
+            if (vitals) {
+                await vitalsService.logVitals(
+                    queueRow.patient_id,
+                    vitals,
+                    conn
+                );
+            }
 
             // Notify NEXT patient that they are next
             const [[nextPatient]] = await conn.query(`

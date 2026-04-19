@@ -164,7 +164,13 @@ router.post('/register', async (req, res) => {
 
         await conn.commit();
 
-        res.status(201).json({ id: newId, email, role: 'PATIENT', first_name, last_name });
+        const token = jwt.sign(
+            { id: newId, email: email, role: 'PATIENT' },
+            JWT_SECRET,
+            { expiresIn: '8h' }
+        );
+
+        res.status(201).json({ id: newId, email, role: 'PATIENT', first_name, last_name, token });
     } catch (error) {
         await conn.rollback();
         console.error(error);
@@ -174,4 +180,79 @@ router.post('/register', async (req, res) => {
     }
 });
 
+const { sendOTP } = require('../services/emailService');
+
+// ... existing code ...
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Send OTP for password reset
+ *     tags: [Auth]
+ */
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'Email is required' });
+
+        const [users] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+        if (users.length === 0) {
+            // Don't reveal if email exists for security, but user wants functionality
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+        await db.query(
+            'UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ?',
+            [otp, expiry, email]
+        );
+
+        await sendOTP(email, otp);
+        res.json({ message: 'OTP sent to your email' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error sending OTP' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using OTP
+ *     tags: [Auth]
+ */
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ message: 'Email, OTP and new password are required' });
+        }
+
+        const [users] = await db.query(
+            'SELECT * FROM users WHERE email = ? AND otp_code = ? AND otp_expiry > NOW()',
+            [email, otp]
+        );
+
+        if (users.length === 0) {
+            return res.status(400).json({ message: 'Invalid or expired OTP' });
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+        await db.query(
+            'UPDATE users SET password_hash = ?, otp_code = NULL, otp_expiry = NULL WHERE email = ?',
+            [passwordHash, email]
+        );
+
+        res.json({ message: 'Password reset successful' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error resetting password' });
+    }
+});
+
 module.exports = router;
+

@@ -30,6 +30,8 @@ import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import PeakHoursAnalytics from './components/PeakHoursAnalytics';
 import VitalsHub from './pages/VitalsHub'; 
 import PatientPrescriptions from './pages/PatientPrescriptions'; 
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -49,15 +51,21 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Public/Shared routes that use Layout but don't strictly require login */}
+            <Route element={<Layout />}>
+              <Route path="/doctors" element={<DoctorSearch />} />
+              <Route path="/doctors/:id" element={<DoctorProfile />} />
+              <Route path="/book" element={<BookAppointment />} />
+            </Route>
 
             {/* Patient routes */}
             <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
               <Route path="/patient-dashboard" element={<PatientDashboard />} />
               <Route path="/vitals" element={<VitalsHub />} />
               <Route path="/prescriptions" element={<PatientPrescriptions />} />
-              <Route path="/doctors" element={<DoctorSearch />} />
-              <Route path="/doctors/:id" element={<DoctorProfile />} />
-              <Route path="/book" element={<BookAppointment />} />
               <Route path="/queue" element={<LiveQueue />} />
               <Route path="/profile" element={<PatientProfile />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
