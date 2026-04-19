@@ -210,10 +210,11 @@ const DoctorDashboard = () => {
     const fetchData = async () => {
         if (!user?.id) return;
         try {
+            const headers = authedHeaders();
             const [patientsRes, queueRes, delayRes] = await Promise.all([
-                fetch(`${API}/api/doctors/${user.id}/patients`),
-                fetch(`${API}/api/doctors/${user.id}/queue`),
-                fetch(`${API}/api/doctors/${user.id}/delay-status`)
+                fetch(`${API}/api/doctors/${user.id}/patients`, { headers }),
+                fetch(`${API}/api/doctors/${user.id}/queue`, { headers }),
+                fetch(`${API}/api/doctors/${user.id}/delay-status`, { headers })
             ]);
             setPatients(await patientsRes.json());
             setQueue(await queueRes.json());
@@ -276,7 +277,9 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`${API}/api/doctors/${user.id}/queue`);
+                const res = await fetch(`${API}/api/doctors/${user.id}/queue`, {
+                    headers: authedHeaders()
+                });
                 setQueue(await res.json());
                 setQueueLastUpdated(new Date());
             } catch (err) { console.error('Queue sync error:', err); }

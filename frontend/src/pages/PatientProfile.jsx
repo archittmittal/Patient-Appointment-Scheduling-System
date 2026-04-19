@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -27,9 +27,10 @@ const PatientProfile = () => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
+                const headers = authedHeaders();
                 const [pRes, vRes] = await Promise.all([
-                    fetch(`${API}/api/patients/${user.id}`),
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`)
+                    fetch(`${API}/api/patients/${user.id}`, { headers }),
+                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers })
                 ]);
                 const pData = await pRes.json();
                 const vData = await vRes.json();
@@ -49,7 +50,7 @@ const PatientProfile = () => {
 
     const fullName = profile
         ? `${profile.first_name} ${profile.last_name}`
-        : `${user?.first_name || ''} ${user?.last_name || ''} text-slate-900`.trim();
+        : `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
 
     const formatDOB = (dob) => {
         if (!dob) return '—';
@@ -75,7 +76,7 @@ const PatientProfile = () => {
         try {
             const res = await fetch(`${API}/api/patients/${user.id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(form),
             });
             if (!res.ok) throw new Error();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Download, FileText, Calendar, User, Pill, 
     Search, Activity, FlaskConical, ClipboardCheck, 
-    CheckCircle2, Info, Share2, Printer, ChevronRight
+    CheckCircle2, Info, Share2, Printer, ChevronRight, ShieldCheck
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { API, authedHeaders } from '../config/api';
