@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const validate = require('../middleware/validate');
+const { doctorSchemas } = require('../schemas');
+
 const {
     calculateCurrentDelay,
     propagateDelayToQueue,
@@ -36,7 +39,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id', authenticate, requireRole('DOCTOR'), validate(doctorSchemas.updateProfile), async (req, res, next) => {
+
     // Only the doctor themselves can update their profile
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -86,7 +90,8 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validate(doctorSchemas.updateAvailability), async (req, res, next) => {
+
     // Only the doctor themselves can update their availability
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -329,7 +334,8 @@ router.get('/:id/delay-status', async (req, res) => {
 });
 
 // POST /api/doctors/:id/delay — set manual delay
-router.post('/:id/delay', authenticate, async (req, res) => {
+router.post('/:id/delay', authenticate, validate(doctorSchemas.setDelay), async (req, res, next) => {
+
     try {
         const doctorId = req.params.id;
         const { delayMins, reason } = req.body;
