@@ -1,6 +1,7 @@
 /**
  * Centralized Error Handling Middleware
  */
+const config = require('../config');
 const errorHandler = (err, req, res, next) => {
     console.error(`[Error] ${err.message}`);
     if (err.stack) console.error(err.stack);
@@ -28,7 +29,7 @@ const errorHandler = (err, req, res, next) => {
 
     res.status(statusCode).json({
         status: 'error',
-        message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : message
+        message: config.env === 'production' ? 'An unexpected error occurred' : message
     });
 };
 

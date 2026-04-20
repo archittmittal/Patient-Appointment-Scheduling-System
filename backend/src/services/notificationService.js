@@ -9,16 +9,17 @@
  */
 
 const pool = require('../config/db');
+const config = require('../config');
 
 // Web Push (optional - requires npm install web-push)
 let webpush;
 try {
     webpush = require('web-push');
-    if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    if (config.webPush.publicKey && config.webPush.privateKey) {
         webpush.setVapidDetails(
             'mailto:notifications@healthq.com',
-            process.env.VAPID_PUBLIC_KEY,
-            process.env.VAPID_PRIVATE_KEY
+            config.webPush.publicKey,
+            config.webPush.privateKey
         );
     }
 } catch (e) {
@@ -28,9 +29,9 @@ try {
 // Twilio (optional - requires npm install twilio)
 let twilioClient;
 try {
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    if (config.twilio.accountSid && config.twilio.authToken) {
         const twilio = require('twilio');
-        twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+        twilioClient = twilio(config.twilio.accountSid, config.twilio.authToken);
     }
 } catch (e) {
     console.log('Twilio not configured - SMS notifications will be logged only');
@@ -156,7 +157,7 @@ async function sendPushNotification(subscription, title, body, data = {}) {
  * Send SMS notification
  */
 async function sendSMSNotification(phoneNumber, message) {
-    if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
+    if (!twilioClient || !config.twilio.phoneNumber) {
         console.log('[SMS Notification]', { to: phoneNumber, message });
         return false;
     }
@@ -164,7 +165,7 @@ async function sendSMSNotification(phoneNumber, message) {
     try {
         await twilioClient.messages.create({
             body: message,
-            from: process.env.TWILIO_PHONE_NUMBER,
+            from: config.twilio.phoneNumber,
             to: phoneNumber
         });
         return true;
@@ -274,7 +275,7 @@ async function sendNotification(userId, type, templateData, options = {}) {
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
                 <p style="color: #9ca3af; font-size: 12px;">
                     This notification was sent by HealthQ. 
-                    <a href="${process.env.APP_URL || 'http://localhost:5173'}/settings/notifications">Manage preferences</a>
+                    <a href="${config.appUrl}/settings/notifications">Manage preferences</a>
                 </p>
             </div>
         `;

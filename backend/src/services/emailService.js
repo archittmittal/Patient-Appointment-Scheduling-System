@@ -1,16 +1,17 @@
 const nodemailer = require('nodemailer');
+const config = require('../config');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Use App Password for Gmail
+        user: config.email.user,
+        pass: config.email.pass, // Use App Password for Gmail
     },
 });
 
 const sendOTP = async (email, otp) => {
     const mailOptions = {
-        from: `"HealthSync Support" <${process.env.EMAIL_USER}>`,
+        from: `"HealthSync Support" <${config.email.user}>`,
         to: email,
         subject: 'Your HealthSync Password Reset OTP',
         html: `

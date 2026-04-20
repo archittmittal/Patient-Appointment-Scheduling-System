@@ -21,6 +21,7 @@ const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
 
+const config = require('./config');
 const app = express();
 
 // Issue #92: Swagger API Documentation
@@ -73,7 +74,7 @@ app.use('/api/auth/', authLimiter);
 
 // CORS Hardening
 const corsOptions = {
-    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173', 'http://localhost:3000'],
+    origin: config.cors.allowedOrigins,
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
@@ -106,11 +107,11 @@ const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
 
 
-const PORT = process.env.PORT || 7860;
+const PORT = config.port;
 
-if (process.env.NODE_ENV !== 'test') {
+if (config.env !== 'test') {
     app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}`);
+        console.log(`Server running in ${config.env} mode on port ${PORT}`);
     });
 }
 

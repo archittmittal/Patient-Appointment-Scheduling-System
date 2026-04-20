@@ -1,11 +1,8 @@
 const jwt = require('jsonwebtoken');
+const config = require('../config');
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = config.jwt.secret;
 
-if (!JWT_SECRET) {
-    console.error('FATAL ERROR: JWT_SECRET is not defined. Please set it in your .env file.');
-    process.exit(1);
-}
 
 
 /**
