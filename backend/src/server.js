@@ -70,7 +70,12 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
 
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
+
+
 const PORT = process.env.PORT || 7860;
+
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);

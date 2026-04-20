@@ -4,6 +4,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { JWT_SECRET } = require('../middleware/authenticate');
+const validate = require('../middleware/validate');
+const { authSchemas } = require('../schemas');
+
 
 const BCRYPT_ROUNDS = 10;
 
@@ -40,12 +43,10 @@ const BCRYPT_ROUNDS = 10;
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validate(authSchemas.login), async (req, res, next) => {
     try {
         const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required' });
-        }
+
 
         // Fetch user by email only; compare password separately (never compare in SQL)
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -85,10 +86,10 @@ router.post('/login', async (req, res) => {
             token,
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        next(error);
     }
 });
+
 
 /**
  * @swagger
@@ -133,14 +134,11 @@ router.post('/login', async (req, res) => {
  *       400:
  *         description: Missing required fields
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validate(authSchemas.register), async (req, res, next) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, dob, phone, blood_group, address } = req.body;
 
-        if (!email || !password || !first_name || !last_name) {
-            return res.status(400).json({ message: 'Email, password, first name and last name are required' });
-        }
 
         const [existing] = await conn.query('SELECT id FROM users WHERE email = ?', [email]);
         if (existing.length > 0) {
@@ -173,9 +171,9 @@ router.post('/register', async (req, res) => {
         res.status(201).json({ id: newId, email, role: 'PATIENT', first_name, last_name, token });
     } catch (error) {
         await conn.rollback();
-        console.error(error);
-        res.status(500).json({ message: 'Server error during registration' });
+        next(error);
     } finally {
+
         conn.release();
     }
 });

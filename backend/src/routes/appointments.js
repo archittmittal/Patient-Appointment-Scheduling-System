@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const validate = require('../middleware/validate');
+const { appointmentSchemas } = require('../schemas');
+
 const {
     predictConsultationDuration,
     recordConsultationDuration,
@@ -14,14 +17,15 @@ const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
 
 // POST /api/appointments/book
-router.post('/book', authenticate, async (req, res) => {
+router.post('/book', authenticate, validate(appointmentSchemas.book), async (req, res, next) => {
     try {
         const { doctorId, date, timeSlot, symptoms } = req.body;
         const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
 
-        if (!patientId) {
+        if (!patientId && req.user.role !== 'PATIENT') {
             return res.status(400).json({ message: 'Patient ID is required' });
         }
+
 
         // Predict consultation duration using AI model
         const prediction = await predictConsultationDuration({
@@ -73,10 +77,10 @@ router.post('/book', authenticate, async (req, res) => {
             predictionFactors: prediction.factors
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error booking appointment' });
+        next(error);
     }
 });
+
 
 // GET /api/appointments/predict-duration — predict duration for given parameters (without booking)
 router.get('/predict-duration', authenticate, async (req, res) => {
