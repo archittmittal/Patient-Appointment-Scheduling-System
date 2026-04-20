@@ -8,8 +8,18 @@ async function verifySecurity() {
     try {
         // 1. Verify Helmet Headers
         console.log('1. Checking Security Headers (Helmet)...');
-        const healthRes = await axios.get(`${BASE_URL}/health`);
+        let healthRes;
+        try {
+            healthRes = await axios.get(`${BASE_URL}/health`);
+        } catch (error) {
+            if (error.response) {
+                healthRes = error.response;
+            } else {
+                throw error;
+            }
+        }
         const headers = healthRes.headers;
+
         
         const expectedHeaders = [
             'x-dns-prefetch-control',
