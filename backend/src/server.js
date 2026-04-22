@@ -69,14 +69,19 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(helmet());
 
 // Strict CORS
-const whitelist = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+const whitelist = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : ['http://localhost:5173'];
+
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || whitelist.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+        // Allow whitelisted origins
+        if (whitelist.indexOf(origin) !== -1) return callback(null, true);
+        // Allow all Vercel preview/production deployments
+        if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 };
