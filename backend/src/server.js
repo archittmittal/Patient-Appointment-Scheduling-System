@@ -123,6 +123,16 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
 
+// DEBUG ONLY: Check DB Connection
+app.get('/api/debug-config', (req, res) => {
+    res.json({
+        db_host: process.env.DB_HOST,
+        db_user: process.env.DB_USER,
+        node_env: process.env.NODE_ENV,
+        port: process.env.PORT
+    });
+});
+
 // Global Error Handler (Must be last)
 app.use(errorHandler);
 
