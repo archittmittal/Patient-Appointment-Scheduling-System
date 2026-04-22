@@ -30,6 +30,7 @@ import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import DoctorAnalytics from './pages/DoctorAnalytics';
 import VitalsHub from './pages/VitalsHub'; 
 import PatientPrescriptions from './pages/PatientPrescriptions'; 
+import Messages from './pages/Messages';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
@@ -78,6 +79,7 @@ function App() {
               <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
               <Route path="/late-arrival" element={<LateArrival />} />
               <Route path="/feedback" element={<FeedbackAnalytics />} />
+              <Route path="/messages" element={<Messages />} />
             </Route>
 
             {/* Doctor routes */}
@@ -88,6 +90,7 @@ function App() {
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
               <Route path="/doctor-analytics" element={<DoctorAnalytics />} />
+              <Route path="/messages" element={<Messages />} />
             </Route>
 
             {/* Admin routes */}

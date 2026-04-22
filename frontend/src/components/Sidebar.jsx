@@ -19,12 +19,14 @@ const PATIENT_MENU = [
     { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
     { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
+    { name: 'Messages', icon: MessageSquare, path: '/messages' },
     { name: 'My Profile', icon: User, path: '/profile' },
 ];
 
 const DOCTOR_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/doctor-dashboard' },
     { name: 'My Schedule', icon: CalendarDays, path: '/doctor-schedule' },
+    { name: 'Messages', icon: MessageSquare, path: '/messages' },
     { name: 'Intelligence', icon: Sparkles, path: '/doctor-analytics' },
     { name: 'Feedback', icon: MessageSquare, path: '/doctor-feedback' },
     { name: 'Profile', icon: User, path: '/doctor-profile' },
