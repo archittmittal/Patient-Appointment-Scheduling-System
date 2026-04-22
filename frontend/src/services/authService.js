@@ -10,17 +10,39 @@ export const authService = {
         
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
-            localStorage.setItem('hs_user', JSON.stringify(data.user));
+            // Construct user object from top-level response fields
+            const user = {
+                id: data.id,
+                email: data.email,
+                role: data.role,
+                first_name: data.first_name,
+                last_name: data.last_name
+            };
+            localStorage.setItem('hs_user', JSON.stringify(user));
         }
         
         return data;
     },
 
     async register(userData) {
-        return await safeFetch(`${API}/api/auth/register`, {
+        const data = await safeFetch(`${API}/api/auth/register`, {
             method: 'POST',
             body: JSON.stringify(userData)
         });
+
+        if (data.token) {
+            localStorage.setItem('hs_token', data.token);
+            const user = {
+                id: data.id,
+                email: data.email,
+                role: data.role,
+                first_name: data.first_name,
+                last_name: data.last_name
+            };
+            localStorage.setItem('hs_user', JSON.stringify(user));
+        }
+
+        return data;
     },
 
     logout() {
