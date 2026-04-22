@@ -12,6 +12,15 @@ const waitlistService = require('../services/waitlistService');
 const smartArrivalService = require('../services/smartArrivalService');
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
+
+const bookSchema = Joi.object({
+    doctorId: Joi.number().required(),
+    date: Joi.string().isoDate().required(),
+    timeSlot: Joi.string().required(),
+    symptoms: Joi.string().allow('', null)
+});
 
 /**
  * @swagger
@@ -54,7 +63,7 @@ const vitalsService = require('../services/vitalsService');
  *       400:
  *         description: Invalid input
  */
-router.post('/book', authenticate, async (req, res) => {
+router.post('/book', authenticate, validateRequest(bookSchema), async (req, res) => {
     try {
         const { doctorId, date, timeSlot, symptoms } = req.body;
         const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
