@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield, User, Phone, MapPin, Droplets, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { authService } from '../services/authService';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -40,16 +40,13 @@ const Register = () => {
         setError('');
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (!res.ok) {
+            const data = await authService.register(formData);
+            
+            if (data.error || !data.token) {
                 setError(data.message || 'Registration failed. Please try again.');
                 return;
             }
+            
             login(data);
             
             const pending = localStorage.getItem('pendingBooking');
@@ -58,8 +55,8 @@ const Register = () => {
             } else {
                 navigate('/patient-dashboard');
             }
-        } catch {
-            setError('Unable to connect to the server.');
+        } catch (err) {
+            setError(err.message || 'Unable to connect to the server.');
         } finally {
             setLoading(false);
         }

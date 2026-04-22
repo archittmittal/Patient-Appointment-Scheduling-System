@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { authService } from '../services/authService';
 
 const ROLE_HOME = {
     PATIENT: '/patient-dashboard',
@@ -28,27 +28,24 @@ const Login = () => {
         setError('');
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
+            const data = await authService.login(email, password);
+            
+            if (data.error || !data.token) {
                 setError(data.message || 'The email or password you entered is incorrect.');
                 return;
             }
+
             login(data);
             
             // Check for pending booking
             const pending = localStorage.getItem('pendingBooking');
-            if (pending && data.role === 'PATIENT') {
+            if (pending && data.user.role === 'PATIENT') {
                 navigate('/book');
             } else {
-                navigate(ROLE_HOME[data.role] || '/login');
+                navigate(ROLE_HOME[data.user.role] || '/login');
             }
-        } catch {
-            setError('Unable to connect to the server. Please try again later.');
+        } catch (err) {
+            setError(err.message || 'Unable to connect to the server. Please try again later.');
         } finally {
             setLoading(false);
         }

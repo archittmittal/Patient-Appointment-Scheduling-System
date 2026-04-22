@@ -1,43 +1,44 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(() => {
-        try {
-            const stored = localStorage.getItem('hs_user');
-            return stored ? JSON.parse(stored) : null;
-        } catch {
-            return null;
-        }
-    });
-
+    const [user, setUser] = useState(() => authService.getCurrentUser());
     const [loading, setLoading] = useState(false);
 
-    const login = (userData) => {
-        setUser(userData.user || userData);
-        localStorage.setItem('hs_token', userData.token);
-        localStorage.setItem('hs_user', JSON.stringify(userData.user || userData));
-    };
+    const login = useCallback((userData) => {
+        // Assume userData already has token and user (from authService.login)
+        const userToSet = userData.user || userData;
+        setUser(userToSet);
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
+        authService.logout();
         setUser(null);
-        localStorage.removeItem('hs_token');
-        localStorage.removeItem('hs_user');
-        localStorage.removeItem('pendingBooking');
-        // Clear all keys starting with hs_ to be safe
-        Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('hs_')) localStorage.removeItem(key);
-        });
+    }, []);
+
+    const value = {
+        user,
+        loading,
+        setLoading,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        role: user?.role || null
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
 }
 
 export function useAuth() {
-    return useContext(AuthContext);
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 }

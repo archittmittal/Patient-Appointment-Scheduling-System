@@ -130,24 +130,6 @@ const PatientDashboard = () => {
         );
     }
 
-    if (!user) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center p-10 text-center space-y-6">
-                <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center border border-rose-100 shadow-sm">
-                    <Lock size={32} />
-                </div>
-                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Access Denied</h2>
-                <p className="text-slate-500 max-w-sm mx-auto">Please sign in to view your personalized health dashboard.</p>
-                <button 
-                    onClick={() => navigate('/login')} 
-                    className="px-10 py-4 bg-primary text-white font-bold rounded-2xl shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-95 transition-all"
-                >
-                    Sign In
-                </button>
-            </div>
-        );
-    }
-
     const nextApt = stats.upcoming?.[0];
     const latestVitals = stats.vitals?.[0];
 
