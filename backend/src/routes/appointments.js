@@ -12,6 +12,7 @@ const waitlistService = require('../services/waitlistService');
 const smartArrivalService = require('../services/smartArrivalService');
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
+const exportService = require('../services/exportService');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 
@@ -744,6 +745,29 @@ router.get('/doctor/:doctorId/smart-arrivals', authenticate, async (req, res) =>
     } catch (error) {
         console.error('Batch smart arrivals error:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Issue #110: Export prescription as PDF
+router.get('/:id/prescription/pdf', authenticate, async (req, res) => {
+    try {
+        // Check if appointment exists and user is authorized (patient/doctor/admin)
+        const [appt] = await db.query('SELECT patient_id, doctor_id FROM appointments WHERE id = ?', [req.params.id]);
+        if (appt.length === 0) return res.status(404).json({ message: 'Appointment not found' });
+        
+        if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != appt[0].patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=prescription_${req.params.id}.pdf`);
+        
+        await exportService.generatePrescriptionPDF(req.params.id, res);
+    } catch (error) {
+        console.error(error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Server error exporting PDF' });
+        }
     }
 });
 
