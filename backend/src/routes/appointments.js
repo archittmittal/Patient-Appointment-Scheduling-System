@@ -13,7 +13,47 @@ const smartArrivalService = require('../services/smartArrivalService');
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
 
-// POST /api/appointments/book
+/**
+ * @swagger
+ * tags:
+ *   name: Appointments
+ *   description: Appointment management and booking
+ */
+
+/**
+ * @swagger
+ * /api/appointments/book:
+ *   post:
+ *     summary: Book a new appointment
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorId
+ *               - date
+ *               - timeSlot
+ *             properties:
+ *               doctorId:
+ *                 type: integer
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               timeSlot:
+ *                 type: string
+ *               symptoms:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Appointment booked successfully
+ *       400:
+ *         description: Invalid input
+ */
 router.post('/book', authenticate, async (req, res) => {
     try {
         const { doctorId, date, timeSlot, symptoms } = req.body;

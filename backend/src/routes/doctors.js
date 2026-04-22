@@ -12,7 +12,41 @@ const {
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
 
-// GET /api/doctors — all doctors
+/**
+ * @swagger
+ * tags:
+ *   name: Doctors
+ *   description: Doctor profile and management
+ */
+
+/**
+ * @swagger
+ * /api/doctors:
+ *   get:
+ *     summary: Get all doctors
+ *     tags: [Doctors]
+ *     responses:
+ *       200:
+ *         description: List of doctors retrieved successfully
+ */
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   get:
+ *     summary: Get doctor by ID
+ *     tags: [Doctors]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor data retrieved successfully
+ *       404:
+ *         description: Doctor not found
+ */
 router.get('/', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM doctors');
