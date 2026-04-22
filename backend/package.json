@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:check": "node scripts/dbCheck.js"
   },
   "keywords": [],
   "author": "",
