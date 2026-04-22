@@ -28,6 +28,8 @@ const reminderService = require('./services/reminderService');
 
 const app = express();
 
+app.use(express.json());
+
 // Issue #92: Swagger API Documentation
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
@@ -85,8 +87,6 @@ const authLimiter = rateLimit({
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-
-app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
