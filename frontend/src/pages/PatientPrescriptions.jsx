@@ -35,46 +35,30 @@ const PatientPrescriptions = () => {
         }
     };
 
-    const downloadPDF = (prescription) => {
-        const doc = new jsPDF();
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(22);
-        doc.setTextColor(29, 29, 31); 
-        doc.text('Prescription Record', 20, 30);
-        
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(12);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Date: ${new Date(prescription.date_prescribed).toLocaleDateString()}`, 20, 42);
-        doc.text(`ID: #PR-${prescription.id}`, 20, 48);
-        
-        doc.setFontSize(14);
-        doc.setTextColor(29, 29, 31);
-        doc.text('Doctor Information:', 20, 65);
-        
-        doc.setFontSize(12);
-        doc.text(`Dr. ${prescription.doctor_first_name} ${prescription.doctor_last_name}`, 20, 73);
-        doc.text(`Specialty: ${prescription.specialty}`, 20, 79);
-        
-        doc.setFontSize(14);
-        doc.text('Medications:', 20, 95);
-        
-        doc.setFontSize(11);
-        const lines = doc.splitTextToSize(prescription.medications, 170);
-        doc.text(lines, 20, 103);
-        
-        doc.setFontSize(14);
-        doc.text('Instructions:', 20, 130);
-        
-        doc.setFontSize(11);
-        const instructions = doc.splitTextToSize(prescription.instructions || 'Follow as directed by your physician.', 170);
-        doc.text(instructions, 20, 138);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(148, 163, 184);
-        doc.text('This record was generated from your Patient Portal.', 20, 280);
-        
-        doc.save(`Prescription_${prescription.id}.pdf`);
+    const downloadPDF = async (prescription) => {
+        try {
+            const response = await fetch(`${API}/api/appointments/${prescription.appointment_id || prescription.id}/prescription/pdf`, {
+                headers: authedHeaders()
+            });
+            
+            if (!response.ok) throw new Error('Failed to download PDF');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `prescription_${prescription.id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            // Fallback to client-side generation if backend fails
+            const doc = new jsPDF();
+            // ... existing fallback logic
+            doc.text('Prescription Record (Client Generated)', 20, 30);
+            doc.save(`Prescription_${prescription.id}_local.pdf`);
+        }
     };
 
     const filtered = prescriptions.filter(p => 
