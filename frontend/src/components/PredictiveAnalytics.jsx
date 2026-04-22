@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { API, authedHeaders } from '../config/api';
 import { AlertTriangle, UserMinus, TrendingDown, Info, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
 
 const PredictiveAnalytics = ({ doctorId }) => {
@@ -10,8 +10,12 @@ const PredictiveAnalytics = ({ doctorId }) => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`/api/analytics/doctor/${doctorId}/predictive`);
-            setData(response.data);
+            const res = await fetch(`${API}/api/analytics/doctor/${doctorId}/predictive`, {
+                headers: authedHeaders()
+            });
+            if (!res.ok) throw new Error('Sync failed');
+            const data = await res.json();
+            setData(data);
             setError(null);
         } catch (err) {
             console.error('Error fetching predictive analytics:', err);
