@@ -30,6 +30,17 @@ const app = express();
 
 app.use(express.json());
 
+// Debug Logger
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+// Root Route (Moved to top for visibility)
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'Hospital Management API is running', version: '1.0.1' });
+});
+
 // Issue #92: Swagger API Documentation
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
@@ -108,10 +119,6 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 
 // Health check
-app.get('/', (req, res) => {
-    res.json({ status: 'ok', message: 'Hospital Management API is running', health: '/api/health' });
-});
-
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
