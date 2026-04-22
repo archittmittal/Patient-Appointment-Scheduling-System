@@ -108,6 +108,10 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 
 // Health check
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'Hospital Management API is running', health: '/api/health' });
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
