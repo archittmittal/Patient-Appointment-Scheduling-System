@@ -39,10 +39,11 @@ const Login = () => {
             
             // Check for pending booking
             const pending = localStorage.getItem('pendingBooking');
-            if (pending && data.user.role === 'PATIENT') {
+            const role = data.role || data.user?.role;
+            if (pending && role === 'PATIENT') {
                 navigate('/book');
             } else {
-                navigate(ROLE_HOME[data.user.role] || '/login');
+                navigate(ROLE_HOME[role] || '/login');
             }
         } catch (err) {
             setError(err.message || 'Unable to connect to the server. Please try again later.');
