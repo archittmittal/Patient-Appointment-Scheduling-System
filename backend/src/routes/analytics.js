@@ -99,13 +99,46 @@ router.get('/doctor/:doctorId/hourly-stats', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/clinic
- * Get clinic-wide analytics (admin only)
+ * @swagger
+ * /api/analytics/predictions:
+ *   get:
+ *     summary: Get no-show and churn predictions
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Prediction data retrieved successfully
+ */
+router.get('/predictions', authenticate, async (req, res) => {
+    try {
+        const noShowRisk = await predictionService.predictNoShowRisk();
+        const churnRisk = await predictionService.predictChurnRisk();
+        res.json({
+            noShowRisk,
+            churnRisk
+        });
+    } catch (error) {
+        console.error('Predictions error:', error);
+        res.status(500).json({ error: 'Failed to get predictions' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/analytics/clinic:
+ *   get:
+ *     summary: Get clinic-wide analytics (admin only)
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Clinic analytics retrieved successfully
  */
 router.get('/clinic', authenticate, async (req, res) => {
     try {
         const daysBack = parseInt(req.query.days) || 30;
-
         const analytics = await peakHoursService.getClinicWideAnalytics(daysBack);
         res.json(analytics);
     } catch (error) {
