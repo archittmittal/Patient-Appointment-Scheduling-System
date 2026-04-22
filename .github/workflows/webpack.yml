@@ -21,8 +21,15 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm install
 
     - name: Build
       run: |
-        npm install
-        npx webpack
+        cd frontend
+        npm run build
