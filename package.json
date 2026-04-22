@@ -1,0 +1,11 @@
+{
+  "name": "patient-appointment-scheduling-system",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=frontend"
+  }
+}

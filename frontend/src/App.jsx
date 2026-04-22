@@ -1,0 +1,113 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import PatientDashboard from './pages/PatientDashboard';
+import DoctorSearch from './pages/DoctorSearch';
+import DoctorProfile from './pages/DoctorProfile';
+import BookAppointment from './pages/BookAppointment';
+import LiveQueue from './pages/LiveQueue';
+import PatientProfile from './pages/PatientProfile';
+import DoctorDashboard from './pages/DoctorDashboard';
+import DoctorProfileEdit from './pages/DoctorProfileEdit';
+import DoctorSchedule from './pages/DoctorSchedule';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
+import AdminAppointments from './pages/AdminAppointments';
+import Register from './pages/Register';
+import NotificationSettings from './pages/NotificationSettings';
+import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; 
+import WalkinRegistration from './pages/WalkinRegistration'; 
+import ExpressCheckin from './pages/ExpressCheckin';
+import BatchAppointments from './pages/BatchAppointments';
+import PrepChecklist from './pages/PrepChecklist';
+import MultiDoctorJourney from './pages/MultiDoctorJourney';
+import LateArrival from './pages/LateArrival';
+import FeedbackAnalytics from './pages/FeedbackAnalytics';
+import DoctorAnalytics from './pages/DoctorAnalytics';
+import VitalsHub from './pages/VitalsHub'; 
+import PatientPrescriptions from './pages/PatientPrescriptions'; 
+import Messages from './pages/Messages';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+
+function RootRedirect() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'PATIENT') return <Navigate to="/patient-dashboard" replace />;
+  if (user.role === 'DOCTOR') return <Navigate to="/doctor-dashboard" replace />;
+  if (user.role === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
+  return <Navigate to="/login" replace />;
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Public/Shared routes that use Layout but don't strictly require login */}
+            <Route element={<Layout />}>
+              <Route path="/doctors" element={<DoctorSearch />} />
+              <Route path="/doctors/:id" element={<DoctorProfile />} />
+              <Route path="/book" element={<BookAppointment />} />
+            </Route>
+
+            {/* Patient routes */}
+            <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
+              <Route path="/patient-dashboard" element={<PatientDashboard />} />
+              <Route path="/vitals" element={<VitalsHub />} />
+              <Route path="/prescriptions" element={<PatientPrescriptions />} />
+              <Route path="/queue" element={<LiveQueue />} />
+              <Route path="/profile" element={<PatientProfile />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
+              <Route path="/walkin" element={<WalkinRegistration />} />
+              <Route path="/express-checkin" element={<ExpressCheckin />} />
+              <Route path="/batch-appointments" element={<BatchAppointments />} />
+              <Route path="/prep-checklist" element={<PrepChecklist />} />
+              <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
+              <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
+              <Route path="/late-arrival" element={<LateArrival />} />
+              <Route path="/feedback" element={<FeedbackAnalytics />} />
+              <Route path="/messages" element={<Messages />} />
+            </Route>
+
+            {/* Doctor routes */}
+            <Route element={<ProtectedRoute allowedRoles={['DOCTOR']}><Layout /></ProtectedRoute>}>
+              <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+              <Route path="/doctor-profile" element={<DoctorProfileEdit />} />
+              <Route path="/doctor-schedule" element={<DoctorSchedule />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
+              <Route path="/doctor-analytics" element={<DoctorAnalytics />} />
+              <Route path="/messages" element={<Messages />} />
+            </Route>
+
+            {/* Admin routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN']}><Layout /></ProtectedRoute>}>
+              <Route path="/admin-dashboard" element={<AdminDashboard />} />
+              <Route path="/admin-users" element={<AdminUsers />} />
+              <Route path="/admin-appointments" element={<AdminAppointments />} />
+              <Route path="/notifications/settings" element={<NotificationSettings />} />
+            </Route>
+
+            {/* Catch-all redirect to root */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;

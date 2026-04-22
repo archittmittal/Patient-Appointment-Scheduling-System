@@ -1,0 +1,30 @@
+
+> frontend@0.0.0 build
+> vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 1783 modules transformed.
+✗ Build failed in 721ms
+error during build:
+[vite]: Rollup failed to resolve import "axios" from "/Users/architmittal/Desktop/CODE/Patient Appointment Scheduling System/Patient-Appointment-Scheduling-System/frontend/src/components/PredictiveAnalytics.jsx".
+This is most likely unintended because it can break your application at runtime.
+If you do want to externalize this module explicitly add it to
+`build.rollupOptions.external`
+    at viteLog (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/vite/dist/node/chunks/config.js:33635:57)
+    at file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/vite/dist/node/chunks/config.js:33669:73
+    at onwarn (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/@vitejs/plugin-react/dist/index.js:76:7)
+    at file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/vite/dist/node/chunks/config.js:33669:28
+    at onRollupLog (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/vite/dist/node/chunks/config.js:33664:63)
+    at onLog (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/vite/dist/node/chunks/config.js:33467:4)
+    at file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/rollup/dist/es/shared/node-entry.js:20981:32
+    at Object.logger [as onLog] (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/rollup/dist/es/shared/node-entry.js:22968:9)
+    at ModuleLoader.handleInvalidResolvedId (file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/rollup/dist/es/shared/node-entry.js:21712:26)
+    at file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/frontend/node_modules/rollup/dist/es/shared/node-entry.js:21670:26
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path /Users/architmittal/Desktop/CODE/Patient Appointment Scheduling System/Patient-Appointment-Scheduling-System/frontend
+npm error workspace frontend@0.0.0
+npm error location /Users/architmittal/Desktop/CODE/Patient Appointment Scheduling System/Patient-Appointment-Scheduling-System/frontend
+npm error command failed
+npm error command sh -c vite build
