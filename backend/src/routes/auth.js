@@ -67,14 +67,19 @@ router.post('/login', validateRequest(loginSchema), async (req, res) => {
         // Fetch user by email only; compare password separately (never compare in SQL)
         const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
         if (users.length === 0) {
+            console.log(`[Login Failed] User not found: ${email}`);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         const user = users[0];
+        console.log(`[Login Info] User found: ${user.email}, Role: ${user.role}`);
+        
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
         if (!passwordMatch) {
+            console.log(`[Login Failed] Password mismatch for: ${email}`);
             return res.status(401).json({ message: 'Invalid email or password' });
         }
+        console.log(`[Login Success] User authenticated: ${email}`);
 
         let firstName = 'Admin';
         let lastName = '';
