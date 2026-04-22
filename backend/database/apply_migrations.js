@@ -32,12 +32,12 @@ async function applyMigrations() {
                 await db.query(statement);
             } catch (error) {
                 // If column already exists or table exists, we might get an error depending on SQL
-                if (error.code === 'ER_DUP_FIELDNAME' || error.code === 'ER_TABLE_EXISTS_ERROR') {
+                if (error.code === 'ER_DUP_FIELDNAME' || error.code === 'ER_TABLE_EXISTS_ERROR' || error.code === 'ER_DUP_KEYNAME') {
                     console.log(`  [Info] Already applied or exists: ${statement.substring(0, 50)}...`);
                 } else {
                     console.error(`  [Error] Failed to execute: ${statement.substring(0, 50)}...`);
-                    console.error(`  [Reason] ${error.message}`);
-                    // Don't exit, try next statement
+                    console.error(`  [Reason] Code: ${error.code}, Message: ${error.message}`);
+                    console.error(error);
                 }
             }
         }
