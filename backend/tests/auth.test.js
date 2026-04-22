@@ -79,7 +79,8 @@ describe('Auth Endpoints', () => {
           email: 'existing@example.com',
           password: 'Password123',
           first_name: 'John',
-          last_name: 'Doe'
+          last_name: 'Doe',
+          phone: '1234567890'
         });
 
       expect(res.statusCode).toEqual(409);
