@@ -51,7 +51,7 @@ const BatchTypeCard = ({ type, isSelected, onClick }) => {
             <div className={`w-12 h-12 rounded-2xl ${colors.bg} flex items-center justify-center mb-6 border ${colors.border} shadow-inner group-hover:rotate-6 transition-transform`}>
                 <Icon className={colors.text} size={24} strokeWidth={2.5} />
             </div>
-            <h4 className={`font-black text-[var(--test-base)] text-sm uppercase italic tracking-tighter ${isSelected ? colors.text : ''}`}>{config.label}</h4>
+            <h4 className={`font-black text-[var(--text-base)] text-sm uppercase italic tracking-tighter ${isSelected ? colors.text : ''}`}>{config.label}</h4>
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2 italic opacity-60 leading-tight">{type.description}</p>
             <div className="mt-6 flex items-center gap-3 text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] italic">
                 <Users size={14} className={colors.text} />
@@ -78,7 +78,7 @@ const BatchSlotCard = ({ slot, onBook, isBooking }) => {
                         <Icon className={colors.text} size={28} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h4 className="text-lg font-black text-[var(--test-base)] uppercase italic tracking-tighter">{config.label}</h4>
+                        <h4 className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tighter">{config.label}</h4>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic mt-1 leading-none">Dr. {slot.doctor_name}</p>
                     </div>
                 </div>
@@ -142,7 +142,7 @@ const SuccessModal = ({ booking, onClose }) => {
                 <div className="w-24 h-24 bg-primary text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-primary/30 border border-primary-light/20 rotate-12 transition-transform animate-bounce-slow">
                     <CheckCircle2 size={48} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-3xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-4">Registry Success</h3>
+                <h3 className="text-3xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4">Registry Success</h3>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 italic max-w-xs mx-auto leading-relaxed">{booking.message}</p>
                 <div className="bg-primary/10 rounded-[2.5rem] p-10 mb-10 border border-primary/20 shadow-inner group transition-all duration-700 hover:bg-primary/20">
                     <p className="text-7xl font-black text-primary tracking-tighter italic tabular-nums leading-none">#{booking.position}</p>
@@ -217,7 +217,7 @@ const BatchAppointments = () => {
                         <Layers size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none">Multi-Node Registry</h1>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Multi-Node Registry</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity mass clinical synchronization cluster</p>
                     </div>
                 </div>
@@ -229,7 +229,7 @@ const BatchAppointments = () => {
             {myAppointments.length > 0 && (
                 <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-12 opacity-5"><Activity size={64} /></div>
-                    <h2 className="text-2xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-10 flex items-center gap-5">
+                    <h2 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-10 flex items-center gap-5">
                         <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Layers size={20} /></span>
                         Active Multi-Node Synchronizations
                     </h2>
@@ -239,7 +239,7 @@ const BatchAppointments = () => {
                                 <div className="flex items-center gap-5 mb-8">
                                     <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 text-primary group-hover/item:rotate-12 transition-all"><Zap size={20} /></div>
                                     <div className="flex-1">
-                                        <h4 className="text-lg font-black text-[var(--test-base)] uppercase italic tracking-tighter leading-none">{apt.batch_type_name || 'Clinical Batch'}</h4>
+                                        <h4 className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tighter leading-none">{apt.batch_type_name || 'Clinical Batch'}</h4>
                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] mt-1 italic">DR. {apt.doctor_name}</p>
                                     </div>
                                     <div className="text-right">
@@ -259,14 +259,14 @@ const BatchAppointments = () => {
 
             <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-12 opacity-5"><Filter size={64} /></div>
-                <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter mb-10 italic flex items-center gap-5">
+                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-10 italic flex items-center gap-5">
                     <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Search size={24} /></span>
                     Global Discovery Matrix
                 </h3>
                 <div className="relative mb-12">
                     <Search size={24} className="absolute left-8 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
                     <input type="text" placeholder="QUERY PROTOCOLS (E.G., VACCINATION, FOLLOW-UP)..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-20 pr-8 py-7 bg-white/5 border border-white/5 rounded-[2.5rem] text-[12px] font-black text-[var(--test-base)] uppercase tracking-[0.2em] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all placeholder:text-slate-700 italic shadow-inner" />
+                        className="w-full pl-20 pr-8 py-7 bg-white/5 border border-white/5 rounded-[2.5rem] text-[12px] font-black text-[var(--text-base)] uppercase tracking-[0.2em] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all placeholder:text-slate-700 italic shadow-inner" />
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
                     {batchTypes.map(type => <BatchTypeCard key={type.id} type={type} isSelected={selectedType === type.id} onClick={(id) => setSelectedType(selectedType === id ? null : id)} />)}
@@ -275,7 +275,7 @@ const BatchAppointments = () => {
 
             {(searchTerm || selectedType) && (
                 <div className="space-y-10 animate-in slide-in-from-bottom-10">
-                    <h2 className="text-2xl font-black text-[var(--test-base)] uppercase italic tracking-tighter flex items-center gap-5 pl-4">
+                    <h2 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter flex items-center gap-5 pl-4">
                         <Sparkles className="text-amber-500 animate-pulse" size={24} />
                         Available Registry Nodes
                     </h2>
@@ -300,7 +300,7 @@ const BatchAppointments = () => {
                         <ShieldCheck size={40} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h4 className="text-xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-4">Registry Efficiency Protocol</h4>
+                        <h4 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4">Registry Efficiency Protocol</h4>
                         <div className="grid sm:grid-cols-3 gap-8">
                             <BenefitNode icon={<Clock />} title="Zero Latency" text="Optimized slots minimize wait cycles." />
                             <BenefitNode icon={<Users />} title="Group Sync" text="Like-nodes processed in parallel." />

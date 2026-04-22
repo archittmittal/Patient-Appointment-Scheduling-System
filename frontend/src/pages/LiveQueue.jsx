@@ -113,7 +113,7 @@ const DelayBanner = ({ delayMins, reason }) => delayMins >= 5 && (
             <AlertTriangle size={32} strokeWidth={2.5} />
         </div>
         <div className="flex-1 space-y-4">
-            <p className="text-lg font-black text-[var(--test-base)] uppercase tracking-tight italic">Clinical Lag Detected (~{delayMins}M)</p>
+            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tight italic">Clinical Lag Detected (~{delayMins}M)</p>
             {reason && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] italic opacity-60 leading-relaxed">{reason}</p>}
             <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.4em] bg-rose-500/10 px-4 py-2 rounded-full w-fit border border-rose-500/20 italic animate-pulse">Automatic Synchronization in Progress</p>
         </div>
@@ -233,7 +233,7 @@ const LiveQueue = () => {
                         <PulseIcon size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none flex items-center gap-6">
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none flex items-center gap-6">
                             Live Stream 
                             <div className="flex h-4 w-4 relative">
                                 <div className="animate-ping absolute h-full w-full rounded-full bg-rose-500 opacity-75"></div>
@@ -298,7 +298,7 @@ const LiveQueue = () => {
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Target size={64} /></div>
                         <div className="flex items-center justify-between mb-12 relative z-10">
-                            <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter flex items-center gap-6 italic">
+                            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter flex items-center gap-6 italic">
                                 <span className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/20"><Users size={24} /></span>
                                 Clinical Sequence List
                             </h3>
@@ -346,7 +346,7 @@ const LiveQueue = () => {
                         </div>
                         <div className="space-y-2">
                             <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic opacity-60">Node Localization</h5>
-                            <p className="text-lg font-black text-[var(--test-base)] uppercase tracking-tighter italic">Alpha Wing • Level 4 • Core Sync</p>
+                            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter italic">Alpha Wing • Level 4 • Core Sync</p>
                         </div>
                         <button className="w-full py-5 bg-white/5 border border-white/5 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white hover:border-primary transition-all duration-700 shadow-inner italic">
                             Directions Cluster

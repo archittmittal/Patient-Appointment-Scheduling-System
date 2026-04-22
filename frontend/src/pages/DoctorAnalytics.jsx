@@ -32,7 +32,7 @@ const DoctorAnalytics = () => {
                 <div className="flex items-center gap-3">
                     <span className="px-6 py-2 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20 flex items-center gap-3 shadow-inner">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(79,70,229,1)]"></span>
-                        Neural Analysis Sync Activeing
+                        Neural Analysis Sync Active
                     </span>
                 </div>
             </div>

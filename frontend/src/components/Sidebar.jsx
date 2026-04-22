@@ -17,6 +17,7 @@ const PATIENT_MENU = [
     { name: 'Book Visit', icon: Calendar, path: '/book' },
     { name: 'Live Queue', icon: HeartPulse, path: '/queue' },
     { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
+    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
     { name: 'My Profile', icon: User, path: '/profile' },
 ];
@@ -24,7 +25,8 @@ const PATIENT_MENU = [
 const DOCTOR_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/doctor-dashboard' },
     { name: 'My Schedule', icon: CalendarDays, path: '/doctor-schedule' },
-    { name: 'Patient Feedback', icon: BarChart3, path: '/doctor-feedback' },
+    { name: 'Intelligence', icon: Sparkles, path: '/doctor-analytics' },
+    { name: 'Feedback', icon: MessageSquare, path: '/doctor-feedback' },
     { name: 'Profile', icon: User, path: '/doctor-profile' },
 ];
 
