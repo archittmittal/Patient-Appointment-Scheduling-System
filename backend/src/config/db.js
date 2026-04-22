@@ -28,4 +28,23 @@ pool.getConnection()
         console.error('Database connection failed:', err.message);
     });
 
+// Connection pool monitoring
+pool.on('acquire', (connection) => {
+    if (process.env.NODE_ENV !== 'test') {
+        console.log('Connection %d acquired', connection.threadId);
+    }
+});
+
+pool.on('release', (connection) => {
+    if (process.env.NODE_ENV !== 'test') {
+        console.log('Connection %d released', connection.threadId);
+    }
+});
+
+pool.on('enqueue', () => {
+    if (process.env.NODE_ENV !== 'test') {
+        console.warn('Waiting for available connection slot');
+    }
+});
+
 module.exports = pool;
