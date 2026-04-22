@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const validateEnv = require('./config/validateEnv');
+validateEnv();
 
 const authRoutes = require('./routes/auth');
 const doctorRoutes = require('./routes/doctors');
@@ -17,6 +21,7 @@ const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
+const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -44,8 +49,40 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Middleware
-app.use(cors());
+// Security Middleware
+app.use(helmet());
+
+// Strict CORS
+const whitelist = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (!origin || whitelist.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+};
+app.use(cors(corsOptions));
+
+// Global Rate Limiter
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+app.use('/api/', globalLimiter);
+
+// Auth Rate Limiter (Sensitive Routes)
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 login/register requests per hour
+    message: 'Too many authentication attempts, please try again after an hour'
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+
 app.use(express.json());
 
 // Routes
@@ -69,6 +106,9 @@ app.use('/api/feedback', feedbackRoutes);
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
+
+// Global Error Handler (Must be last)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
