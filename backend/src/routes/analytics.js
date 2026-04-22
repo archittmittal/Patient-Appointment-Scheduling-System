@@ -6,12 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const peakHoursService = require('../services/peakHoursService');
-const { 
-    getDoctorPredictiveAnalytics, 
-    getNoShowRisk, 
-    getPatientChurnRisk 
-} = require('../services/predictionService');
-
+const predictionService = require('../services/predictionService');
 const {
     getDoctorWorkloads,
     suggestDoctorForWalkin,

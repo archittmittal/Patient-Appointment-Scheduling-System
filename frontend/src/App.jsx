@@ -27,7 +27,7 @@ import PrepChecklist from './pages/PrepChecklist';
 import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
-import PeakHoursAnalytics from './components/PeakHoursAnalytics';
+import DoctorAnalytics from './pages/DoctorAnalytics';
 import VitalsHub from './pages/VitalsHub'; 
 import PatientPrescriptions from './pages/PatientPrescriptions'; 
 import ForgotPassword from './pages/ForgotPassword';
@@ -87,7 +87,7 @@ function App() {
               <Route path="/doctor-schedule" element={<DoctorSchedule />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
-              <Route path="/doctor-analytics" element={<PeakHoursAnalytics />} />
+              <Route path="/doctor-analytics" element={<DoctorAnalytics />} />
             </Route>
 
             {/* Admin routes */}

@@ -65,7 +65,7 @@ const NotificationSettings = () => {
     const Section = ({ title, description, icon: Icon, children }) => (
         <div className="glass-modal p-10 rounded-[3.5rem] border-none shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Icon size={64} /></div>
-            <h3 className="text-2xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-4 flex items-center gap-5">
+            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4 flex items-center gap-5">
                 <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Icon size={24} /></span>
                 {title}
             </h3>
@@ -81,7 +81,7 @@ const NotificationSettings = () => {
                     <Icon size={20} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <p className="text-sm font-black text-[var(--test-base)] uppercase italic tracking-tighter transition-colors group-hover/row:text-primary">{label}</p>
+                    <p className="text-sm font-black text-[var(--text-base)] uppercase italic tracking-tighter transition-colors group-hover/row:text-primary">{label}</p>
                     {description && <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 italic opacity-60 leading-none">{description}</p>}
                 </div>
             </div>
@@ -101,7 +101,7 @@ const NotificationSettings = () => {
                         <Radio size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none">Comms Center</h1>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Comms Center</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity clinical synchronicity hub</p>
                     </div>
                 </div>
@@ -156,7 +156,7 @@ const NotificationSettings = () => {
                             {preferences.quiet_hours_enabled ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </div>
                         <div>
-                            <p className="text-sm font-black text-[var(--test-base)] uppercase italic tracking-tighter">Initiate Quiet Mode</p>
+                            <p className="text-sm font-black text-[var(--text-base)] uppercase italic tracking-tighter">Initiate Quiet Mode</p>
                             <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 italic opacity-60">Suspend auxiliary broadcasts</p>
                         </div>
                     </div>
@@ -173,7 +173,7 @@ const NotificationSettings = () => {
                                     type="time"
                                     value={preferences.quiet_start?.slice(0, 5) || '22:00'}
                                     onChange={e => setPreferences(prev => ({ ...prev, quiet_start: e.target.value + ':00' }))}
-                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
+                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
                                 />
                             </div>
                         </div>
@@ -185,7 +185,7 @@ const NotificationSettings = () => {
                                     type="time"
                                     value={preferences.quiet_end?.slice(0, 5) || '08:00'}
                                     onChange={e => setPreferences(prev => ({ ...prev, quiet_end: e.target.value + ':00' }))}
-                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
+                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
                                 />
                             </div>
                         </div>
@@ -200,7 +200,7 @@ const NotificationSettings = () => {
                         <ShieldCheck size={40} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h4 className="text-xl font-black text-[var(--test-base)] uppercase italic tracking-tighter mb-4">Comms Security Protocol</h4>
+                        <h4 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4">Comms Security Protocol</h4>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic leading-relaxed max-w-2xl opacity-80">
                             Broadcast signals are strictly end-to-end encrypted. Node preferences are stored in isolated clinical registry segments with 256-bit AES protection.
                         </p>

@@ -51,7 +51,7 @@ const UrgencyCard = ({ level, isSelected, onSelect }) => {
                     <Icon size={20} className={isSelected ? '' : 'text-slate-600'} />
                 </div>
                 <div>
-                    <h4 className={`text-sm font-black uppercase tracking-tighter italic ${isSelected ? '' : 'text-[var(--test-base)]'}`}>{level.label}</h4>
+                    <h4 className={`text-sm font-black uppercase tracking-tighter italic ${isSelected ? '' : 'text-[var(--text-base)]'}`}>{level.label}</h4>
                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 italic opacity-60 leading-tight">{level.description}</p>
                 </div>
             </div>
@@ -63,7 +63,7 @@ const UrgencyCard = ({ level, isSelected, onSelect }) => {
 const VitalSignsSection = ({ vitals, setVitals }) => (
     <div className="glass-modal p-10 rounded-[3rem] border-none shadow-2xl relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Pulse size={48} /></div>
-        <h4 className="text-xl font-black text-[var(--test-base)] mb-8 flex items-center gap-5 uppercase italic tracking-tighter">
+        <h4 className="text-xl font-black text-[var(--text-base)] mb-8 flex items-center gap-5 uppercase italic tracking-tighter">
             <span className="w-12 h-12 bg-rose-500/10 rounded-2xl border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-inner"><Heart size={20} /></span>
             Biometric Telemetry
         </h4>
@@ -73,8 +73,8 @@ const VitalSignsSection = ({ vitals, setVitals }) => (
             <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-2 italic">Blood Pressure Index</label>
                 <div className="flex gap-4">
-                    <input type="number" placeholder="SYS" value={vitals.bp_systolic || ''} onChange={(e) => setVitals({ ...vitals, bp_systolic: parseInt(e.target.value) || null })} className="w-1/2 p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all" />
-                    <input type="number" placeholder="DIA" value={vitals.bp_diastolic || ''} onChange={(e) => setVitals({ ...vitals, bp_diastolic: parseInt(e.target.value) || null })} className="w-1/2 p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all" />
+                    <input type="number" placeholder="SYS" value={vitals.bp_systolic || ''} onChange={(e) => setVitals({ ...vitals, bp_systolic: parseInt(e.target.value) || null })} className="w-1/2 p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all" />
+                    <input type="number" placeholder="DIA" value={vitals.bp_diastolic || ''} onChange={(e) => setVitals({ ...vitals, bp_diastolic: parseInt(e.target.value) || null })} className="w-1/2 p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all" />
                 </div>
             </div>
             <VitalInput label="O2 Saturation (%)" value={vitals.oxygen_saturation} onChange={(v) => setVitals({...vitals, oxygen_saturation: v})} placeholder="98" />
@@ -92,7 +92,7 @@ const VitalInput = ({ label, icon, value, onChange, placeholder }) => (
                 placeholder={placeholder}
                 value={value || ''}
                 onChange={(e) => onChange(parseFloat(e.target.value) || null)}
-                className={`w-full ${icon ? 'pl-16' : 'px-6'} py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all`} 
+                className={`w-full ${icon ? 'pl-16' : 'px-6'} py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all`} 
             />
         </div>
     </div>
@@ -157,7 +157,7 @@ const WalkinRegistration = () => {
                 <div className="w-24 h-24 bg-emerald-500 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-emerald-500/30 border border-emerald-400/20 rotate-12 transition-transform animate-bounce-slow">
                     <CheckCircle2 size={48} strokeWidth={2.5} />
                 </div>
-                <h1 className="text-4xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none mb-6">Units Initialized</h1>
+                <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-6">Units Initialized</h1>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-12 italic max-w-sm mx-auto opacity-80 leading-relaxed">{result.message}</p>
                 <div className="glass-modal p-12 rounded-[4rem] text-left mb-10 border-none shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-12 opacity-5"><Zap size={64} /></div>
@@ -201,7 +201,7 @@ const WalkinRegistration = () => {
                         <Stethoscope size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--test-base)] tracking-tighter uppercase italic leading-none">Entry Portal</h1>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Entry Portal</h1>
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity clinical walk-in synchronization</p>
                     </div>
                 </div>
@@ -219,7 +219,7 @@ const WalkinRegistration = () => {
                 <div className="space-y-12 animate-in slide-in-from-right-10 duration-700">
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><User size={64} /></div>
-                        <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
+                        <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
                             <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Compass size={24} /></span>
                             Clinical Node Selection
                         </h3>
@@ -230,7 +230,7 @@ const WalkinRegistration = () => {
                                         <img src={doc.image_url || `https://ui-avatars.com/api/?name=${doc.first_name}+${doc.last_name}&background=random`} alt={doc.first_name} className="w-full h-full object-cover" />
                                     </div>
                                     <div className="flex-1">
-                                        <h4 className="text-lg font-black text-[var(--test-base)] uppercase italic tracking-tighter leading-none mb-2">Dr. {doc.first_name} {doc.last_name}</h4>
+                                        <h4 className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tighter leading-none mb-2">Dr. {doc.first_name} {doc.last_name}</h4>
                                         <div className="flex items-center gap-3">
                                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60 leading-none">{doc.specialty}</p>
                                             <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${
@@ -250,7 +250,7 @@ const WalkinRegistration = () => {
 
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><AlertTriangle size={64} /></div>
-                        <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
+                        <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
                             <span className="w-12 h-12 bg-orange-500/10 rounded-2xl flex items-center justify-center text-orange-500 shadow-inner border border-orange-500/20"><Activity size={24} /></span>
                             Priority Meridian
                         </h3>
@@ -267,18 +267,18 @@ const WalkinRegistration = () => {
                 <div className="space-y-12 animate-in slide-in-from-right-10 duration-700">
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Navigation size={64} /></div>
-                        <h3 className="text-2xl font-black text-[var(--test-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
+                        <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-10 flex items-center gap-5 italic">
                             <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Info size={24} /></span>
                             Symptom Lexicon
                         </h3>
                         <div className="space-y-8">
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 italic">Primary Clinical Reason *</label>
-                                <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="E.G., CEPHALALGIA, FOLLOW-UP..." className="w-full p-6 bg-white/5 border border-white/5 rounded-[2rem] text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all placeholder:text-slate-700" />
+                                <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="E.G., CEPHALALGIA, FOLLOW-UP..." className="w-full p-6 bg-white/5 border border-white/5 rounded-[2rem] text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all placeholder:text-slate-700" />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 italic">Extended Node Symptoms (Optional)</label>
-                                <textarea value={symptoms} onChange={(e) => setSymptoms(e.target.value)} placeholder="DETAILED NODE ANOMALIES..." rows={3} className="w-full p-6 bg-white/5 border border-white/5 rounded-[2rem] text-[var(--test-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all resize-none placeholder:text-slate-700" />
+                                <textarea value={symptoms} onChange={(e) => setSymptoms(e.target.value)} placeholder="DETAILED NODE ANOMALIES..." rows={3} className="w-full p-6 bg-white/5 border border-white/5 rounded-[2rem] text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all resize-none placeholder:text-slate-700" />
                             </div>
                         </div>
                     </div>
