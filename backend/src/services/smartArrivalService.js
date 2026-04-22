@@ -79,7 +79,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
         appointmentId,
         appointmentDate: appointment.appointment_date,
         slotTime: appointment.time_slot,
-        queuePosition: position,
+        queuePosition: appointment.queue_number,
         patientsAhead,
         
         // Time calculations
