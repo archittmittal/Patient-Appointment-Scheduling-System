@@ -21,7 +21,10 @@ const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
+const paymentRoutes = require('./routes/payments');
+const messageRoutes = require('./routes/messages');
 const errorHandler = require('./middleware/errorHandler');
+const reminderService = require('./services/reminderService');
 
 const app = express();
 
@@ -101,6 +104,8 @@ app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

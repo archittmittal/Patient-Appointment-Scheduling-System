@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const exportService = require('../services/exportService');
 
 /**
  * @swagger
@@ -185,6 +186,19 @@ router.post('/:id/vitals', authenticate, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error logging vitals' });
+    }
+});
+
+// Issue #110: Export patient vitals as CSV
+router.get('/:id/vitals/export', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        await exportService.exportVitalsCSV(req.params.id, res);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error exporting vitals' });
     }
 });
 
