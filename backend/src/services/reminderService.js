@@ -50,16 +50,11 @@ class ReminderService {
     }
 
     async send1hReminders() {
-        // Logic: Find appointments for today that start in ~1 hour
+        // Find appointments for today
         const today = new Date().toISOString().split('T')[0];
-        const currentHour = new Date().getHours();
-        const targetHour = (currentHour + 1) % 24;
-        
-        // This is tricky because time_slot is VARCHAR "10:00 AM"
-        // We need to parse it or query for slots that match the target hour
-        const targetHourStr = targetHour > 12 ? `${targetHour - 12}:` : targetHour === 0 ? '12:' : `${targetHour}:`;
-        const ampm = targetHour >= 12 ? 'PM' : 'AM';
-        const searchPattern = `%${targetHourStr}%${ampm}%`;
+        const now = new Date();
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+        const twoHoursLater = new Date(now.getTime() + 120 * 60 * 1000);
 
         const query = `
             SELECT a.id, a.time_slot, p.first_name, p.phone, u.email, d.first_name as doctor_name
@@ -67,16 +62,34 @@ class ReminderService {
             JOIN patients p ON a.patient_id = p.id
             JOIN users u ON p.id = u.id
             JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.appointment_date = ? AND a.status = 'CONFIRMED' AND a.time_slot LIKE ?
+            WHERE a.appointment_date = ? AND a.status = 'CONFIRMED'
         `;
 
-        const [appointments] = await db.query(query, [today, searchPattern]);
+        const [appointments] = await db.query(query, [today]);
 
         for (const appt of appointments) {
-            await notificationService.sendNotification(appt.id, 'APPOINTMENT_REMINDER', {
-                doctor_name: appt.doctor_name,
-                time_until: `in 1 hour at ${appt.time_slot}`
-            });
+            // Parse "10:00 AM" or "2:30 PM"
+            const timeMatch = appt.time_slot.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!timeMatch) continue;
+
+            let hours = parseInt(timeMatch[1]);
+            const minutes = parseInt(timeMatch[2]);
+            const ampm = timeMatch[3].toUpperCase();
+
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+
+            const apptTime = new Date();
+            apptTime.setHours(hours, minutes, 0, 0);
+
+            // If appt is between 1h and 2h from now (to avoid duplicate notifications if run hourly)
+            // Or simpler: If it's in the next 75 minutes and hasn't been notified yet
+            if (apptTime > oneHourLater && apptTime < twoHoursLater) {
+                await notificationService.sendNotification(appt.id, 'APPOINTMENT_REMINDER', {
+                    doctor_name: appt.doctor_name,
+                    time_until: `in about 1 hour at ${appt.time_slot}`
+                });
+            }
         }
     }
 }
