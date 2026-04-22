@@ -5,7 +5,7 @@ import {
 import { 
     Activity, Heart, Scale, Thermometer, Plus, ChevronRight, 
     Zap, ShieldCheck, Target, Sparkles,
-    Calendar, Clock, Info, ArrowRight, X, FlaskConical, Pill, RefreshCw
+    Calendar, Clock, Info, ArrowRight, X, FlaskConical, Pill, RefreshCw, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
@@ -74,6 +74,27 @@ const VitalsHub = () => {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            const response = await fetch(`${API}/api/patients/${user.id}/vitals/export`, {
+                headers: authedHeaders()
+            });
+            if (!response.ok) throw new Error('Export failed');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vitals_history_${user.id}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Failed to export vitals history');
+        }
+    };
+
     if (loading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-4">
              <Activity className="text-primary animate-pulse" size={48} />
@@ -91,13 +112,22 @@ const VitalsHub = () => {
                     <h1 className="text-4xl font-bold tracking-tight mb-2">Vitals & Trends</h1>
                     <p className="text-slate-500">Track your key health metrics and monitor progress over time.</p>
                 </div>
-                <button 
-                    onClick={() => setShowLogModal(true)}
-                    className="btn-primary"
-                >
-                    <Plus size={20} />
-                    Log New Vitals
-                </button>
+                <div className="flex gap-4">
+                    <button 
+                        onClick={handleExport}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <Download size={20} />
+                        Export History (CSV)
+                    </button>
+                    <button 
+                        onClick={() => setShowLogModal(true)}
+                        className="btn-primary"
+                    >
+                        <Plus size={20} />
+                        Log New Vitals
+                    </button>
+                </div>
             </div>
 
             {/* Vitals Summary Grid */}
