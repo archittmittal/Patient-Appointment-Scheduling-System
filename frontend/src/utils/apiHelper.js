@@ -10,8 +10,12 @@ export const safeFetch = async (url, options = {}, defaultValue = []) => {
         // Protocol Guard: Handle maintenance or missing node states explicitly
         if (!response.ok) {
             console.warn(`[Registry] Node access failure at ${url}: ${response.status} ${response.statusText}`);
-            // Return default for 4XX and 5XX instead of processing body
-            return defaultValue;
+            try {
+                const errorData = await response.json();
+                return { ...errorData, error: true, status: response.status };
+            } catch (e) {
+                return { error: true, message: `Server error: ${response.status}`, status: response.status };
+            }
         }
 
         const contentType = response.headers.get('content-type');

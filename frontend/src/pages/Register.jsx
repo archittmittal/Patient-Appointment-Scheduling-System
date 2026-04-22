@@ -139,12 +139,12 @@ const Register = () => {
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Phone Number</label>
-                                    <input name="phone" value={formData.phone} onChange={handleChange}
+                                    <input name="phone" required value={formData.phone} onChange={handleChange}
                                         className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="+1 (555) 000-0000" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Residential Address</label>
-                                    <input name="address" value={formData.address} onChange={handleChange}
+                                    <input name="address" required value={formData.address} onChange={handleChange}
                                         className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="123 Health St, City" />
                                 </div>
                                 <div className="flex gap-4 mt-6">
