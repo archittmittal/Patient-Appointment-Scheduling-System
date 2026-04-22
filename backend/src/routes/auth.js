@@ -4,6 +4,22 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const { JWT_SECRET } = require('../middleware/authenticate');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
+
+const loginSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required()
+});
+
+const registerSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+    role: Joi.string().valid('PATIENT', 'DOCTOR', 'ADMIN').default('PATIENT'),
+    first_name: Joi.string().required(),
+    last_name: Joi.string().required(),
+    phone: Joi.string().required()
+});
 
 const BCRYPT_ROUNDS = 10;
 
@@ -40,7 +56,7 @@ const BCRYPT_ROUNDS = 10;
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validateRequest(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) {
@@ -133,7 +149,7 @@ router.post('/login', async (req, res) => {
  *       400:
  *         description: Missing required fields
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validateRequest(registerSchema), async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, dob, phone, blood_group, address } = req.body;
