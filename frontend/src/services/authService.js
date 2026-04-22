@@ -1,10 +1,11 @@
-import { API } from '../config/api';
+import { API, authedHeaders } from '../config/api';
 import { safeFetch } from '../utils/apiHelper';
 
 export const authService = {
     async login(email, password) {
         const data = await safeFetch(`${API}/api/auth/login`, {
             method: 'POST',
+            headers: authedHeaders(true),
             body: JSON.stringify({ email, password })
         });
         
@@ -27,6 +28,7 @@ export const authService = {
     async register(userData) {
         const data = await safeFetch(`${API}/api/auth/register`, {
             method: 'POST',
+            headers: authedHeaders(true),
             body: JSON.stringify(userData)
         });
 
