@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles",
+    "prepare": "husky",
     "db:check": "node scripts/dbCheck.js"
   },
   "keywords": [],
@@ -25,7 +26,9 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "jest": "^30.3.0",
+    "lint-staged": "^16.4.0",
     "nodemon": "^3.1.14",
     "supertest": "^7.2.2"
   }
