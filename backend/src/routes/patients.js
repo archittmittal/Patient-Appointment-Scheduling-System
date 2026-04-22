@@ -3,6 +3,58 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
 
+/**
+ * @swagger
+ * tags:
+ *   name: Patients
+ *   description: Patient profile and history
+ */
+
+/**
+ * @swagger
+ * /api/patients/{id}:
+ *   get:
+ *     summary: Get patient profile by ID
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Patient profile retrieved successfully
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Patient not found
+ */
+/**
+ * @swagger
+ * /api/patients/{id}/appointments:
+ *   get:
+ *     summary: Get patient's appointments
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, past, all]
+ *     responses:
+ *       200:
+ *         description: List of appointments retrieved successfully
+ */
 // Get a patient's simple profile
 router.get('/:id', authenticate, async (req, res) => {
     // Check if the user is authorized to view this profile
