@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, User, MessageSquare, Search, ArrowLeft, MoreVertical, Paperclip, Smile } from 'lucide-react';
+import { Send, User, MessageSquare, Search, ArrowLeft, MoreVertical, Paperclip, Smile, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 
