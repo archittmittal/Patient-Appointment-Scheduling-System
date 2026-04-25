@@ -12,7 +12,7 @@ const {
     suggestDoctorForWalkin,
     getOptimalSequence
 } = require('../services/dailyOptimizerService');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 
 /**
  * GET /api/analytics/doctor/:doctorId/peak-hours
@@ -110,7 +110,7 @@ router.get('/doctor/:doctorId/hourly-stats', async (req, res) => {
  *       200:
  *         description: Prediction data retrieved successfully
  */
-router.get('/predictions', authenticate, async (req, res) => {
+router.get('/predictions', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const noShowRisk = await predictionService.predictNoShowRisk();
         const churnRisk = await predictionService.predictChurnRisk();
@@ -136,7 +136,7 @@ router.get('/predictions', authenticate, async (req, res) => {
  *       200:
  *         description: Clinic analytics retrieved successfully
  */
-router.get('/clinic', authenticate, async (req, res) => {
+router.get('/clinic', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
         const daysBack = parseInt(req.query.days) || 30;
         const analytics = await peakHoursService.getClinicWideAnalytics(daysBack);
@@ -151,9 +151,14 @@ router.get('/clinic', authenticate, async (req, res) => {
  * GET /api/analytics/doctor/:doctorId/predictive
  * Get predictive analytics for a specific doctor
  */
-router.get('/doctor/:doctorId/predictive', authenticate, async (req, res) => {
+router.get('/doctor/:doctorId/predictive', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { doctorId } = req.params;
+        
+        // Security: Doctors can only see their own analytics
+        if (req.user.role === 'DOCTOR' && req.user.id != doctorId) {
+            return res.status(403).json({ error: 'You can only view your own predictive analytics' });
+        }
         const analysis = await predictionService.getDoctorPredictiveAnalytics(doctorId);
         res.json(analysis);
     } catch (error) {
@@ -166,7 +171,7 @@ router.get('/doctor/:doctorId/predictive', authenticate, async (req, res) => {
  * GET /api/analytics/appointment/:appointmentId/no-show-risk
  * Get no-show risk for a specific appointment
  */
-router.get('/appointment/:appointmentId/no-show-risk', authenticate, async (req, res) => {
+router.get('/appointment/:appointmentId/no-show-risk', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const prediction = await predictionService.predictNoShowProbability(appointmentId);
@@ -181,7 +186,7 @@ router.get('/appointment/:appointmentId/no-show-risk', authenticate, async (req,
  * GET /api/analytics/patient/:patientId/churn-risk
  * Get churn risk for a specific patient
  */
-router.get('/patient/:patientId/churn-risk', authenticate, async (req, res) => {
+router.get('/patient/:patientId/churn-risk', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { patientId } = req.params;
         const prediction = await predictionService.predictChurnRisk(patientId);
@@ -196,7 +201,7 @@ router.get('/patient/:patientId/churn-risk', authenticate, async (req, res) => {
  * GET /api/analytics/optimizer/workloads
  * Get real-time workload/congestion for all active doctors
  */
-router.get('/optimizer/workloads', authenticate, async (req, res) => {
+router.get('/optimizer/workloads', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const workloads = await getDoctorWorkloads();
         res.json(workloads);
@@ -227,9 +232,14 @@ router.post('/optimizer/suggest-doctor', authenticate, async (req, res) => {
  * GET /api/analytics/optimizer/optimal-sequence/:doctorId
  * Get theoretically optimal sequence of waiting patients using DP
  */
-router.get('/optimizer/optimal-sequence/:doctorId', authenticate, async (req, res) => {
+router.get('/optimizer/optimal-sequence/:doctorId', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { doctorId } = req.params;
+        
+        // Security: Doctors can only optimize their own sequence
+        if (req.user.role === 'DOCTOR' && req.user.id != doctorId) {
+            return res.status(403).json({ error: 'You can only optimize your own appointment sequence' });
+        }
         const result = await getOptimalSequence(doctorId);
         res.json(result);
     } catch (error) {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 const {
     predictConsultationDuration,
     recordConsultationDuration,
@@ -212,7 +212,7 @@ const notificationService = require('../services/notificationService');
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 // Now also records consultation duration for AI prediction training (Issue #48)
-router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
+router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), async (req, res) => {
     const status = (req.body.status || '').toUpperCase();
     const { diagnosis, notes, prescription, follow_up_date, vitals } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
@@ -237,6 +237,12 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
 
         if (!queueRow) {
             throw new Error('Queue entry not found');
+        }
+
+        // SECURITY: Verify this doctor is the one assigned to the appointment
+        if (req.user.id != queueRow.doctor_id) {
+            await conn.rollback();
+            return res.status(403).json({ message: 'You are not authorized to manage this queue' });
         }
 
         const doctorName = `Dr. ${queueRow.doc_first} ${queueRow.doc_last}`;
@@ -700,7 +706,7 @@ router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
 });
 
 // POST /api/appointments/waitlist/cleanup - Clean up expired entries (admin/cron)
-router.post('/waitlist/cleanup', async (req, res) => {
+router.post('/waitlist/cleanup', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
         const result = await waitlistService.cleanupExpired();
         res.json({ message: 'Cleanup complete', ...result });

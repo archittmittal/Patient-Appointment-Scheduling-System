@@ -363,7 +363,7 @@ router.get('/:id/delay-status', async (req, res) => {
 });
 
 // POST /api/doctors/:id/delay — set manual delay
-router.post('/:id/delay', authenticate, async (req, res) => {
+router.post('/:id/delay', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const { delayMins, reason } = req.body;
@@ -401,7 +401,7 @@ router.get('/:id/delay/check', async (req, res) => {
 });
 
 // GET /api/doctors/:id/delay/analytics — get delay analytics
-router.get('/:id/delay/analytics', authenticate, async (req, res) => {
+router.get('/:id/delay/analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const days = parseInt(req.query.days) || 30;
@@ -422,7 +422,7 @@ router.get('/:id/delay/analytics', authenticate, async (req, res) => {
 // ==================== Issue #41: Waitlist Endpoints (Doctor Side) ====================
 
 // GET /api/doctors/:id/waitlist - Get waitlist for this doctor
-router.get('/:id/waitlist', authenticate, async (req, res) => {
+router.get('/:id/waitlist', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { date } = req.query;
         const entries = await waitlistService.getDoctorWaitlist(parseInt(req.params.id), date);
@@ -434,7 +434,7 @@ router.get('/:id/waitlist', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-settings - Get auto-fill settings
-router.get('/:id/autofill-settings', authenticate, async (req, res) => {
+router.get('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const settings = await waitlistService.getAutoFillSettings(parseInt(req.params.id));
         res.json(settings);
@@ -445,7 +445,7 @@ router.get('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // PUT /api/doctors/:id/autofill-settings - Update auto-fill settings
-router.put('/:id/autofill-settings', authenticate, async (req, res) => {
+router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { enabled, offerWindowMins, minNoticeHours, maxOffersPerSlot, priorityMode } = req.body;
         
@@ -465,7 +465,7 @@ router.put('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-analytics - Get auto-fill analytics
-router.get('/:id/autofill-analytics', authenticate, async (req, res) => {
+router.get('/:id/autofill-analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
