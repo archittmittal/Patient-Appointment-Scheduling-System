@@ -77,10 +77,21 @@ const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
-        // Allow whitelisted origins
+        
+        // 1. Allow whitelisted origins
         if (whitelist.indexOf(origin) !== -1) return callback(null, true);
-        // Allow all Vercel preview/production deployments
+        
+        // 2. Allow all localhost/127.0.0.1 variants for development
+        if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            return callback(null, true);
+        }
+        
+        // 3. Allow all Vercel deployments (previews and production)
         if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+        
+        // 4. In development, be permissive if needed
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+
         callback(new Error('Not allowed by CORS'));
     },
     credentials: true
