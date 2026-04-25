@@ -133,6 +133,9 @@ const Login = () => {
                                 Don't have an account?{' '}
                                 <Link to="/register" className="text-primary font-semibold hover:underline">Create account</Link>
                             </p>
+                            <p className="mt-4 text-[10px] text-[var(--text-base)]/40 font-bold uppercase tracking-widest">
+                                Doctor or Admin? Access is managed by your institution.
+                            </p>
                         </div>
                     </div>
 
