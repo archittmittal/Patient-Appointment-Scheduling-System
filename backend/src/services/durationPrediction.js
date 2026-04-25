@@ -274,8 +274,8 @@ async function recordConsultationDuration({
         const alpha = 0.1; // Smoothing factor
 
         const [currentPatient] = await db.query(
-            "SELECT a.consultation_start FROM live_queue lq JOIN appointments a ON lq.appointment_id = a.id WHERE lq.doctor_id = ? AND lq.status = 'IN_PROGRESS' LIMIT 1",
-            [appt.doctor_id]
+            "SELECT a.consultation_start FROM live_queue lq JOIN appointments a ON lq.appointment_id = a.id WHERE a.doctor_id = ? AND lq.status = 'IN_PROGRESS' LIMIT 1",
+            [doctorId]
         );
 
         const [[currentAvg]] = await conn.query(

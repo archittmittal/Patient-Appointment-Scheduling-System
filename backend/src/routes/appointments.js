@@ -83,7 +83,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
 
         const [result] = await db.query(
             'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp]
+            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
         );
 
         // Add to live queue only if appointment is today
