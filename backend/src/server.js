@@ -86,8 +86,10 @@ const corsOptions = {
             return callback(null, true);
         }
         
-        // 3. Allow all Vercel deployments (previews and production)
-        if (/\.vercel\.app$/.test(origin)) return callback(null, true);
+        // 3. Allow all Vercel and Hugging Face deployments
+        if (/\.vercel\.app$/.test(origin) || /\.hf\.space$/.test(origin)) {
+            return callback(null, true);
+        }
         
         // 4. In development, be permissive if needed
         if (process.env.NODE_ENV !== 'production') return callback(null, true);
