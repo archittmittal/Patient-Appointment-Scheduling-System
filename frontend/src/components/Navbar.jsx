@@ -24,6 +24,12 @@ const Navbar = () => {
     const name = user ? `${user.first_name} ${user.last_name}`.trim() : '';
     const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : '';
     
+    const ROLE_PORTAL_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Medical Portal', ADMIN: 'System Control' };
+    const ROLE_COLOR = { PATIENT: 'text-patient', DOCTOR: 'text-doctor', ADMIN: 'text-admin' };
+    const ROLE_BG = { PATIENT: 'bg-patient', DOCTOR: 'bg-doctor', ADMIN: 'bg-admin' };
+    const ROLE_SHADOW = { PATIENT: 'shadow-patient/20', DOCTOR: 'shadow-doctor/20', ADMIN: 'shadow-admin/20' };
+    const ROLE_AVATAR_COLOR = { PATIENT: '0071e3', DOCTOR: '0f766e', ADMIN: '6d28d9' };
+    
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -129,12 +135,14 @@ const Navbar = () => {
     return (
         <header className="glass-nav sticky top-0 z-50 px-8 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate(user ? (user.role === 'DOCTOR' ? '/doctor-dashboard' : (user.role === 'ADMIN' ? '/admin-dashboard' : '/patient-dashboard')) : '/doctors')}>
-                <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 transition-all duration-300">
+                <div className={`w-10 h-10 ${ROLE_BG[user?.role] || 'bg-primary'} rounded-2xl flex items-center justify-center shadow-lg ${ROLE_SHADOW[user?.role] || 'shadow-primary/20'} group-hover:scale-105 transition-all duration-300`}>
                     <Activity className="text-white" size={20} />
                 </div>
                 <div>
                     <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">HealthSync</h2>
-                    <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mt-1">{user ? `${roleLabel} Portal` : 'Patient Care'}</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${ROLE_COLOR[user?.role] || 'text-primary/60'}`}>
+                        {user ? ROLE_PORTAL_LABEL[user.role] : 'Patient Care'}
+                    </p>
                 </div>
             </div>
 
@@ -209,11 +217,11 @@ const Navbar = () => {
                             <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 pl-3 pr-1 hover:bg-slate-100 rounded-full p-1 transition-all border border-transparent hover:border-slate-200">
                                 <div className="text-right hidden sm:block">
                                     <p className="text-[11px] font-bold text-slate-900 leading-none">{user?.first_name}</p>
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">{roleLabel}</p>
+                                    <p className={`text-[9px] font-bold uppercase tracking-wider mt-1 ${ROLE_COLOR[user?.role] || 'text-slate-500'}`}>{ROLE_PORTAL_LABEL[user?.role] || roleLabel}</p>
                                 </div>
-                                <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+                                <div className={`w-9 h-9 ${ROLE_BG[user?.role] || 'bg-primary'}/10 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm`}>
                                     <img 
-                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=e8f2ff&color=0071e3&bold=true`} 
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=${ROLE_AVATAR_COLOR[user?.role] || '0071e3'}&bold=true`} 
                                         alt="User" 
                                         className="w-full h-full object-cover"
                                     />

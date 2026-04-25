@@ -161,6 +161,12 @@ const Register = () => {
                         Already have an account?{' '}
                         <Link to="/login" className="text-primary font-semibold hover:underline">Sign in instead</Link>
                     </p>
+
+                    <div className="mt-6 text-center">
+                        <p className="text-[10px] text-[var(--text-base)]/30 font-bold uppercase tracking-[0.2em]">
+                            Note: This registration is for Patients only. Doctor or Admin? Access is managed by your institution.
+                        </p>
+                    </div>
                 </div>
             </div>
             

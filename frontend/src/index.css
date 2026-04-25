@@ -7,6 +7,11 @@
   --color-primary: #0071e3;
   --color-primary-hover: #0077ed;
   --color-primary-light: #e8f2ff;
+
+  /* Role-Specific Primary Colors */
+  --color-patient: #0071e3;
+  --color-doctor: #0f766e;
+  --color-admin: #6d28d9;
   
   --color-bg-apple: #f5f5f7;
   --color-surface: #ffffff;

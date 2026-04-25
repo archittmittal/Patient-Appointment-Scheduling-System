@@ -34,9 +34,10 @@ function authenticate(req, res, next) {
  * Middleware factory: require a specific role.
  * Usage: requireRole('ADMIN')
  */
-function requireRole(role) {
+function requireRole(roles) {
+    const authorizedRoles = Array.isArray(roles) ? roles : [roles];
     return (req, res, next) => {
-        if (!req.user || req.user.role !== role) {
+        if (!req.user || !authorizedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Insufficient permissions' });
         }
         next();
