@@ -6,7 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const walkinPriorityService = require('../services/walkinPriorityService');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
+const pool = require('../config/db');
 
 /**
  * POST /api/walkin/register
@@ -72,10 +73,14 @@ router.get('/next/:doctorId', authenticate, async (req, res) => {
  * POST /api/walkin/:walkinId/call
  * Call a walk-in patient
  */
-router.post('/:walkinId/call', authenticate, async (req, res) => {
+router.post('/:walkinId/call', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { walkinId } = req.params;
-        const doctorId = req.body.doctorId || req.user.id;
+        const doctorId = req.user.role === 'DOCTOR' ? req.user.id : (req.body.doctorId || null);
+
+        if (!doctorId && req.user.role === 'DOCTOR') {
+            return res.status(400).json({ error: 'Doctor ID is required' });
+        }
 
         const result = await walkinPriorityService.callWalkin(walkinId, doctorId);
         res.json(result);
@@ -89,7 +94,7 @@ router.post('/:walkinId/call', authenticate, async (req, res) => {
  * POST /api/walkin/:walkinId/complete
  * Complete a walk-in consultation
  */
-router.post('/:walkinId/complete', authenticate, async (req, res) => {
+router.post('/:walkinId/complete', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { walkinId } = req.params;
         const result = await walkinPriorityService.completeWalkin(walkinId);
@@ -104,7 +109,7 @@ router.post('/:walkinId/complete', authenticate, async (req, res) => {
  * PUT /api/walkin/:walkinId/urgency
  * Update urgency level
  */
-router.put('/:walkinId/urgency', authenticate, async (req, res) => {
+router.put('/:walkinId/urgency', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { walkinId } = req.params;
         const { urgencyLevel, reason } = req.body;
@@ -121,9 +126,9 @@ router.put('/:walkinId/urgency', authenticate, async (req, res) => {
  * GET /api/walkin/stats
  * Get walk-in statistics
  */
-router.get('/stats', authenticate, async (req, res) => {
+router.get('/stats', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
-        const doctorId = req.query.doctorId || null;
+        const doctorId = req.user.role === 'DOCTOR' ? req.user.id : (req.query.doctorId || null);
         const stats = await walkinPriorityService.getWalkinStats(doctorId);
         res.json(stats);
     } catch (error) {
@@ -140,6 +145,14 @@ router.delete('/:walkinId', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
         const { reason } = req.body;
+
+        // If patient, verify ownership
+        if (req.user.role === 'PATIENT') {
+            const [walkin] = await pool.query('SELECT patient_id FROM walkin_queue WHERE id = ?', [walkinId]);
+            if (!walkin || walkin.length === 0 || walkin[0].patient_id !== req.user.id) {
+                return res.status(403).json({ error: 'You can only cancel your own walk-in registration' });
+            }
+        }
 
         const result = await walkinPriorityService.cancelWalkin(walkinId, reason);
         res.json(result);
