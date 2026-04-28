@@ -6,3 +6,6 @@ dist/
 build/
 *.log
 .DS_Store
+
+# Local helper output and caches
+frontend/build_log*.txt
