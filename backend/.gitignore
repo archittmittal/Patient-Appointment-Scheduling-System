@@ -1,2 +1,8 @@
 node_modules/
 .env
+
+# Local debug artifacts
+server.log
+test_endpoints.js
+test_eta.js
+test_tidb.js
