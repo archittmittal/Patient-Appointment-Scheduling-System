@@ -392,9 +392,9 @@ Queue update: 2s       →    Queue update: <500ms
 
 ---
 
-## 🗺️ 22-Week Roadmap
+## 🗺️ Contribution Roadmap
 
-### Week 1: 🔵 Security Foundation (5 Issues)
+### Security Foundation
 - Issue #127: Rate Limiting
 - Issue #128: Input Validation
 - Issue #129: CORS Hardening
@@ -403,7 +403,7 @@ Queue update: 2s       →    Queue update: <500ms
 
 **Goal:** Secure all endpoints against common attacks
 
-### Week 2: 🟣 Test Coverage (4 Issues)
+### Test Coverage
 - Issue #132: Appointment Tests
 - Issue #133: Queue Tests
 - Issue #134: Auth Tests
@@ -411,7 +411,7 @@ Queue update: 2s       →    Queue update: <500ms
 
 **Goal:** Achieve 80%+ code coverage
 
-### Week 3: 🌸 Architecture Refactoring (7 Issues)
+### Architecture Refactoring
 - Issue #136: Fix DoctorAnalytics Route
 - Issue #137: Decompose NotificationService
 - Issue #138: Fix N+1 Queries
@@ -422,7 +422,7 @@ Queue update: 2s       →    Queue update: <500ms
 
 **Goal:** Clean up technical debt
 
-### Week 4+: 🔷 Feature Completion (6 Issues)
+### Feature Completion
 - Issue #143: Cron Scheduler
 - Issue #144: SSE Reconnection
 - Issue #145: Medical Record Export
@@ -431,6 +431,28 @@ Queue update: 2s       →    Queue update: <500ms
 - Issue #148: Verify Known Issues
 
 **Goal:** Complete remaining features
+
+### For First-Time Contributors
+1. Read [README.md](README.md) - Project overview
+2. Read [CONTRIBUTING.md](CONTRIBUTING.md) - Guidelines
+3. Look for issues labeled `good first issue`
+4. Start with a small, well-scoped issue before moving to security or architecture work
+
+### For Experienced Developers
+1. Review the issue list in GitHub
+2. Pick from the `help wanted` issues that match your skill set
+3. Follow [CONTRIBUTING.md](CONTRIBUTING.md) workflow
+4. Set up development environment (5 min)
+5. Create feature branch and start coding
+
+### For Test Infrastructure
+1. Review current test setup in `__tests__/` folders
+2. Start with Issue #132 (Appointment Tests)
+3. Set up Jest + Supertest for backend
+4. Set up React Testing Library for frontend
+5. Aim for 80%+ coverage across the core flows
+
+**Next Review:** After the first security milestone
 
 ---
 
@@ -503,11 +525,11 @@ Incident Response:    <1h
 1. Read [README.md](README.md) - Project overview
 2. Read [CONTRIBUTING.md](CONTRIBUTING.md) - Guidelines
 3. Look for issues labeled `good first issue`
-4. Start with Issue #136 (DoctorAnalytics - 1h) or Issue #130 (JWT - 1h)
+4. Start with a small, well-scoped issue before moving to security or architecture work
 
 ### For Experienced Developers
-1. Review [GITHUB_ISSUES_SUMMARY.md](GITHUB_ISSUES_SUMMARY.md)
-2. Pick from Week 1-2 issues (security + testing priority)
+1. Review the issue list in GitHub
+2. Pick from the `help wanted` issues that match your skill set
 3. Follow [CONTRIBUTING.md](CONTRIBUTING.md) workflow
 4. Set up development environment (5 min)
 5. Create feature branch and start coding
@@ -517,7 +539,7 @@ Incident Response:    <1h
 2. Start with Issue #132 (Appointment Tests)
 3. Set up Jest + Supertest for backend
 4. Set up React Testing Library for frontend
-5. Aim for 80%+ coverage by Issue #135
+5. Aim for 80%+ coverage across the core flows
 
 ---
 
@@ -534,5 +556,5 @@ Incident Response:    <1h
 
 **Last Updated:** 28 April 2026  
 **Status:** Active Development  
-**Next Review:** After Week 1 completion  
+**Next Review:** After the first security milestone  
 **Maintained By:** Archit Mittal
