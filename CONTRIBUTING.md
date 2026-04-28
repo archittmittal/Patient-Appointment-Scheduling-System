@@ -1,3 +1,19 @@
+### By Contribution Fit
+
+| Label | Color | Best For | Typical Effort |
+|-------|-------|----------|----------------|
+| `good first issue` | 🟢 Green | New contributors, small fixes, docs | 30min-4h |
+| `help wanted` | 🔵 Blue | Community contributions with guidance | 2-10h |
+| `needs triage` | 🟡 Yellow | Issues that need more detail or verification | Varies |
+
+**Difficulty Labels for Contributors:**
+3. Look for issues labeled `good first issue`
+4. Start with a small bug fix or documentation issue before tackling larger security or architecture work
+
+2. Pick from the `help wanted` issues that match your skill set
+3. Set up React Testing Library for frontend
+4. Aim for 80%+ coverage across the core flows
+
 # 🤝 Contributing to HealthSync Premium
 
 Thank you for your interest in contributing to HealthSync Premium! We're excited to have you join our community. This guide will help you understand how to contribute effectively.
@@ -137,7 +153,7 @@ cd frontend && npm run dev  # Frontend
 ```
 
 **Recommended first contributions:**
-1. Issue #136 - Fix DoctorAnalytics typo (1h)
+1. Small, well-scoped issue labeled `good first issue`
 2. Issue #138 - Fix N+1 queries (2-3h)
 3. Documentation improvements (30min-1h)
 
@@ -256,16 +272,15 @@ gh pr create --title "feat: add rate limiting (#127)" \
 | `priority:medium` | 🟡 | Next week | 1-2 days |
 | `priority:low` | 🟢 | Backlog | <1 day |
 
-### By Week (Roadmap)
+### By Contribution Fit
 
-| Label | Color | Focus Area | When |
-|-------|-------|-----------|------|
-| `week:week-1` | 🔵 Blue | Security | Week 1 |
-| `week:week-2` | 🟣 Purple | Testing | Week 2 |
-| `week:week-3` | 🌸 Pink | Architecture | Week 3 |
-| `week:week-4` | 🔷 Cyan | Features | Week 4+ |
+| Label | Color | Best For | Typical Effort |
+|-------|-------|----------|----------------|
+| `good first issue` | 🟢 Green | New contributors, small fixes, docs | 30min-4h |
+| `help wanted` | 🔵 Blue | Community contributions with guidance | 2-10h |
+| `needs triage` | 🟡 Yellow | Issues that need more detail or verification | Varies |
 
-**Difficulty Labels for Beginners:**
+**Difficulty Labels for Contributors:**
 
 ```
 ⭐ Good First Issue
@@ -786,7 +801,7 @@ Project updates, career opportunities
 ### Common Questions
 
 **Q: How do I find an issue to work on?**  
-A: Filter issues by `good first issue` label or choose from [Week 1 issues](#week-1---security-foundation). Start with issues marked as "help wanted" or "documentation".
+A: Filter issues by `good first issue` or `help wanted`. Start with a small, well-scoped issue and read the checklist before you begin.
 
 **Q: Can I work on multiple issues?**  
 A: Start with one! Once you're comfortable, you can work on 2-3 if they're independent.
