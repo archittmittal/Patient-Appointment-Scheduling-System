@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 import PredictiveAnalytics from '../components/PredictiveAnalytics';
-import { BarChart3, Clock, TrendingUp, Sparkles, ShieldCheck } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 const DoctorAnalytics = () => {
     const { user } = useAuth();
@@ -22,7 +22,7 @@ const DoctorAnalytics = () => {
                         </div>
                         <div>
                             <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic">Intelligence</h1>
-                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Clinical performance engine • Active</p>
+                            <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Clinical performance engine • Activating</p>
                         </div>
                     </div>
                     <p className="text-slate-500 font-bold max-w-lg leading-relaxed">
@@ -32,7 +32,7 @@ const DoctorAnalytics = () => {
                 <div className="flex items-center gap-3">
                     <span className="px-6 py-2 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest border border-primary/20 flex items-center gap-3 shadow-inner">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(79,70,229,1)]"></span>
-                        Neural Analysis Sync Active
+                        Neural Analysis Sync Activating
                     </span>
                 </div>
             </div>

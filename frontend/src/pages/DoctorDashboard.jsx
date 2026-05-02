@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler, BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 import EmergencyModal from '../components/EmergencyModal';
@@ -192,6 +193,7 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
 
 const DoctorDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [patients, setPatients] = useState([]);
     const [queue, setQueue] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -393,6 +395,14 @@ const DoctorDashboard = () => {
                     >
                         <Clock size={18} strokeWidth={2.5} /> Report Delay
                     </button>
+
+                    <button
+                        onClick={() => navigate('/doctor-analytics')}
+                        className="btn-secondary px-6 flex items-center gap-2"
+                    >
+                        <BarChart3 size={18} strokeWidth={2.5} /> Analytics
+                    </button>
+
                     <div className="glass-card p-4 flex items-center gap-4 border-primary/10">
                         <div className="w-12 h-12 rounded-2xl bg-primary-light/30 flex items-center justify-center text-primary shadow-inner">
                             <Calendar size={24} strokeWidth={2.5} />
