@@ -69,17 +69,36 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(helmet());
 
 // Strict CORS
-const whitelist = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : ['http://localhost:5173'];
+function normalizeOrigin(value) {
+    if (!value) return null;
+
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    try {
+        return new URL(trimmed).origin;
+    } catch {
+        return trimmed;
+    }
+}
+
+const whitelist = new Set([
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+    process.env.APP_URL,
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+].map(normalizeOrigin).filter(Boolean));
 
 const corsOptions = {
     origin: function (origin, callback) {
         // Allow requests with no origin (mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
         
+        const normalizedOrigin = normalizeOrigin(origin);
+
         // 1. Allow whitelisted origins
-        if (whitelist.indexOf(origin) !== -1) return callback(null, true);
+        if (whitelist.has(normalizedOrigin)) return callback(null, true);
         
         // 2. Allow all localhost/127.0.0.1 variants for development
         if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
