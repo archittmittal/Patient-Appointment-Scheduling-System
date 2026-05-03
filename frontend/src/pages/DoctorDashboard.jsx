@@ -31,6 +31,28 @@ const EMPTY_NOTES = {
 
 const NotesModal = ({ item, onSave, onClose, saving }) => {
     const [form, setForm] = useState(EMPTY_NOTES);
+    const [previousVitals, setPreviousVitals] = useState(null);
+    const [loadingVitals, setLoadingVitals] = useState(true);
+
+    useEffect(() => {
+        const fetchPrevious = async () => {
+            try {
+                const res = await fetch(`${API}/api/patients/${item.patient_id}/vitals`, {
+                    headers: authedHeaders()
+                });
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    setPreviousVitals(data[data.length - 1]);
+                }
+            } catch (err) {
+                console.error('Failed to fetch previous vitals:', err);
+            } finally {
+                setLoadingVitals(false);
+            }
+        };
+        fetchPrevious();
+    }, [item.patient_id]);
+
     const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
     const changeVitals = e => {
         const { name, value } = e.target;
@@ -112,6 +134,29 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                             />
                         </div>
                     </div>
+
+                    {previousVitals && (
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Previous Vitals</p>
+                                <p className="text-[10px] font-bold text-slate-400">{new Date(previousVitals.recorded_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.blood_pressure_sys}/{previousVitals.blood_pressure_dia}</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">BP</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.heart_rate} bpm</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">Pulse</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.temperature_c}°C</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">Temp</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="space-y-4 pt-4 border-t border-[var(--border-base)]/10">
                         <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Vitals Checklist</label>

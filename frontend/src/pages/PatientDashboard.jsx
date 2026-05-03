@@ -131,7 +131,8 @@ const PatientDashboard = () => {
     }
 
     const nextApt = stats.upcoming?.[0];
-    const latestVitals = stats.vitals?.[0];
+    const latestVitals = stats.vitals && stats.vitals.length > 0 ? stats.vitals[stats.vitals.length - 1] : null;
+    const recentPrescriptions = stats.prescriptions && stats.prescriptions.length > 0 ? stats.prescriptions.slice(0, 2) : [];
 
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24 animate-in fade-in duration-1000">
@@ -190,6 +191,36 @@ const PatientDashboard = () => {
                                 <button onClick={() => navigate('/book')} className="mt-4 text-primary font-bold hover:underline">Book one now</button>
                             </div>
                         )}
+                    </div>
+
+                    {/* Current Medications Widget */}
+                    <div className="px-4">
+                        <div className="flex items-center justify-between mb-6 ml-1">
+                            <div className="flex items-center gap-2">
+                                <Pill size={16} className="text-indigo-500" />
+                                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Active Medications</h2>
+                            </div>
+                            <button onClick={() => navigate('/prescriptions')} className="text-xs font-bold text-primary hover:underline">View History</button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {recentPrescriptions.length > 0 ? (
+                                recentPrescriptions.map(p => (
+                                    <div key={p.id} className="p-6 bg-indigo-50/30 rounded-3xl border border-indigo-100/50 flex items-center gap-4 group hover:bg-indigo-50 transition-all">
+                                        <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-500 shadow-sm group-hover:scale-110 transition-transform">
+                                            <Pill size={20} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-slate-900 leading-tight truncate">{p.medications.split('\n')[0]}</h4>
+                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Dr. {p.doctor_first_name} • {new Date(p.date_prescribed).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <p className="text-sm text-slate-400 italic">No active prescriptions on file.</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Quick Actions */}
@@ -252,7 +283,7 @@ const PatientDashboard = () => {
                                 </div>
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <p className="text-3xl font-bold text-slate-900 leading-none">{latestVitals.temperature || '--'}<span className="text-base font-medium text-slate-400 ml-1">°F</span></p>
+                                        <p className="text-3xl font-bold text-slate-900 leading-none">{latestVitals.temperature_c || '--'}<span className="text-base font-medium text-slate-400 ml-1">°C</span></p>
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Temperature</p>
                                     </div>
                                     <Thermometer className="text-amber-400" size={24} />

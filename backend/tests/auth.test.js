@@ -2,7 +2,7 @@ const request = require('supertest');
 const app = require('../src/server');
 const db = require('../src/config/db');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../src/middleware/authenticate');
+const { jwtSecret } = require('../src/middleware/authenticate');
 
 // Mock the database
 const mockConn = {
