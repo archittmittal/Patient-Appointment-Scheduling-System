@@ -41,10 +41,11 @@ async function sendNotification(userId, type, templateData, options = {}) {
     const smsText = templateService.processTemplate(template.sms_template, templateData);
     
     // 5. Get user details for contact info
-    const [[user]] = await pool.query(
+    const [userRows] = await pool.query(
         'SELECT email, phone FROM users WHERE id = ?',
         [userId]
     );
+    const user = userRows[0];
     
     // 6. Create notification record
     const [notifResult] = await pool.query(
@@ -172,7 +173,8 @@ module.exports = {
         return { success: true };
     },
     getUnreadCount: async (userId) => {
-        const [[result]] = await pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL', [userId]);
+        const [countRows] = await pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL', [userId]);
+        const result = countRows[0];
         return result.count;
     }
 };

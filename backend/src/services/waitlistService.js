@@ -113,13 +113,15 @@ async function getDoctorWaitlist(doctorId, date = null) {
  */
 async function handleSlotRelease(appointmentId, releaseType) {
     // Get appointment details
-    const [[appointment]] = await pool.query(
+    const result = await pool.query(
         `SELECT a.*, d.id as doctor_id 
          FROM appointments a
          JOIN doctors d ON a.doctor_id = d.id
          WHERE a.id = ?`,
         [appointmentId]
     );
+    
+    const appointment = (result && Array.isArray(result[0])) ? result[0][0] : undefined;
 
     if (!appointment) {
         return { success: false, error: 'Appointment not found' };
@@ -135,10 +137,11 @@ async function handleSlotRelease(appointmentId, releaseType) {
     );
 
     // Check if auto-fill is enabled for this doctor
-    const [[settings]] = await pool.query(
+    const [settingsRows] = await pool.query(
         `SELECT * FROM autofill_settings WHERE doctor_id = ?`,
         [doctor_id]
     );
+    const settings = settingsRows[0];
 
     if (!settings || !settings.enabled) {
         return { success: true, autoFillAttempted: false, reason: 'Auto-fill disabled for doctor' };
@@ -220,13 +223,14 @@ async function handleSlotRelease(appointmentId, releaseType) {
  */
 async function acceptSlotOffer(offerId, patientId) {
     // Get offer and verify ownership
-    const [[offer]] = await pool.query(
+    const [offerRows] = await pool.query(
         `SELECT so.*, w.patient_id, w.doctor_id
          FROM slot_offers so
          JOIN waitlist w ON so.waitlist_id = w.id
          WHERE so.id = ? AND w.patient_id = ?`,
         [offerId, patientId]
     );
+    const offer = offerRows[0];
 
     if (!offer) {
         return { success: false, error: 'Offer not found' };
@@ -242,11 +246,12 @@ async function acceptSlotOffer(offerId, patientId) {
     }
 
     // Check if slot is still available
-    const [[existingAppointment]] = await pool.query(
+    const [existingRows] = await pool.query(
         `SELECT id FROM appointments 
          WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status != 'CANCELLED'`,
         [offer.doctor_id, offer.offered_date, offer.offered_time]
     );
+    const existingAppointment = existingRows[0];
 
     if (existingAppointment) {
         await pool.query(`UPDATE slot_offers SET offer_status = 'EXPIRED' WHERE id = ?`, [offerId]);
@@ -310,13 +315,14 @@ async function acceptSlotOffer(offerId, patientId) {
  * Decline a slot offer
  */
 async function declineSlotOffer(offerId, patientId) {
-    const [[offer]] = await pool.query(
+    const [declineOfferRows] = await pool.query(
         `SELECT so.*, w.patient_id
          FROM slot_offers so
          JOIN waitlist w ON so.waitlist_id = w.id
          WHERE so.id = ? AND w.patient_id = ?`,
         [offerId, patientId]
     );
+    const offer = declineOfferRows[0];
 
     if (!offer) {
         return { success: false, error: 'Offer not found' };
@@ -389,10 +395,11 @@ async function updateAutoFillSettings(doctorId, settings) {
  * Get doctor's auto-fill settings
  */
 async function getAutoFillSettings(doctorId) {
-    const [[settings]] = await pool.query(
+    const [autoFillRows] = await pool.query(
         `SELECT * FROM autofill_settings WHERE doctor_id = ?`,
         [doctorId]
     );
+    const settings = autoFillRows[0];
 
     return settings || {
         doctor_id: doctorId,

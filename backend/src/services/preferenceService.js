@@ -8,10 +8,11 @@ const preferenceService = {
      * Get user notification preferences
      */
     async getUserPreferences(userId) {
-        const [[prefs]] = await pool.query(
+        const [prefsRows] = await pool.query(
             'SELECT * FROM notification_preferences WHERE user_id = ?',
             [userId]
         );
+        const prefs = prefsRows[0];
         
         if (!prefs) {
             return {

@@ -175,24 +175,32 @@ router.get('/appointments', async (req, res) => {
 // GET /api/admin/stats — extended overview stats
 router.get('/stats', async (req, res) => {
     try {
-        const [[{ total_doctors }]] = await db.query('SELECT COUNT(*) AS total_doctors FROM doctors');
-        const [[{ total_patients }]] = await db.query('SELECT COUNT(*) AS total_patients FROM patients');
-        const [[{ total_appointments }]] = await db.query('SELECT COUNT(*) AS total_appointments FROM appointments');
-        const [[{ today_total }]] = await db.query(
+        const [_rows1] = await db.query('SELECT COUNT(*) AS total_doctors FROM doctors');
+        const { total_doctors } = _rows1[0] || {};
+        const [_rows2] = await db.query('SELECT COUNT(*) AS total_patients FROM patients');
+        const { total_patients } = _rows2[0] || {};
+        const [_rows3] = await db.query('SELECT COUNT(*) AS total_appointments FROM appointments');
+        const { total_appointments } = _rows3[0] || {};
+        const [_rows4] = await db.query(
             "SELECT COUNT(*) AS today_total FROM appointments WHERE appointment_date = CURDATE()"
         );
-        const [[{ today_confirmed }]] = await db.query(
+        const { today_total } = _rows4[0] || {};
+        const [_rows5] = await db.query(
             "SELECT COUNT(*) AS today_confirmed FROM appointments WHERE appointment_date = CURDATE() AND status = 'CONFIRMED'"
         );
-        const [[{ today_completed }]] = await db.query(
+        const { today_confirmed } = _rows5[0] || {};
+        const [_rows6] = await db.query(
             "SELECT COUNT(*) AS today_completed FROM appointments WHERE appointment_date = CURDATE() AND status = 'COMPLETED'"
         );
-        const [[{ today_pending }]] = await db.query(
+        const { today_completed } = _rows6[0] || {};
+        const [_rows7] = await db.query(
             "SELECT COUNT(*) AS today_pending FROM appointments WHERE appointment_date = CURDATE() AND status = 'PENDING'"
         );
-        const [[{ today_cancelled }]] = await db.query(
+        const { today_pending } = _rows7[0] || {};
+        const [_rows8] = await db.query(
             "SELECT COUNT(*) AS today_cancelled FROM appointments WHERE appointment_date = CURDATE() AND status = 'CANCELLED'"
         );
+        const { today_cancelled } = _rows8[0] || {};
 
         // Top 5 doctors by appointment count today
         const [top_doctors_today] = await db.query(`
@@ -247,10 +255,11 @@ router.get('/queue-overview', async (req, res) => {
             const counts = { WAITING: 0, IN_PROGRESS: 0, COMPLETED: 0, MISSED: 0 };
             queue.forEach(q => { counts[q.queue_status] = (counts[q.queue_status] || 0) + 1; });
 
-            const [[{ total_today }]] = await db.query(
+            const [_rows9] = await db.query(
                 'SELECT COUNT(*) AS total_today FROM appointments WHERE doctor_id = ? AND appointment_date = CURDATE()',
                 [doc.id]
             );
+            const { total_today } = _rows9[0] || {};
 
             result.push({
                 doctor_id: doc.id,

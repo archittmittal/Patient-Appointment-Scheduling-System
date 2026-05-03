@@ -312,10 +312,11 @@ router.get('/:id/weekly-schedule', async (req, res) => {
         );
 
         // Doctor availability + capacity
-        const [[doctor]] = await db.query(
+        const [doctorRows] = await db.query(
             'SELECT availability, max_patients_per_slot FROM doctors WHERE id = ?',
             [req.params.id]
         );
+        const doctor = doctorRows[0];
 
         // Blocked dates in this range
         const [blocked] = await db.query(
