@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, Users, User, Calendar, Activity, LogOut, ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, Route, AlarmClock, MessageSquare, BarChart3, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const PATIENT_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/patient-dashboard' },
     { name: 'Find a Doctor', icon: Users, path: '/doctors' },
     { name: 'Book Appointment', icon: Calendar, path: '/book' },
+    { name: 'Insurance', icon: Shield, path: '/insurance' },
     { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
     { name: 'Batch Appointments', icon: Layers, path: '/batch-appointments' },
     { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
@@ -28,6 +29,7 @@ const ADMIN_MENU = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin-dashboard' },
     { name: 'Manage Users', icon: Users, path: '/admin-users' },
     { name: 'All Appointments', icon: ClipboardList, path: '/admin-appointments' },
+    { name: 'Insurance Portal', icon: Shield, path: '/admin/insurance' },
 ];
 
 const ROLE_MENU = { PATIENT: PATIENT_MENU, DOCTOR: DOCTOR_MENU, ADMIN: ADMIN_MENU };

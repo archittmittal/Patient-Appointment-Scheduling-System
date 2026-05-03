@@ -17,6 +17,7 @@ const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
+const insuranceRoutes = require('./routes/insurance');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/insurance', insuranceRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

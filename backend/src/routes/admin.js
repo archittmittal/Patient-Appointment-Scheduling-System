@@ -10,6 +10,17 @@ const BCRYPT_ROUNDS = 10;
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
 
+// GET /api/admin/patients/list — simple list of all patients
+router.get('/patients/list', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM patients ORDER BY first_name');
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/admin/users — all users with profile info
 router.get('/users', async (req, res) => {
     try {
