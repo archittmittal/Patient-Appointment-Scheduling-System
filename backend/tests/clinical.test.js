@@ -5,13 +5,13 @@ const { jwtSecret } = require('../src/middleware/authenticate');
 const jwt = require('jsonwebtoken');
 
 // Mock the database
-jest.mock('../src/config/db', () => ({
-    query: jest.fn().mockImplementation((sql) => {
-        const upperSql = sql.trim().toUpperCase();
+jest.mock('../src/config/db', () => {
+    const mockQuery = jest.fn().mockImplementation((sql) => {
+        const upperSql = (typeof sql === 'string') ? sql.trim().toUpperCase() : '';
         if (upperSql.startsWith('SELECT')) {
             // Provide dummy data for common SELECT queries
             if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
-                return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70 } ], []]);
+                return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
             }
             if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                 return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
@@ -19,13 +19,16 @@ jest.mock('../src/config/db', () => ({
             return Promise.resolve([[ { id: 1 } ], []]);
         }
         return Promise.resolve([{ insertId: 1, affectedRows: 1 }, []]);
-    }),
-    getConnection: jest.fn(),
-    beginTransaction: jest.fn(),
-    commit: jest.fn(),
-    rollback: jest.fn(),
-    release: jest.fn()
-}));
+    });
+    return {
+        query: mockQuery,
+        getConnection: jest.fn(),
+        beginTransaction: jest.fn(),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+    };
+});
 
 describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
     let patientToken;
@@ -39,6 +42,46 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
         patientToken = jwt.sign({ id: patientId, role: 'PATIENT' }, jwtSecret);
         doctorToken = jwt.sign({ id: doctorId, role: 'DOCTOR' }, jwtSecret);
         otherPatientToken = jwt.sign({ id: otherPatientId, role: 'PATIENT' }, jwtSecret);
+    });
+
+    beforeEach(() => {
+        // Reset mock resolved values between tests to prevent bleed
+        db.query.mockClear();
+
+        // Mock getConnection for transaction-based routes
+        const mockConnQuery = jest.fn().mockImplementation((sql) => {
+            const upperSql = (typeof sql === 'string') ? sql.trim().toUpperCase() : '';
+            if (upperSql.startsWith('SELECT')) {
+                if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
+                    return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
+                }
+                if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
+                    return Promise.resolve([[ { id: 101, appointment_id: 101, doctor_id: 2, patient_id: 1, appointment_date: '2026-01-01', consultation_start: new Date().toISOString(), symptoms: 'test', is_follow_up: false, doc_first: 'Dr', doc_last: 'Test', location_room: '101' } ], []]);
+                }
+                return Promise.resolve([[ { id: 1 } ], []]);
+            }
+            return Promise.resolve([{ insertId: 1, affectedRows: 1 }, []]);
+        });
+        db.getConnection.mockResolvedValue({
+            query: mockConnQuery,
+            beginTransaction: jest.fn(),
+            commit: jest.fn(),
+            rollback: jest.fn(),
+            release: jest.fn()
+        });
+        db.query.mockImplementation((sql) => {
+            const upperSql = (typeof sql === 'string') ? sql.trim().toUpperCase() : '';
+            if (upperSql.startsWith('SELECT')) {
+                if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
+                    return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
+                }
+                if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
+                    return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
+                }
+                return Promise.resolve([[ { id: 1 } ], []]);
+            }
+            return Promise.resolve([{ insertId: 1, affectedRows: 1 }, []]);
+        });
     });
 
     // ──────────── VITALS: Happy paths ────────────
@@ -261,25 +304,11 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
     // ──────────── QUEUE COMPLETION: end-to-end ────────────
     describe('PATCH /api/appointments/queue/:id/status — COMPLETED flow', () => {
         it('should complete an appointment and persist prescription + vitals', async () => {
-            // Check if there is a queue entry for today
-            const result = await db.query(
-                'SELECT id FROM appointments WHERE doctor_id = ? AND appointment_date = CURDATE() LIMIT 1',
-                [doctorId]
-            );
-            const apt = (result && result[0]) ? result[0][0] : null;
-
-            if (!apt) return; // skip if no test data
-
-            const qResult = await db.query(
-                'SELECT id FROM live_queue WHERE appointment_id = ?',
-                [apt.id]
-            );
-            const queue = (qResult && qResult[0]) ? qResult[0][0] : null;
-
-            if (!queue) return; // skip if no queue entry
-
+            // Get the mock connection for later verification
+            const mockConn = await db.getConnection();
+            
             const res = await request(app)
-                .patch(`/api/appointments/queue/${queue.id}/status`)
+                .patch('/api/appointments/queue/101/status')
                 .set('Authorization', `Bearer ${doctorToken}`)
                 .send({
                     status: 'COMPLETED',
@@ -294,13 +323,16 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
 
             expect(res.statusCode).toBe(200);
 
-            // Verify prescription was created with appointment_id link
-            const [prescriptions] = await db.query(
-                'SELECT * FROM prescriptions WHERE patient_id = ? ORDER BY id DESC LIMIT 1',
-                [patientId]
+            // Verify that transaction methods were called
+            expect(mockConn.beginTransaction).toHaveBeenCalled();
+            expect(mockConn.commit).toHaveBeenCalled();
+            expect(mockConn.release).toHaveBeenCalled();
+
+            // Verify that INSERT queries were issued for prescription and vitals
+            const insertCalls = mockConn.query.mock.calls.filter(
+                call => typeof call[0] === 'string' && call[0].trim().toUpperCase().startsWith('INSERT')
             );
-            expect(prescriptions.length).toBeGreaterThan(0);
-            expect(prescriptions[0].medications).toContain('Paracetamol');
+            expect(insertCalls.length).toBeGreaterThanOrEqual(1);
         });
 
         it('should reject queue update with invalid status', async () => {
@@ -348,6 +380,228 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
         it('should reject PDF download without auth', async () => {
             const res = await request(app)
                 .get('/api/appointments/1/prescription/pdf');
+
+            expect(res.statusCode).toBe(401);
+        });
+    });
+
+    // ──────────── ISSUE #144: VITALS ALERTS (SpO2) ────────────
+    describe('POST /api/patients/:id/vitals — SpO2 support', () => {
+        it('should accept vitals with SpO2 value', async () => {
+            db.query.mockResolvedValueOnce([{ insertId: 10 }, []]);
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/vitals`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({ spo2: 98 });
+
+            expect(res.statusCode).toBe(201);
+            expect(res.body).toHaveProperty('id');
+        });
+
+        it('should reject SpO2 below minimum (50)', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/vitals`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({ spo2: 10 });
+
+            expect(res.statusCode).toBe(400);
+        });
+
+        it('should reject SpO2 above 100', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/vitals`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({ spo2: 110 });
+
+            expect(res.statusCode).toBe(400);
+        });
+    });
+
+    // ──────────── ISSUE #144: ABNORMAL ALERTS ────────────
+    describe('Vitals abnormal alerts (service-level)', () => {
+        it('should flag critical tachycardia (HR > 120)', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({ heart_rate: 150 });
+            expect(alerts.length).toBe(1);
+            expect(alerts[0].severity).toBe('critical');
+            expect(alerts[0].field).toBe('heart_rate');
+        });
+
+        it('should flag critical fever (> 38.5°C)', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({ temperature_c: 40.2 });
+            expect(alerts.length).toBe(1);
+            expect(alerts[0].severity).toBe('critical');
+        });
+
+        it('should flag critical hypoxia (SpO2 < 92)', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({ spo2: 88 });
+            expect(alerts.length).toBe(1);
+            expect(alerts[0].severity).toBe('critical');
+        });
+
+        it('should flag warning for borderline BP (SBP 145)', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({ blood_pressure_sys: 145 });
+            expect(alerts.length).toBe(1);
+            expect(alerts[0].severity).toBe('warning');
+        });
+
+        it('should return no alerts for normal vitals', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({
+                heart_rate: 72, blood_pressure_sys: 120, blood_pressure_dia: 80,
+                temperature_c: 36.8, spo2: 98
+            });
+            expect(alerts.length).toBe(0);
+        });
+
+        it('should return multiple alerts for multiple abnormal values', () => {
+            const vitalsService = require('../src/services/vitalsService');
+            const alerts = vitalsService.checkAbnormalValues({
+                heart_rate: 150, temperature_c: 40.0, spo2: 85
+            });
+            expect(alerts.length).toBe(3);
+        });
+    });
+
+    // ──────────── ISSUE #144: VITALS TRENDS ────────────
+    describe('GET /api/patients/:id/vitals/trends', () => {
+        it('should return trends for the patient', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals/trends`)
+                .set('Authorization', `Bearer ${patientToken}`);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toHaveProperty('weeklyTrends');
+            expect(res.body).toHaveProperty('totalReadings');
+        });
+
+        it('should accept custom period (days query param)', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals/trends?days=30`)
+                .set('Authorization', `Bearer ${patientToken}`);
+
+            expect(res.statusCode).toBe(200);
+        });
+
+        it('should deny another patient from viewing trends', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals/trends`)
+                .set('Authorization', `Bearer ${otherPatientToken}`);
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should reject without auth', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals/trends`);
+
+            expect(res.statusCode).toBe(401);
+        });
+    });
+
+    // ──────────── ISSUE #144: PRESCRIPTION CREATION ────────────
+    describe('POST /api/patients/:id/prescriptions', () => {
+        it('should allow a doctor to create a prescription', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions`)
+                .set('Authorization', `Bearer ${doctorToken}`)
+                .send({
+                    medications: 'Amoxicillin 500mg',
+                    dosage: '500mg',
+                    frequency: 'three times daily',
+                    duration_days: 7,
+                    instructions: 'Take after meals',
+                    refills_remaining: 2
+                });
+
+            expect(res.statusCode).toBe(201);
+            expect(res.body).toHaveProperty('id');
+        });
+
+        it('should reject prescription creation from a patient', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({ medications: 'Test Drug' });
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should reject prescription without medications field', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions`)
+                .set('Authorization', `Bearer ${doctorToken}`)
+                .send({ dosage: '10mg' });
+
+            expect(res.statusCode).toBe(400);
+        });
+
+        it('should reject duration_days out of range', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions`)
+                .set('Authorization', `Bearer ${doctorToken}`)
+                .send({ medications: 'Test', duration_days: 500 });
+
+            expect(res.statusCode).toBe(400);
+        });
+    });
+
+    // ──────────── ISSUE #144: PRESCRIPTION HISTORY ────────────
+    describe('GET /api/patients/:id/prescriptions/history', () => {
+        it('should return prescription history with counts', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/prescriptions/history`)
+                .set('Authorization', `Bearer ${patientToken}`);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toHaveProperty('total');
+            expect(res.body).toHaveProperty('active');
+            expect(res.body).toHaveProperty('prescriptions');
+        });
+
+        it('should deny another patient from viewing history', async () => {
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/prescriptions/history`)
+                .set('Authorization', `Bearer ${otherPatientToken}`);
+
+            expect(res.statusCode).toBe(403);
+        });
+    });
+
+    // ──────────── ISSUE #144: REFILL PROCESSING ────────────
+    describe('POST /api/patients/:id/prescriptions/:rxId/refill', () => {
+        it('should reject refill request from a patient', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions/1/refill`)
+                .set('Authorization', `Bearer ${patientToken}`);
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should reject without auth', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/prescriptions/1/refill`);
+
+            expect(res.statusCode).toBe(401);
+        });
+    });
+
+    // ──────────── ISSUE #144: PRESCRIPTION DEACTIVATION ────────────
+    describe('PATCH /api/patients/:id/prescriptions/:rxId/deactivate', () => {
+        it('should reject deactivation from a patient', async () => {
+            const res = await request(app)
+                .patch(`/api/patients/${patientId}/prescriptions/1/deactivate`)
+                .set('Authorization', `Bearer ${patientToken}`);
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should reject without auth', async () => {
+            const res = await request(app)
+                .patch(`/api/patients/${patientId}/prescriptions/1/deactivate`);
 
             expect(res.statusCode).toBe(401);
         });

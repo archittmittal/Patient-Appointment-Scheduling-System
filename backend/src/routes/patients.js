@@ -182,10 +182,11 @@ const vitalsSchema = Joi.object({
     blood_pressure_sys: Joi.number().min(40).max(300).allow(null),
     blood_pressure_dia: Joi.number().min(30).max(200).allow(null),
     heart_rate: Joi.number().min(30).max(250).allow(null),
-    temperature_c: Joi.number().min(30).max(45).allow(null)
+    temperature_c: Joi.number().min(30).max(45).allow(null),
+    spo2: Joi.number().min(50).max(100).allow(null)
 }).min(1);
 
-// Issue #95: Log new vitals
+// Issue #95: Log new vitals (now with abnormal alerts)
 router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (req, res) => {
     // Both patients (self-logging) and doctors can log vitals
     if (req.user.role !== 'DOCTOR' && req.user.id != req.params.id) {
@@ -197,6 +198,21 @@ router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (r
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error logging vitals' });
+    }
+});
+
+// Issue #144: Get vitals trends and analytics
+router.get('/:id/vitals/trends', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const periodDays = parseInt(req.query.days) || 90;
+        const data = await vitalsService.getVitalsTrends(req.params.id, periodDays);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching vitals trends' });
     }
 });
 
@@ -213,4 +229,83 @@ router.get('/:id/vitals/export', authenticate, async (req, res) => {
     }
 });
 
+// Issue #144: Get full prescription history (including inactive)
+router.get('/:id/prescriptions/history', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+    try {
+        const data = await prescriptionService.getPrescriptionHistory(req.params.id);
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching prescription history' });
+    }
+});
+
+const prescriptionSchema = Joi.object({
+    medications: Joi.string().required().min(1).max(2000),
+    dosage: Joi.string().max(500).allow(null, ''),
+    frequency: Joi.string().max(200).allow(null, ''),
+    duration_days: Joi.number().integer().min(1).max(365).allow(null),
+    instructions: Joi.string().max(2000).allow(null, ''),
+    refills_remaining: Joi.number().integer().min(0).max(12).default(0),
+    appointment_id: Joi.number().integer().allow(null)
+});
+
+// Issue #144: Create a prescription (doctors only)
+router.post('/:id/prescriptions', authenticate, validateRequest(prescriptionSchema), async (req, res) => {
+    if (req.user.role !== 'DOCTOR') {
+        return res.status(403).json({ message: 'Only doctors can create prescriptions' });
+    }
+    try {
+        const { appointment_id, ...prescriptionData } = req.body;
+        const data = await prescriptionService.createPrescription(
+            req.user.id, req.params.id, prescriptionData, appointment_id
+        );
+        if (data.success === false) {
+            return res.status(400).json({ errors: data.errors });
+        }
+        res.status(201).json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error creating prescription' });
+    }
+});
+
+// Issue #144: Process a prescription refill (doctors only)
+router.post('/:id/prescriptions/:rxId/refill', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR') {
+        return res.status(403).json({ message: 'Only doctors can process refills' });
+    }
+    try {
+        const data = await prescriptionService.processRefill(req.params.rxId, req.user.id);
+        if (!data.success) {
+            return res.status(400).json({ message: data.error });
+        }
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error processing refill' });
+    }
+});
+
+// Issue #144: Deactivate a prescription (doctors only)
+router.patch('/:id/prescriptions/:rxId/deactivate', authenticate, async (req, res) => {
+    if (req.user.role !== 'DOCTOR') {
+        return res.status(403).json({ message: 'Only doctors can deactivate prescriptions' });
+    }
+    try {
+        const data = await prescriptionService.deactivatePrescription(req.params.rxId, req.user.id);
+        if (!data.success) {
+            return res.status(404).json({ message: data.message });
+        }
+        res.json(data);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error deactivating prescription' });
+    }
+});
+
 module.exports = router;
+
