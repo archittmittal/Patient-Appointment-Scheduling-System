@@ -3,7 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
-const { JWT_SECRET } = require('../middleware/authenticate');
+const { jwtSecret } = require('../middleware/authenticate');
+const { bcryptRounds } = require('../config/auth');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 
@@ -21,7 +22,7 @@ const registerSchema = Joi.object({
     phone: Joi.string().required()
 });
 
-const BCRYPT_ROUNDS = 10;
+// BCRYPT_ROUNDS moved to config/auth.js
 
 /**
  * @swagger
@@ -94,7 +95,7 @@ router.post('/login', validateRequest(loginSchema), async (req, res) => {
 
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
-            JWT_SECRET,
+            jwtSecret,
             { expiresIn: '8h' }
         );
 
@@ -169,7 +170,7 @@ router.post('/register', validateRequest(registerSchema), async (req, res) => {
             return res.status(409).json({ message: 'An account with this email already exists' });
         }
 
-        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        const passwordHash = await bcrypt.hash(password, bcryptRounds);
 
         await conn.beginTransaction();
 
@@ -188,7 +189,7 @@ router.post('/register', validateRequest(registerSchema), async (req, res) => {
 
         const token = jwt.sign(
             { id: newId, email: email, role: 'PATIENT' },
-            JWT_SECRET,
+            jwtSecret,
             { expiresIn: '8h' }
         );
 
@@ -263,7 +264,7 @@ router.post('/reset-password', async (req, res) => {
             return res.status(400).json({ message: 'Invalid or expired OTP' });
         }
 
-        const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+        const passwordHash = await bcrypt.hash(newPassword, bcryptRounds);
         await db.query(
             'UPDATE users SET password_hash = ?, otp_code = NULL, otp_expiry = NULL WHERE email = ?',
             [passwordHash, email]

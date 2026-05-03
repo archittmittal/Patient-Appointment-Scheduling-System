@@ -8,11 +8,13 @@ const notificationService = require('./notificationService');
  */
 class ReminderService {
     constructor() {
-        // Run every hour at minute 0
-        this.hourlyTask = cron.schedule('0 * * * *', () => {
-            console.log('[Cron] Running hourly reminders check...');
-            this.checkReminders();
-        });
+        // Issue #152: Don't start cron during tests to avoid open handles
+        if (process.env.NODE_ENV !== 'test') {
+            this.hourlyTask = cron.schedule('0 * * * *', () => {
+                console.log('[Cron] Running hourly reminders check...');
+                this.checkReminders();
+            });
+        }
     }
 
     async checkReminders() {

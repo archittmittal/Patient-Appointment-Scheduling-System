@@ -76,11 +76,12 @@ async function calculateSymptomComplexity(symptomsText) {
  */
 async function getDoctorAverages(doctorId) {
     try {
-        const [[row]] = await db.query(
+        const [rowRows] = await db.query(
             `SELECT avg_duration_mins, avg_new_patient_mins, avg_follow_up_mins, total_consultations
              FROM doctor_avg_times WHERE doctor_id = ?`,
             [doctorId]
         );
+        const row = rowRows[0];
 
         if (row && row.total_consultations > 0) {
             return {
@@ -92,7 +93,7 @@ async function getDoctorAverages(doctorId) {
         }
 
         // Fall back to specialty-based average
-        const [[specialtyAvg]] = await db.query(
+        const [specialtyAvgRows] = await db.query(
             `SELECT AVG(ch.actual_duration_mins) as avg_duration
              FROM consultation_history ch
              JOIN doctors d ON ch.doctor_id = d.id
@@ -100,6 +101,7 @@ async function getDoctorAverages(doctorId) {
              AND ch.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)`,
             [doctorId]
         );
+        const specialtyAvg = specialtyAvgRows[0];
 
         return {
             avgDuration: specialtyAvg?.avg_duration || DEFAULT_DURATION,
@@ -123,11 +125,12 @@ async function getDoctorAverages(doctorId) {
  */
 async function isFollowUpPatient(patientId, doctorId) {
     try {
-        const [[result]] = await db.query(
+        const [resultRows] = await db.query(
             `SELECT COUNT(*) as visits FROM appointments 
              WHERE patient_id = ? AND doctor_id = ? AND status = 'COMPLETED'`,
             [patientId, doctorId]
         );
+        const result = resultRows[0];
         return result.visits > 0;
     } catch (error) {
         return false;
@@ -245,10 +248,11 @@ async function recordConsultationDuration({
         const hourOfDay = now.getHours();
 
         // Get doctor specialty
-        const [[doctor]] = await conn.query(
+        const [doctorRows] = await conn.query(
             'SELECT specialty FROM doctors WHERE id = ?',
             [doctorId]
         );
+        const doctor = doctorRows[0];
 
         // 1. Insert into consultation_history
         await conn.query(
@@ -278,10 +282,11 @@ async function recordConsultationDuration({
             [doctorId]
         );
 
-        const [[currentAvg]] = await conn.query(
+        const [currentAvgRows] = await conn.query(
             'SELECT * FROM doctor_avg_times WHERE doctor_id = ?',
             [doctorId]
         );
+        const currentAvg = currentAvgRows[0];
 
         if (currentAvg) {
             const newAvg = (alpha * actualDurationMins) + ((1 - alpha) * currentAvg.avg_duration_mins);
@@ -339,12 +344,13 @@ async function recordConsultationDuration({
 async function calculateQueueWaitTime(appointmentId) {
     try {
         // Get this appointment's queue position and doctor
-        const [[queueEntry]] = await db.query(`
+        const [queueEntryRows] = await db.query(`
             SELECT lq.queue_number, a.doctor_id, a.appointment_date
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE lq.appointment_id = ?
         `, [appointmentId]);
+        const queueEntry = queueEntryRows[0];
 
         if (!queueEntry) {
             return { estimatedWait: 0, patientsAhead: 0 };
@@ -363,7 +369,7 @@ async function calculateQueueWaitTime(appointmentId) {
         `, [queueEntry.doctor_id, queueEntry.appointment_date, queueEntry.queue_number]);
 
         // Get consultation_start for the in-progress patient if it exists
-        const [[inProgressInfo]] = await db.query(`
+        const [inProgressInfoRows] = await db.query(`
             SELECT a.id, a.consultation_start, lq.predicted_duration
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
@@ -372,6 +378,7 @@ async function calculateQueueWaitTime(appointmentId) {
               AND lq.status = 'IN_PROGRESS'
             LIMIT 1
         `, [queueEntry.doctor_id, queueEntry.appointment_date]);
+        const inProgressInfo = inProgressInfoRows[0];
 
         // Calculate total wait time
         let totalWait = 0;
@@ -420,13 +427,14 @@ async function recalculateQueueEstimates(doctorId, appointmentDate) {
         `, [doctorId, appointmentDate]);
 
         // Get in-progress patient's remaining time
-        const [[inProgress]] = await db.query(`
+        const [inProgressRows] = await db.query(`
             SELECT a.consultation_start, lq.predicted_duration
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status = 'IN_PROGRESS'
             LIMIT 1
         `, [doctorId, appointmentDate]);
+        const inProgress = inProgressRows[0];
 
         let cumulativeWait = 0;
         if (inProgress && inProgress.consultation_start) {

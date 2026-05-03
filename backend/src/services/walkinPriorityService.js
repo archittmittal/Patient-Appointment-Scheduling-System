@@ -44,7 +44,8 @@ const walkinPriorityService = {
         // If EMERGENCY, notify the doctor immediately
         if (urgencyLevel === 'EMERGENCY') {
             try {
-                const [[patient]] = await db.query('SELECT first_name, last_name FROM patients WHERE id = ?', [patientId]);
+                const [patientRows] = await db.query('SELECT first_name, last_name FROM patients WHERE id = ?', [patientId]);
+                const patient = patientRows[0];
                 const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown Patient';
                 await notificationService.notifyEmergency(doctorId, patientName, reason);
             } catch (err) {
