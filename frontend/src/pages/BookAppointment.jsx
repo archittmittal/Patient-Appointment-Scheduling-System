@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { API, authedHeaders, API_URL } from '../config/api';
+import InsuranceScanner from '../components/InsuranceScanner';
+import InsuranceForm from '../components/InsuranceForm';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -70,6 +74,43 @@ const BookAppointment = () => {
     const [waitlistJoining, setWaitlistJoining] = useState(false);
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
+    
+    // Insurance integration
+    const [insurance, setInsurance] = useState(null);
+    const [showScanner, setShowScanner] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [scannedData, setScannedData] = useState(null);
+
+    useEffect(() => {
+        fetchInsurance();
+    }, []);
+
+    const fetchInsurance = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/insurance/my`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (res.data && res.data.length > 0) {
+                // Get the most recently updated/verified insurance
+                const sorted = res.data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                setInsurance(sorted[0]);
+            }
+        } catch (err) {
+            console.error('Error fetching insurance:', err);
+        }
+    };
+
+    const handleScanComplete = (data) => {
+        setScannedData(data);
+        setShowScanner(false);
+        setShowForm(true);
+    };
+
+    const handleInsuranceSuccess = () => {
+        setShowForm(false);
+        setScannedData(null);
+        fetchInsurance();
+    };
 
     useEffect(() => {
         fetch(`${API}/api/doctors`)
@@ -419,6 +460,93 @@ const BookAppointment = () => {
                         </div>
                     </div>
                 )}
+
+                {/* Insurance Verification Section */}
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                            <Shield size={20} className="text-blue-600" />
+                            Insurance Verification
+                        </h4>
+                        {!insurance && (
+                            <button 
+                                onClick={() => setShowScanner(true)}
+                                className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                                <Camera size={14} />
+                                Smart Scan Card
+                            </button>
+                        )}
+                    </div>
+
+                    {insurance ? (
+                        <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                            insurance.status === 'VERIFIED' ? 'bg-green-50 border-green-100' : 'bg-yellow-50 border-yellow-100'
+                        }`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${
+                                    insurance.status === 'VERIFIED' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                                }`}>
+                                    <CheckCircle2 size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-900">{insurance.provider_name}</p>
+                                    <p className="text-xs text-gray-500">ID: {insurance.member_id} • Status: <span className="font-bold">{insurance.status}</span></p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowForm(true)}
+                                className="text-xs font-bold text-blue-600 hover:underline"
+                            >
+                                Change
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-center">
+                            <p className="text-sm text-gray-500 mb-3">No insurance on file. Add one for faster check-in.</p>
+                            <div className="flex justify-center gap-4">
+                                <button 
+                                    onClick={() => setShowScanner(true)}
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                                >
+                                    <Camera size={16} />
+                                    Scan Card
+                                </button>
+                                <button 
+                                    onClick={() => setShowForm(true)}
+                                    className="px-4 py-2 text-sm font-bold text-gray-600 hover:underline"
+                                >
+                                    Manual Entry
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <AnimatePresence>
+                    {showScanner && (
+                        <InsuranceScanner 
+                            onScanComplete={handleScanComplete} 
+                            onClose={() => setShowScanner(false)} 
+                        />
+                    )}
+
+                    {showForm && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl w-full max-w-2xl"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold dark:text-white">Insurance Details</h2>
+                                    <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">Cancel</button>
+                                </div>
+                                <InsuranceForm initialData={scannedData} onSuccess={handleInsuranceSuccess} />
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
 
                 <div className="mt-6 flex justify-end">
                     <button
