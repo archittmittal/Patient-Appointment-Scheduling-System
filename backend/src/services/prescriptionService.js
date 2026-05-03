@@ -13,6 +13,7 @@ class PrescriptionService {
                 p.date_prescribed,
                 p.medications,
                 p.instructions,
+                p.appointment_id,
                 d.first_name as doctor_first_name,
                 d.last_name as doctor_last_name,
                 d.specialty
@@ -28,13 +29,13 @@ class PrescriptionService {
     /**
      * Create a new prescription
      */
-    async createPrescription(doctorId, patientId, medications, instructions, conn = null) {
+    async createPrescription(doctorId, patientId, medications, instructions, appointmentId = null, conn = null) {
         const executor = conn || db;
         const query = `
-            INSERT INTO prescriptions (doctor_id, patient_id, medications, instructions, date_prescribed)
-            VALUES (?, ?, ?, ?, NOW())
+            INSERT INTO prescriptions (doctor_id, patient_id, medications, instructions, appointment_id, date_prescribed)
+            VALUES (?, ?, ?, ?, ?, NOW())
         `;
-        const [result] = await executor.query(query, [doctorId, patientId, medications, instructions]);
+        const [result] = await executor.query(query, [doctorId, patientId, medications, instructions, appointmentId]);
         return { id: result.insertId, status: 'created' };
     }
 }

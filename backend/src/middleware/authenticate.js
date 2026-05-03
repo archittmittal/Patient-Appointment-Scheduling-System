@@ -1,12 +1,9 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-}
+const { jwtSecret } = require('../config/auth');
 
 /**
  * Middleware: verify Bearer JWT token.
+
  * On success attaches req.user = { id, email, role }.
  */
 function authenticate(req, res, next) {
@@ -23,7 +20,7 @@ function authenticate(req, res, next) {
     }
     
     try {
-        req.user = jwt.verify(token, JWT_SECRET);
+        req.user = jwt.verify(token, jwtSecret);
         next();
     } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
@@ -44,4 +41,4 @@ function requireRole(roles) {
     };
 }
 
-module.exports = { authenticate, requireRole, JWT_SECRET };
+module.exports = { authenticate, requireRole, jwtSecret };

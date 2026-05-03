@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
 const exportService = require('../services/exportService');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 
 /**
  * @swagger
@@ -174,14 +176,23 @@ router.get('/:id/vitals', authenticate, async (req, res) => {
     }
 });
 
+const vitalsSchema = Joi.object({
+    weight_kg: Joi.number().min(1).max(500).allow(null),
+    height_cm: Joi.number().min(20).max(300).allow(null),
+    blood_pressure_sys: Joi.number().min(40).max(300).allow(null),
+    blood_pressure_dia: Joi.number().min(30).max(200).allow(null),
+    heart_rate: Joi.number().min(30).max(250).allow(null),
+    temperature_c: Joi.number().min(30).max(45).allow(null)
+}).min(1);
+
 // Issue #95: Log new vitals
-router.post('/:id/vitals', authenticate, async (req, res) => {
+router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (req, res) => {
     // Both patients (self-logging) and doctors can log vitals
     if (req.user.role !== 'DOCTOR' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const data = await vitalsService.logVitals(req.params.id, req.body);
+        const data = await vitalsService.logVitals(req.params.id, req.body, req.user.id);
         res.status(201).json(data);
     } catch (error) {
         console.error(error);

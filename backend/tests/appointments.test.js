@@ -2,7 +2,7 @@ const request = require('supertest');
 const app = require('../src/server');
 const db = require('../src/config/db');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../src/middleware/authenticate');
+const { jwtSecret } = require('../src/middleware/authenticate');
 
 // Mock the database
 jest.mock('../src/config/db', () => ({
@@ -16,7 +16,7 @@ jest.mock('../src/config/db', () => ({
 
 // Helper to create a test token
 const createToken = (id, role = 'PATIENT') => {
-  return jwt.sign({ id, role, email: 'test@example.com' }, JWT_SECRET);
+  return jwt.sign({ id, role, email: 'test@example.com' }, jwtSecret);
 };
 
 describe('Appointment & Queue Endpoints', () => {

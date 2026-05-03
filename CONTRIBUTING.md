@@ -13,7 +13,6 @@
 2. Pick from the `help wanted` issues that match your skill set
 3. Set up React Testing Library for frontend
 4. Aim for 80%+ coverage across the core flows
-
 # 🤝 Contributing to HealthSync Premium
 
 Thank you for your interest in contributing to HealthSync Premium! We're excited to have you join our community. This guide will help you understand how to contribute effectively.
