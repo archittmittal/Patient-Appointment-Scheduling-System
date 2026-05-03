@@ -208,11 +208,27 @@ router.get('/queue/:appointmentId', async (req, res) => {
 
 const notificationService = require('../services/notificationService');
 
+const queueUpdateSchema = Joi.object({
+    status: Joi.string().valid('WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED').required(),
+    diagnosis: Joi.string().allow('', null),
+    notes: Joi.string().allow('', null),
+    prescription: Joi.string().allow('', null),
+    follow_up_date: Joi.string().isoDate().allow('', null),
+    vitals: Joi.object({
+        weight_kg: Joi.number().min(1).max(500).allow(null),
+        height_cm: Joi.number().min(20).max(300).allow(null),
+        blood_pressure_sys: Joi.number().min(40).max(300).allow(null),
+        blood_pressure_dia: Joi.number().min(30).max(200).allow(null),
+        heart_rate: Joi.number().min(30).max(250).allow(null),
+        temperature_c: Joi.number().min(30).max(45).allow(null)
+    }).allow(null)
+});
+
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 // Now also records consultation duration for AI prediction training (Issue #48)
-router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), validateRequest(queueUpdateSchema), async (req, res) => {
     const status = (req.body.status || '').toUpperCase();
     const { diagnosis, notes, prescription, follow_up_date, vitals } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
@@ -325,6 +341,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), asyn
                     queueRow.patient_id,
                     prescription,
                     notes || 'Prescribed during consultation',
+                    queueRow.appointment_id,
                     conn
                 );
             }
@@ -334,6 +351,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), asyn
                 await vitalsService.logVitals(
                     queueRow.patient_id,
                     vitals,
+                    queueRow.doctor_id,
                     conn
                 );
             }

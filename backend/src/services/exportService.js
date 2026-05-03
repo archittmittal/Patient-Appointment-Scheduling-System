@@ -62,15 +62,21 @@ class ExportService {
      */
     async exportVitalsCSV(patientId, res) {
         const query = `
-            SELECT v.*, a.appointment_date
-            FROM vitals v
-            JOIN appointments a ON v.appointment_id = a.id
-            WHERE a.patient_id = ?
-            ORDER BY a.appointment_date DESC
+            SELECT * FROM patient_vitals 
+            WHERE patient_id = ?
+            ORDER BY recorded_at DESC
         `;
         const [vitals] = await db.query(query, [patientId]);
 
-        const fields = ['appointment_date', 'blood_pressure', 'heart_rate', 'temperature', 'oxygen_saturation', 'weight'];
+        const fields = [
+            { label: 'Date', value: 'recorded_at' },
+            { label: 'Weight (kg)', value: 'weight_kg' },
+            { label: 'Height (cm)', value: 'height_cm' },
+            { label: 'BP Systolic', value: 'blood_pressure_sys' },
+            { label: 'BP Diastolic', value: 'blood_pressure_dia' },
+            { label: 'Heart Rate (bpm)', value: 'heart_rate' },
+            { label: 'Temp (°C)', value: 'temperature_c' }
+        ];
         const json2csvParser = new Parser({ fields });
         const csv = json2csvParser.parse(vitals);
 
