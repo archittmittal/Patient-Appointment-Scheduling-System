@@ -13,7 +13,7 @@ const predictionService = {
     async predictNoShowProbability(appointmentId) {
         try {
             // Get appointment details
-            const [[appointment]] = await db.query(
+            const [appointmentRows] = await db.query(
                 `SELECT a.*, p.dob, TIMESTAMPDIFF(YEAR, p.dob, CURDATE()) as age,
                         DATEDIFF(a.appointment_date, a.created_at) as lead_time_days
                  FROM appointments a
@@ -21,6 +21,7 @@ const predictionService = {
                  WHERE a.id = ?`,
                 [appointmentId]
             );
+            const appointment = appointmentRows[0];
 
             if (!appointment) return { probability: 0, riskLevel: 'LOW', factors: [] };
 
@@ -37,7 +38,7 @@ const predictionService = {
             }
 
             // 2. Historical No-Show Factor
-            const [[history]] = await db.query(
+            const [historyRows] = await db.query(
                 `SELECT 
                     COUNT(*) as total_appts,
                     SUM(CASE WHEN release_type = 'NO_SHOW' THEN 1 ELSE 0 END) as no_shows
@@ -46,6 +47,7 @@ const predictionService = {
                  WHERE a.patient_id = ?`,
                 [appointment.patient_id]
             );
+            const history = historyRows[0];
 
             if (history && history.total_appts > 2) {
                 const noShowRate = history.no_shows / history.total_appts;
@@ -99,22 +101,24 @@ const predictionService = {
             let score = 0;
 
             // 1. Recency Factor
-            const [[lastVisit]] = await db.query(
+            const [lastVisitRows] = await db.query(
                 `SELECT appointment_date, DATEDIFF(CURDATE(), appointment_date) as days_since
                  FROM appointments
                  WHERE patient_id = ? AND status = 'COMPLETED'
                  ORDER BY appointment_date DESC LIMIT 1`,
                 [patientId]
             );
+            const lastVisit = lastVisitRows[0];
 
             if (!lastVisit) {
                 // New patient, check if they missed their first appointment
-                const [[missed]] = await db.query(
+                const [missedRows] = await db.query(
                     `SELECT COUNT(*) as missed_count FROM slot_release_log srl
                      JOIN appointments a ON srl.appointment_id = a.id
                      WHERE a.patient_id = ? AND srl.release_type = 'NO_SHOW'`,
                     [patientId]
                 );
+                const missed = missedRows[0];
                 if (missed.missed_count > 0) {
                     score += 0.5;
                     factors.push('Missed first appointment');
@@ -128,12 +132,13 @@ const predictionService = {
             }
 
             // 2. Feedback Factor
-            const [[feedback]] = await db.query(
+            const [feedbackRows] = await db.query(
                 `SELECT AVG(weighted_score) as avg_score, AVG(sentiment_score) as avg_sentiment
                  FROM appointment_feedback
                  WHERE patient_id = ?`,
                 [patientId]
             );
+            const feedback = feedbackRows[0];
 
             if (feedback && feedback.avg_score > 0) {
                 if (feedback.avg_score < 2.5) {
@@ -151,7 +156,7 @@ const predictionService = {
             }
 
             // 3. Follow-up Compliance
-            const [[followup]] = await db.query(
+            const [followupRows] = await db.query(
                 `SELECT 
                     COUNT(*) as total_followups,
                     SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed
@@ -159,6 +164,7 @@ const predictionService = {
                  WHERE patient_id = ? AND is_follow_up = TRUE`,
                 [patientId]
             );
+            const followup = followupRows[0];
 
             if (followup && followup.total_followups > 0) {
                 const compliance = followup.completed / followup.total_followups;

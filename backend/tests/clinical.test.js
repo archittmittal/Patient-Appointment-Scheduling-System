@@ -4,6 +4,29 @@ const db = require('../src/config/db');
 const { jwtSecret } = require('../src/middleware/authenticate');
 const jwt = require('jsonwebtoken');
 
+// Mock the database
+jest.mock('../src/config/db', () => ({
+    query: jest.fn().mockImplementation((sql) => {
+        const upperSql = sql.trim().toUpperCase();
+        if (upperSql.startsWith('SELECT')) {
+            // Provide dummy data for common SELECT queries
+            if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
+                return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70 } ], []]);
+            }
+            if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
+                return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
+            }
+            return Promise.resolve([[ { id: 1 } ], []]);
+        }
+        return Promise.resolve([{ insertId: 1, affectedRows: 1 }, []]);
+    }),
+    getConnection: jest.fn(),
+    beginTransaction: jest.fn(),
+    commit: jest.fn(),
+    rollback: jest.fn(),
+    release: jest.fn()
+}));
+
 describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
     let patientToken;
     let doctorToken;
@@ -21,6 +44,7 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
     // ──────────── VITALS: Happy paths ────────────
     describe('POST /api/patients/:id/vitals', () => {
         it('should allow a patient to log their own vitals (full payload)', async () => {
+            db.query.mockResolvedValueOnce([{ insertId: 1 }, []]);
             const res = await request(app)
                 .post(`/api/patients/${patientId}/vitals`)
                 .set('Authorization', `Bearer ${patientToken}`)
@@ -39,6 +63,7 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
         });
 
         it('should allow a doctor to log vitals for any patient', async () => {
+            db.query.mockResolvedValueOnce([{ insertId: 2 }, []]);
             const res = await request(app)
                 .post(`/api/patients/${patientId}/vitals`)
                 .set('Authorization', `Bearer ${doctorToken}`)
@@ -53,6 +78,7 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
         });
 
         it('should accept a partial vitals payload (only one field)', async () => {
+            db.query.mockResolvedValueOnce([{ insertId: 3 }, []]);
             const res = await request(app)
                 .post(`/api/patients/${patientId}/vitals`)
                 .set('Authorization', `Bearer ${patientToken}`)
@@ -236,17 +262,19 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
     describe('PATCH /api/appointments/queue/:id/status — COMPLETED flow', () => {
         it('should complete an appointment and persist prescription + vitals', async () => {
             // Check if there is a queue entry for today
-            const [[apt]] = await db.query(
+            const result = await db.query(
                 'SELECT id FROM appointments WHERE doctor_id = ? AND appointment_date = CURDATE() LIMIT 1',
                 [doctorId]
             );
+            const apt = (result && result[0]) ? result[0][0] : null;
 
             if (!apt) return; // skip if no test data
 
-            const [[queue]] = await db.query(
+            const qResult = await db.query(
                 'SELECT id FROM live_queue WHERE appointment_id = ?',
                 [apt.id]
             );
+            const queue = (qResult && qResult[0]) ? qResult[0][0] : null;
 
             if (!queue) return; // skip if no queue entry
 

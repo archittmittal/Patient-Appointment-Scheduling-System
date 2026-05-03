@@ -8,10 +8,11 @@ const templateService = {
      * Get notification templates from database
      */
     async getTemplate(type) {
-        const [[template]] = await pool.query(
+        const [templateRows] = await pool.query(
             'SELECT * FROM notification_templates WHERE type = ?',
             [type]
         );
+        const template = templateRows[0];
         return template;
     },
 

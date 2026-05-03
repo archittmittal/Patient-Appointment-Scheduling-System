@@ -6,7 +6,7 @@ const { jwtSecret } = require('../src/middleware/authenticate');
 
 // Mock the database
 jest.mock('../src/config/db', () => ({
-  query: jest.fn(),
+  query: jest.fn().mockResolvedValue([[]]),
   getConnection: jest.fn(),
   beginTransaction: jest.fn(),
   commit: jest.fn(),

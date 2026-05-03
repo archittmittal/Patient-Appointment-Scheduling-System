@@ -15,7 +15,8 @@ class ExportService {
             JOIN doctors d ON a.doctor_id = d.id
             WHERE a.id = ?
         `;
-        const [[appt]] = await db.query(query, [appointmentId]);
+        const [apptRows] = await db.query(query, [appointmentId]);
+        const appt = apptRows[0];
 
         if (!appt) throw new Error('Appointment not found');
 

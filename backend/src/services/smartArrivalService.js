@@ -16,7 +16,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
     } = options;
 
     // Get appointment and queue details
-    const [[appointment]] = await pool.query(`
+    const [appointmentRows] = await pool.query(`
         SELECT 
             a.id,
             a.appointment_date,
@@ -28,6 +28,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
         LEFT JOIN live_queue lq ON a.id = lq.appointment_id
         WHERE a.id = ?
     `, [appointmentId]);
+    const appointment = appointmentRows[0];
 
     if (!appointment) {
         return { error: 'Appointment not found' };
@@ -41,7 +42,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
     const queueStatus = await getCurrentQueueStatus(appointment.doctor_id);
     
     // Calculate actual patients ahead in queue (Waiting or In Progress)
-    const [[{ aheadCount }]] = await pool.query(`
+    const [aheadRows] = await pool.query(`
         SELECT COUNT(*) as aheadCount
         FROM live_queue lq
         JOIN appointments a_ahead ON lq.appointment_id = a_ahead.id
@@ -50,6 +51,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
           AND lq.queue_number < ?
           AND lq.status IN ('WAITING', 'IN_PROGRESS')
     `, [appointment.doctor_id, appointment.queue_number]);
+    const { aheadCount } = aheadRows[0] || {};
 
     const patientsAhead = aheadCount || 0;
     const estimatedWaitMins = patientsAhead * avgConsultTime;
@@ -109,7 +111,7 @@ async function calculateSmartArrival(appointmentId, options = {}) {
  */
 async function getDoctorStats(doctorId) {
     // Get average consultation time from completed appointments
-    const [[stats]] = await pool.query(`
+    const [statsRows] = await pool.query(`
         SELECT 
             COUNT(*) as total_appointments,
             AVG(TIMESTAMPDIFF(MINUTE, 
@@ -125,12 +127,14 @@ async function getDoctorStats(doctorId) {
         AND status = 'COMPLETED'
         AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
     `, [doctorId]);
+    const stats = statsRows[0];
 
     // Also get from doctors table as fallback
-    const [[doctor]] = await pool.query(
+    const [doctorRows] = await pool.query(
         'SELECT avg_consultation_time FROM doctors WHERE id = ?',
         [doctorId]
     );
+    const doctor = doctorRows[0];
 
     return {
         totalAppointments: stats?.total_appointments || 0,
@@ -143,7 +147,7 @@ async function getDoctorStats(doctorId) {
  * Get current queue status for doctor today
  */
 async function getCurrentQueueStatus(doctorId) {
-    const [[current]] = await pool.query(`
+    const [currentRows] = await pool.query(`
         SELECT 
             lq.queue_number,
             lq.status
@@ -155,9 +159,10 @@ async function getCurrentQueueStatus(doctorId) {
         ORDER BY lq.queue_number ASC
         LIMIT 1
     `, [doctorId]);
+    const current = currentRows[0];
 
     // Get total waiting
-    const [[waiting]] = await pool.query(`
+    const [waitingRows] = await pool.query(`
         SELECT COUNT(*) as count
         FROM live_queue lq
         JOIN appointments a ON lq.appointment_id = a.id
@@ -165,6 +170,7 @@ async function getCurrentQueueStatus(doctorId) {
         AND a.appointment_date = CURDATE()
         AND lq.status = 'WAITING'
     `, [doctorId]);
+    const waiting = waitingRows[0];
 
     return {
         currentPosition: current?.queue_number || 0,
@@ -178,7 +184,7 @@ async function getCurrentQueueStatus(doctorId) {
  */
 async function getHistoricalDelay(doctorId, timeOfDay) {
     // Calculate average delay from historical data
-    const [[delays]] = await pool.query(`
+    const [delaysRows] = await pool.query(`
         SELECT AVG(
             CASE 
                 WHEN lq.actual_start_time IS NOT NULL 
@@ -193,6 +199,7 @@ async function getHistoricalDelay(doctorId, timeOfDay) {
         AND CAST(SUBSTRING_INDEX(a.time_slot, ':', 1) AS UNSIGNED) BETWEEN ? AND ?
         AND a.appointment_date > DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     `, [doctorId, timeOfDay.startHour, timeOfDay.endHour]);
+    const delays = delaysRows[0];
 
     return Math.max(0, delays?.avg_delay || 0);
 }
