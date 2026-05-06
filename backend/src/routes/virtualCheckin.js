@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const virtualCheckinService = require('../services/virtualCheckinService');
+const sseManager = require('../services/sseManager');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
@@ -74,6 +75,35 @@ router.get('/:appointmentId/status', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Get status error:', error);
         res.status(500).json({ error: 'Failed to get waiting room status' });
+    }
+});
+
+/**
+ * GET /api/virtual-checkin/:appointmentId/stream
+ * Establish SSE connection for real-time queue updates
+ */
+router.get('/:appointmentId/stream', authenticate, async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        const patientId = req.user.id;
+        
+        // Verify patient owns appointment
+        const status = await virtualCheckinService.getWaitingRoomStatus(appointmentId, patientId);
+        if (!status) {
+            return res.status(404).json({ error: 'Appointment not found' });
+        }
+
+        const connectionId = `${patientId}-${Date.now()}`;
+        sseManager.addClient(connectionId, res, appointmentId);
+        
+        // Push initial status immediately over SSE
+        sseManager.sendToClient(connectionId, 'queue_update', status);
+
+    } catch (error) {
+        console.error('SSE connection error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to establish SSE connection' });
+        }
     }
 });
 

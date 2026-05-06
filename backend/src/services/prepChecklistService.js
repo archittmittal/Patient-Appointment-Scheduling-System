@@ -158,7 +158,7 @@ const getAppointmentPrep = async (appointmentId, patientId) => {
             specialty: appointment.specialty,
             date: appointment.appointment_date,
             time: appointment.appointment_time,
-            reason: appointment.reason
+            symptoms: appointment.symptoms
         },
         items: allItems,
         completedCount: allItems.filter(i => i.isCompleted).length,
@@ -236,7 +236,7 @@ const addCustomPrepItem = async (doctorId, appointmentId, item) => {
  */
 const getPatientPrepOverview = async (patientId) => {
     const [appointments] = await db.execute(`
-        SELECT a.id, a.appointment_date, a.appointment_time, a.reason,
+        SELECT a.id, a.appointment_date, a.time_slot as appointment_time, a.symptoms,
             CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
             dp.specialty
         FROM appointments a
@@ -245,7 +245,7 @@ const getPatientPrepOverview = async (patientId) => {
         WHERE a.patient_id = ?
         AND DATE(a.appointment_date) >= CURDATE()
         AND a.status IN ('scheduled', 'confirmed')
-        ORDER BY a.appointment_date, a.appointment_time
+        ORDER BY a.appointment_date, a.time_slot
         LIMIT 10
     `, [patientId]);
 

@@ -18,7 +18,7 @@ const db = require('../config/db');
 async function calculateCurrentDelay(doctorId, appointmentDate) {
     try {
         // Get the currently in-progress appointment
-        const [[inProgress]] = await db.query(`
+        const [inProgressRows] = await db.query(`
             SELECT a.id, a.consultation_start, a.predicted_duration_mins,
                    lq.queue_number, lq.predicted_duration
             FROM appointments a
@@ -28,6 +28,7 @@ async function calculateCurrentDelay(doctorId, appointmentDate) {
               AND lq.status = 'IN_PROGRESS'
             LIMIT 1
         `, [doctorId, appointmentDate]);
+        const inProgress = inProgressRows[0];
 
         if (!inProgress || !inProgress.consultation_start) {
             return { delayMins: 0, isDelayed: false };
@@ -160,13 +161,14 @@ async function getDelayStatus(doctorId, appointmentDate) {
         const currentDelay = await calculateCurrentDelay(doctorId, appointmentDate);
         
         // Also check if there's a manual delay set
-        const [[manualDelay]] = await db.query(`
+        const [manualDelayRows] = await db.query(`
             SELECT delay_mins, reason, is_manual, updated_at
             FROM delay_history
             WHERE doctor_id = ? AND delay_date = ?
             ORDER BY created_at DESC
             LIMIT 1
         `, [doctorId, appointmentDate]);
+        const manualDelay = manualDelayRows[0];
 
         return {
             ...currentDelay,

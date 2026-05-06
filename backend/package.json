@@ -5,7 +5,10 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "jest --detectOpenHandles",
+    "prepare": "husky",
+    "db:check": "node scripts/dbCheck.js"
   },
   "keywords": [],
   "author": "",
@@ -16,10 +19,24 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
+    "joi": "^18.1.2",
+    "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
-    "mysql2": "^3.18.2"
+    "mysql2": "^3.18.2",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.5",
+    "pdfkit": "^0.18.0",
+    "stripe": "^22.0.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "lint-staged": "^16.4.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }

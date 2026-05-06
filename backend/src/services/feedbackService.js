@@ -36,7 +36,7 @@ const submitFeedback = async (appointmentId, patientId, feedbackData) => {
         SELECT a.*, d.id as doctor_id
         FROM appointments a
         JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.id = ? AND a.patient_id = ? AND a.status = 'completed'
+        WHERE a.id = ? AND a.patient_id = ? AND a.status = 'COMPLETED'
     `, [appointmentId, patientId]);
 
     if (appointments.length === 0) {
@@ -414,8 +414,7 @@ const getPendingFeedbackRequests = async (patientId) => {
             SELECT 
                 a.id,
                 a.appointment_date,
-                a.appointment_time,
-                a.appointment_type,
+                a.time_slot as appointment_time,
                 CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
                 dp.specialty
             FROM appointments a
@@ -423,7 +422,7 @@ const getPendingFeedbackRequests = async (patientId) => {
             LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
             LEFT JOIN appointment_feedback f ON a.id = f.appointment_id
             WHERE a.patient_id = ?
-            AND a.status = 'completed'
+            AND a.status = 'COMPLETED'
             AND f.id IS NULL
             AND a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
             ORDER BY a.appointment_date DESC
@@ -456,7 +455,7 @@ const getPatientFeedbackHistory = async (patientId) => {
             SELECT 
                 f.*,
                 a.appointment_date,
-                a.appointment_time,
+                a.time_slot as appointment_time,
                 CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
                 dp.specialty
             FROM appointment_feedback f

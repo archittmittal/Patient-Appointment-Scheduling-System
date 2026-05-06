@@ -20,8 +20,8 @@ import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
 import InsurancePortal from './pages/InsurancePortal';
 import NotificationSettings from './pages/NotificationSettings';
-import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; // Issue #39
-import WalkinRegistration from './pages/WalkinRegistration'; // Issue #42
+import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; 
+import WalkinRegistration from './pages/WalkinRegistration'; 
 import ExpressCheckin from './pages/ExpressCheckin';
 import BatchAppointments from './pages/BatchAppointments';
 import PrepChecklist from './pages/PrepChecklist';
@@ -29,6 +29,12 @@ import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import PatientInsurance from './pages/PatientInsurance';
+import DoctorAnalytics from './pages/DoctorAnalytics';
+import VitalsHub from './pages/VitalsHub'; 
+import PatientPrescriptions from './pages/PatientPrescriptions'; 
+import Messages from './pages/Messages';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -48,13 +54,21 @@ function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Public/Shared routes that use Layout but don't strictly require login */}
+            <Route element={<Layout />}>
+              <Route path="/doctors" element={<DoctorSearch />} />
+              <Route path="/doctors/:id" element={<DoctorProfile />} />
+              <Route path="/book" element={<BookAppointment />} />
+            </Route>
 
             {/* Patient routes */}
             <Route element={<ProtectedRoute allowedRoles={['PATIENT']}><Layout /></ProtectedRoute>}>
               <Route path="/patient-dashboard" element={<PatientDashboard />} />
-              <Route path="/doctors" element={<DoctorSearch />} />
-              <Route path="/doctors/:id" element={<DoctorProfile />} />
-              <Route path="/book" element={<BookAppointment />} />
+              <Route path="/vitals" element={<VitalsHub />} />
+              <Route path="/prescriptions" element={<PatientPrescriptions />} />
               <Route path="/queue" element={<LiveQueue />} />
               <Route path="/profile" element={<PatientProfile />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
@@ -68,6 +82,7 @@ function App() {
               <Route path="/late-arrival" element={<LateArrival />} />
               <Route path="/feedback" element={<FeedbackAnalytics />} />
               <Route path="/insurance" element={<PatientInsurance />} />
+              <Route path="/messages" element={<Messages />} />
             </Route>
 
             {/* Doctor routes */}
@@ -77,6 +92,8 @@ function App() {
               <Route path="/doctor-schedule" element={<DoctorSchedule />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
               <Route path="/doctor-feedback" element={<FeedbackAnalytics />} />
+              <Route path="/doctor-analytics" element={<DoctorAnalytics />} />
+              <Route path="/messages" element={<Messages />} />
             </Route>
 
             {/* Admin routes */}
@@ -87,6 +104,9 @@ function App() {
               <Route path="/admin/insurance" element={<InsurancePortal />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
             </Route>
+
+            {/* Catch-all redirect to root */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
       </AuthProvider>

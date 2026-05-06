@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 const {
     predictConsultationDuration,
     recordConsultationDuration,
@@ -10,11 +10,68 @@ const {
 } = require('../services/durationPrediction');
 const waitlistService = require('../services/waitlistService');
 const smartArrivalService = require('../services/smartArrivalService');
+const prescriptionService = require('../services/prescriptionService');
+const vitalsService = require('../services/vitalsService');
+const exportService = require('../services/exportService');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 
-// POST /api/appointments/book
-router.post('/book', authenticate, async (req, res) => {
+const bookSchema = Joi.object({
+    doctorId: Joi.number().required(),
+    date: Joi.string().isoDate().required(),
+    timeSlot: Joi.string().required(),
+    symptoms: Joi.string().allow('', null)
+});
+
+/**
+ * @swagger
+ * tags:
+ *   name: Appointments
+ *   description: Appointment management and booking
+ */
+
+/**
+ * @swagger
+ * /api/appointments/book:
+ *   post:
+ *     summary: Book a new appointment
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorId
+ *               - date
+ *               - timeSlot
+ *             properties:
+ *               doctorId:
+ *                 type: integer
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               timeSlot:
+ *                 type: string
+ *               symptoms:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Appointment booked successfully
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/book', authenticate, validateRequest(bookSchema), async (req, res) => {
     try {
-        const { patientId, doctorId, date, timeSlot, symptoms } = req.body;
+        const { doctorId, date, timeSlot, symptoms } = req.body;
+        const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
+
+        if (!patientId) {
+            return res.status(400).json({ message: 'Patient ID is required' });
+        }
 
         // Predict consultation duration using AI model
         const prediction = await predictConsultationDuration({
@@ -26,7 +83,7 @@ router.post('/book', authenticate, async (req, res) => {
 
         const [result] = await db.query(
             'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp]
+            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
         );
 
         // Add to live queue only if appointment is today
@@ -38,13 +95,14 @@ router.post('/book', authenticate, async (req, res) => {
         let queueNumber = null;
         let estimatedWait = null;
         if (todayCheck.length > 0) {
-            const [[{ maxQ }]] = await db.query(
+            const [_rows1] = await db.query(
                 `SELECT MAX(lq.queue_number) AS maxQ
                  FROM live_queue lq
                  JOIN appointments a ON lq.appointment_id = a.id
                  WHERE a.doctor_id = ? AND a.appointment_date = CURDATE()`,
                 [doctorId]
             );
+            const { maxQ } = _rows1[0] || {};
             queueNumber = (maxQ || 0) + 1;
             
             // Calculate actual wait time based on AI predictions for patients ahead
@@ -112,12 +170,13 @@ router.get('/queue/:appointmentId', async (req, res) => {
         const waitInfo = await calculateQueueWaitTime(req.params.appointmentId);
 
         // Find the token currently IN_PROGRESS for this doctor today
-        const [[inProgress]] = await db.query(`
+        const [inProgressRows] = await db.query(`
             SELECT lq.queue_number FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status = 'IN_PROGRESS'
             ORDER BY lq.queue_number ASC LIMIT 1
         `, [entry.doctor_id, entry.appointment_date]);
+        const inProgress = inProgressRows[0];
 
         const currentToken = inProgress ? inProgress.queue_number : 0;
 
@@ -149,12 +208,31 @@ router.get('/queue/:appointmentId', async (req, res) => {
     }
 });
 
+const notificationService = require('../services/notificationService');
+
+const queueUpdateSchema = Joi.object({
+    status: Joi.string().valid('WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED').required(),
+    diagnosis: Joi.string().allow('', null),
+    notes: Joi.string().allow('', null),
+    prescription: Joi.string().allow('', null),
+    follow_up_date: Joi.string().isoDate().allow('', null),
+    vitals: Joi.object({
+        weight_kg: Joi.number().min(1).max(500).allow(null),
+        height_cm: Joi.number().min(20).max(300).allow(null),
+        blood_pressure_sys: Joi.number().min(40).max(300).allow(null),
+        blood_pressure_dia: Joi.number().min(30).max(200).allow(null),
+        heart_rate: Joi.number().min(30).max(250).allow(null),
+        temperature_c: Joi.number().min(30).max(45).allow(null)
+    }).allow(null)
+});
+
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 // Now also records consultation duration for AI prediction training (Issue #48)
-router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
-    const { status, diagnosis, notes, prescription, follow_up_date } = req.body;
+router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), validateRequest(queueUpdateSchema), async (req, res) => {
+    const status = (req.body.status || '').toUpperCase();
+    const { diagnosis, notes, prescription, follow_up_date, vitals } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ message: 'Invalid status value' });
@@ -164,31 +242,73 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
     try {
         await conn.beginTransaction();
 
-        // Get appointment details for duration tracking
-        const [[queueRow]] = await conn.query(`
-            SELECT lq.appointment_id, a.doctor_id, a.patient_id, a.symptoms, 
-                   a.appointment_date, a.consultation_start, a.is_follow_up
+        // Get appointment details for duration tracking and notifications
+        const [queueRowRows] = await conn.query(`
+            SELECT lq.appointment_id, lq.queue_number, a.doctor_id, a.patient_id, a.symptoms, 
+                   a.appointment_date, a.consultation_start, a.is_follow_up,
+                   d.first_name AS doc_first, d.last_name AS doc_last, d.location_room
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
+            JOIN doctors d ON a.doctor_id = d.id
             WHERE lq.id = ?
         `, [req.params.queueId]);
+        const queueRow = queueRowRows[0];
+
+        if (!queueRow) {
+            throw new Error('Queue entry not found');
+        }
+
+        // SECURITY: Verify this doctor is the one assigned to the appointment
+        if (req.user.id != queueRow.doctor_id) {
+            await conn.rollback();
+            return res.status(403).json({ message: 'You are not authorized to manage this queue' });
+        }
+
+        const doctorName = `Dr. ${queueRow.doc_first} ${queueRow.doc_last}`;
 
         // 1. Update the queue entry itself
         await conn.query('UPDATE live_queue SET status = ? WHERE id = ?', [status, req.params.queueId]);
 
         // 2. Handle status-specific logic
         if (status === 'IN_PROGRESS') {
-            // Record consultation start time
             await conn.query(
-                'UPDATE appointments SET consultation_start = NOW() WHERE id = ?',
-                [queueRow.appointment_id]
+                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'IN_PROGRESS' WHERE lq.id = ?",
+                [req.params.queueId]
             );
+
+            // Notify CURRENT patient that it's their turn
+            notificationService.notifyYourTurn(
+                queueRow.patient_id, 
+                doctorName, 
+                queueRow.location_room
+            ).catch(err => console.error('Your Turn Notification Error:', err));
+
+            // Notify NEXT patient that the doctor is now seeing the patient before them
+            const [nextPatientRows] = await conn.query(`
+                SELECT a.patient_id, lq.queue_number, lq.estimated_time
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number > ? AND lq.status = 'WAITING'
+                ORDER BY lq.queue_number ASC LIMIT 1
+            `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number]);
+            const nextPatient = nextPatientRows[0];
+
+            if (nextPatient) {
+                notificationService.notifyTurnApproaching(
+                    nextPatient.patient_id,
+                    nextPatient.queue_number,
+                    doctorName,
+                    nextPatient.estimated_time || 0
+                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+            }
+
         } else if (status === 'COMPLETED') {
             // Record consultation end time and calculate duration
-            const [[consultStart]] = await conn.query(
+            const [consultStartRows] = await conn.query(
                 'SELECT consultation_start FROM appointments WHERE id = ?',
                 [queueRow.appointment_id]
             );
+            const consultStart = consultStartRows[0];
             
             let actualDuration = 15; // Default if no start time
             if (consultStart?.consultation_start) {
@@ -218,6 +338,46 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                     queueRow.appointment_id
                 ]
             );
+            
+            // 3. Formal Prescription Storage
+            if (prescription) {
+                await prescriptionService.createPrescription(
+                    queueRow.doctor_id,
+                    queueRow.patient_id,
+                    prescription,
+                    notes || 'Prescribed during consultation',
+                    queueRow.appointment_id,
+                    conn
+                );
+            }
+
+            // 4. Vitals Storage
+            if (vitals) {
+                await vitalsService.logVitals(
+                    queueRow.patient_id,
+                    vitals,
+                    queueRow.doctor_id,
+                    conn
+                );
+            }
+
+            // Notify NEXT patient that they are next
+            const [nextPatientRows] = await conn.query(`
+                SELECT a.patient_id, lq.queue_number, lq.estimated_time
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number = ?
+            `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number + 1]);
+            const nextPatient = nextPatientRows[0];
+
+            if (nextPatient) {
+                notificationService.notifyTurnApproaching(
+                    nextPatient.patient_id,
+                    nextPatient.queue_number,
+                    doctorName,
+                    nextPatient.estimated_time || 0
+                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+            }
 
             // Record duration for AI training (don't await, run in background)
             recordConsultationDuration({
@@ -234,27 +394,49 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 .catch(err => console.error('Failed to recalculate estimates:', err));
 
         } else if (status === 'MISSED') {
-            const [[queueRow]] = await conn.query(
-                'SELECT appointment_id FROM live_queue WHERE id = ?',
-                [req.params.queueId]
-            );
-            await conn.query(
-                `UPDATE appointments a
-                 JOIN live_queue lq ON lq.appointment_id = a.id
-                 SET a.status = 'CANCELLED'
-                 WHERE lq.id = ?`,
-                [req.params.queueId]
-            );
+            // Find the maximum queue number for waiting patients
+            const [_rows2] = await conn.query(`
+                SELECT MAX(lq.queue_number) AS maxQ 
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status IN ('WAITING', 'IN_PROGRESS')
+            `, [queueRow.doctor_id, queueRow.appointment_date]);
+            const { maxQ } = _rows2[0] || {};
             
+            // Re-insert 5 positions down or at the end of the queue, whichever is strictly closer
+            const shiftCount = 5;
+            const targetQ = Math.min(queueRow.queue_number + shiftCount, (maxQ || queueRow.queue_number));
+
+            // Shift patients between current and target forward in the line
+            if (targetQ > queueRow.queue_number) {
+                await conn.query(`
+                    UPDATE live_queue lq
+                    JOIN appointments a ON lq.appointment_id = a.id
+                    SET lq.queue_number = lq.queue_number - 1 
+                    WHERE a.doctor_id = ? AND a.appointment_date = ? 
+                      AND lq.queue_number > ? AND lq.queue_number <= ? 
+                      AND lq.status IN ('WAITING', 'IN_PROGRESS')
+                 `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number, targetQ]);
+            }
+
+            // Move the missed patient to the new position and set them back to WAITING
+            await conn.query(`
+                UPDATE live_queue 
+                SET queue_number = ?, status = 'WAITING' 
+                WHERE id = ?
+            `, [targetQ, req.params.queueId]);
+            
+            // Notify the missed patient
+            notificationService.notifyMissed(
+                queueRow.patient_id,
+                doctorName,
+                targetQ,
+                targetQ - queueRow.queue_number
+            ).catch(err => console.error('Missed Notification Error:', err));
+
             // Recalculate estimates for remaining queue
             recalculateQueueEstimates(queueRow.doctor_id, queueRow.appointment_date)
                 .catch(err => console.error('Failed to recalculate estimates:', err));
-
-            // Issue #41: Trigger auto-fill for no-show
-            if (queueRow) {
-                waitlistService.handleSlotRelease(queueRow.appointment_id, 'NO_SHOW')
-                    .catch(err => console.error('Auto-fill error:', err));
-            }
         }
 
         await conn.commit();
@@ -272,10 +454,11 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
 router.patch('/:id/cancel', async (req, res) => {
     const conn = await db.getConnection();
     try {
-        const [[appt]] = await conn.query(
+        const [apptRows] = await conn.query(
             'SELECT status, appointment_date FROM appointments WHERE id = ?',
             [req.params.id]
         );
+        const appt = apptRows[0];
 
         if (!appt) return res.status(404).json({ message: 'Appointment not found' });
         if (!['CONFIRMED', 'PENDING'].includes(appt.status)) {
@@ -289,7 +472,6 @@ router.patch('/:id/cancel', async (req, res) => {
             [req.params.id]
         );
 
-        // If the appointment is today, remove it from the live queue too
         const todayStr = new Date().toISOString().split('T')[0];
         const aptDate = String(appt.appointment_date).split('T')[0];
         if (aptDate === todayStr) {
@@ -321,13 +503,14 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
         const doctorId = req.params.doctorId;
 
         // Get doctor's average times
-        const [[avgTimes]] = await db.query(
+        const [avgTimesRows] = await db.query(
             `SELECT * FROM doctor_avg_times WHERE doctor_id = ?`,
             [doctorId]
         );
+        const avgTimes = avgTimesRows[0];
 
         // Get consultation history stats
-        const [[historyStats]] = await db.query(`
+        const [historyStatsRows] = await db.query(`
             SELECT 
                 COUNT(*) as total_consultations,
                 AVG(actual_duration_mins) as avg_duration,
@@ -337,6 +520,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
             FROM consultation_history
             WHERE doctor_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
         `, [doctorId]);
+        const historyStats = historyStatsRows[0];
 
         // Get day-wise patterns
         const [dayPatterns] = await db.query(`
@@ -363,7 +547,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
         `, [doctorId]);
 
         // Get prediction accuracy (compare predicted vs actual)
-        const [[accuracy]] = await db.query(`
+        const [accuracyRows] = await db.query(`
             SELECT 
                 AVG(ABS(predicted_duration_mins - actual_duration_mins)) as avg_error,
                 AVG(CASE WHEN ABS(predicted_duration_mins - actual_duration_mins) <= 5 THEN 1 ELSE 0 END) * 100 as accuracy_within_5min
@@ -372,6 +556,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
               AND actual_duration_mins IS NOT NULL 
               AND predicted_duration_mins IS NOT NULL
         `, [doctorId]);
+        const accuracy = accuracyRows[0];
 
         res.json({
             averages: avgTimes || { avg_duration_mins: 15, total_consultations: 0 },
@@ -407,10 +592,11 @@ router.post('/waitlist/join', authenticate, async (req, res) => {
         const { doctorId, preferredDate, timePreference, maxNoticeHours, reason } = req.body;
         
         // Get patient ID from user
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
         
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -437,10 +623,11 @@ router.post('/waitlist/join', authenticate, async (req, res) => {
 // DELETE /api/appointments/waitlist/:id - Leave waitlist
 router.delete('/waitlist/:id', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -462,10 +649,11 @@ router.delete('/waitlist/:id', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/my - Get patient's waitlist entries
 router.get('/waitlist/my', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.json([]);
@@ -482,10 +670,11 @@ router.get('/waitlist/my', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/offers - Get pending slot offers for patient
 router.get('/waitlist/offers', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.json([]);
@@ -502,10 +691,11 @@ router.get('/waitlist/offers', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/accept - Accept a slot offer
 router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -527,10 +717,11 @@ router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/decline - Decline a slot offer
 router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
-            'SELECT id FROM patients WHERE user_id = ?',
+        const [patientRows] = await db.query(
+            'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -550,7 +741,7 @@ router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
 });
 
 // POST /api/appointments/waitlist/cleanup - Clean up expired entries (admin/cron)
-router.post('/waitlist/cleanup', async (req, res) => {
+router.post('/waitlist/cleanup', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
         const result = await waitlistService.cleanupExpired();
         res.json({ message: 'Cleanup complete', ...result });
@@ -595,6 +786,29 @@ router.get('/doctor/:doctorId/smart-arrivals', authenticate, async (req, res) =>
     } catch (error) {
         console.error('Batch smart arrivals error:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Issue #110: Export prescription as PDF
+router.get('/:id/prescription/pdf', authenticate, async (req, res) => {
+    try {
+        // Check if appointment exists and user is authorized (patient/doctor/admin)
+        const [appt] = await db.query('SELECT patient_id, doctor_id FROM appointments WHERE id = ?', [req.params.id]);
+        if (appt.length === 0) return res.status(404).json({ message: 'Appointment not found' });
+        
+        if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != appt[0].patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=prescription_${req.params.id}.pdf`);
+        
+        await exportService.generatePrescriptionPDF(req.params.id, res);
+    } catch (error) {
+        console.error(error);
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Server error exporting PDF' });
+        }
     }
 });
 

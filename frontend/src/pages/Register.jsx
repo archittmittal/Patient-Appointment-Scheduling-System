@@ -1,207 +1,177 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, User, Phone, MapPin, HeartPulse } from 'lucide-react';
+import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield, User, Phone, MapPin, Droplets, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { authService } from '../services/authService';
 
 const Register = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
-    const [step, setStep] = useState(1); // 1 = account, 2 = personal details
+    const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
-        first_name: '', last_name: '', email: '', password: '', confirm_password: '',
-        dob: '', phone: '', blood_group: '', address: ''
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        dob: '',
+        phone: '',
+        blood_group: '',
+        address: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
-    const handleChange = e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
     const handleStep1 = (e) => {
         e.preventDefault();
-        setError('');
-        if (formData.password !== formData.confirm_password) {
-            setError('Passwords do not match');
-            return;
-        }
-        if (formData.password.length < 6) {
-            setError('Password must be at least 6 characters');
-            return;
-        }
         setStep(2);
     };
 
-    const handleSubmit = async (e) => {
+    const handleFinalSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password,
-                    first_name: formData.first_name,
-                    last_name: formData.last_name,
-                    dob: formData.dob || null,
-                    phone: formData.phone,
-                    blood_group: formData.blood_group,
-                    address: formData.address,
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                setError(data.message || 'Registration failed');
-                if (res.status === 409) setStep(1);
+            const data = await authService.register(formData);
+            
+            if (data.error || !data.token) {
+                setError(data.message || 'Registration failed. Please try again.');
                 return;
             }
-            // Auto-login on success
+            
             login(data);
-            navigate('/patient-dashboard');
-        } catch {
-            setError('Cannot connect to server. Is the backend running?');
+            
+            const pending = localStorage.getItem('pendingBooking');
+            if (pending) {
+                navigate('/book');
+            } else {
+                navigate('/patient-dashboard');
+            }
+        } catch (err) {
+            setError(err.message || 'Unable to connect to the server.');
         } finally {
             setLoading(false);
         }
     };
 
-    const inputClass = "w-full border border-[var(--border-base)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)] transition-colors";
-
     return (
-        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-300">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="flex justify-center text-primary mb-4">
-                    <HeartPulse size={48} strokeWidth={1.5} />
-                </div>
-                <h2 className="text-center text-3xl font-extrabold text-[var(--text-base)] tracking-tight">
-                    Create Patient Account
-                </h2>
-                <p className="mt-2 text-center text-sm text-gray-500">
-                    Already have an account?{' '}
-                    <Link to="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
-                </p>
-            </div>
-
-            {/* Step indicators */}
-            <div className="sm:mx-auto sm:w-full sm:max-w-md mt-4">
-                <div className="flex items-center gap-2 justify-center mb-6">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 1 ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>1</div>
-                    <div className={`flex-1 h-1 max-w-16 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`}></div>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${step >= 2 ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>2</div>
-                </div>
-            </div>
-
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-[var(--bg-navbar)] py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-[var(--border-base)]">
-                    {error && (
-                        <div className="mb-4 p-3 bg-red-50/10 border border-red-200/20 text-red-500 rounded-lg text-sm">
-                            {error}
+        <div className="min-h-screen bg-[var(--bg-base)] flex flex-col items-center px-6 pt-6 pb-20 relative overflow-hidden">
+            <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse delay-1000"></div>
+            
+            <div className="flex-1 flex flex-col items-center justify-center w-full z-10">
+                <div className={`w-full max-w-xl transition-all duration-1000 transform ${isMounted ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+                    <div className="text-center mb-10">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-3xl shadow-sm border border-[var(--border-base)]/30 text-primary mb-6">
+                            <HeartPulse size={32} />
                         </div>
-                    )}
+                        <h1 className="text-4xl font-bold text-[var(--text-base)] tracking-tight mb-2">Join HealthSync</h1>
+                        <p className="text-[var(--text-base)]/60 font-medium">Create your secure health profile</p>
+                    </div>
 
-                    {/* Step 1: Account credentials */}
-                    {step === 1 && (
-                        <form onSubmit={handleStep1} className="space-y-4">
-                            <h3 className="text-base font-semibold text-[var(--text-base)] opacity-80 mb-4">Account Information</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">First Name *</label>
-                                    <div className="relative">
-                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <div className="flex items-center justify-center gap-4 mb-8">
+                        <div className={`h-1.5 w-12 rounded-full transition-all duration-500 ${step >= 1 ? 'bg-primary' : 'bg-[var(--border-base)]/20'}`}></div>
+                        <div className={`h-1.5 w-12 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-primary' : 'bg-[var(--border-base)]/20'}`}></div>
+                    </div>
+
+                    <div className="apple-card p-10 border border-[var(--border-base)]/50 shadow-xl shadow-primary/5 relative overflow-hidden">
+                        {error && (
+                            <div className="mb-8 p-4 bg-danger/5 border border-danger/10 text-danger text-sm rounded-xl flex items-center gap-3">
+                                <Shield size={18} className="shrink-0" />
+                                <p className="font-medium">{error}</p>
+                            </div>
+                        )}
+
+                        {step === 1 ? (
+                            <form onSubmit={handleStep1} className="space-y-6">
+                                <h3 className="text-xl font-bold text-[var(--text-base)] mb-6">Basic Information</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">First Name</label>
                                         <input name="first_name" required value={formData.first_name} onChange={handleChange}
-                                            className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
-                                            placeholder="John" />
+                                            className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="John" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Last Name</label>
+                                        <input name="last_name" required value={formData.last_name} onChange={handleChange}
+                                            className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="Doe" />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Last Name *</label>
-                                    <input name="last_name" required value={formData.last_name} onChange={handleChange}
-                                        className={inputClass} placeholder="Doe" />
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Email Address</label>
+                                    <input type="email" name="email" required value={formData.email} onChange={handleChange}
+                                        className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="john@example.com" />
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Email Address *</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input name="email" type="email" required value={formData.email} onChange={handleChange}
-                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
-                                        placeholder="you@example.com" />
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Password</label>
+                                    <input type="password" name="password" required value={formData.password} onChange={handleChange}
+                                        className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="••••••••" />
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Password *</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input name="password" type="password" required value={formData.password} onChange={handleChange}
-                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
-                                        placeholder="Min. 6 characters" />
+                                <button type="submit" className="w-full btn-primary py-4 text-base shadow-lg shadow-primary/20 mt-4">
+                                    Next Step <ArrowRight size={18} />
+                                </button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleFinalSubmit} className="space-y-6">
+                                <h3 className="text-xl font-bold text-[var(--text-base)] mb-6">Medical & Contact Info</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Date of Birth</label>
+                                        <input type="date" name="dob" value={formData.dob} onChange={handleChange}
+                                            className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Blood Group</label>
+                                        <select name="blood_group" value={formData.blood_group} onChange={handleChange}
+                                            className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all">
+                                            <option value="">Select</option>
+                                            {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Confirm Password *</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input name="confirm_password" type="password" required value={formData.confirm_password} onChange={handleChange}
-                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
-                                        placeholder="Re-enter password" />
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Phone Number</label>
+                                    <input name="phone" required value={formData.phone} onChange={handleChange}
+                                        className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="+1 (555) 000-0000" />
                                 </div>
-                            </div>
-                            <button type="submit" className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-colors mt-2">
-                                Continue
-                            </button>
-                        </form>
-                    )}
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-medium text-[var(--text-base)]/70 ml-1">Residential Address</label>
+                                    <input name="address" required value={formData.address} onChange={handleChange}
+                                        className="block w-full px-4 py-3 bg-[var(--bg-base)]/50 border border-[var(--border-base)]/30 rounded-2xl text-base focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary/30 transition-all" placeholder="123 Health St, City" />
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button type="button" onClick={() => setStep(1)} className="flex-1 px-6 py-4 rounded-2xl border border-[var(--border-base)]/30 text-sm font-bold hover:bg-[var(--border-base)]/5 transition-all">Back</button>
+                                    <button type="submit" disabled={loading} className="flex-[2] btn-primary py-4 text-base shadow-lg shadow-primary/20">
+                                        {loading ? <Activity className="animate-spin" size={20} /> : 'Create Account'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
 
-                    {/* Step 2: Personal / medical details */}
-                    {step === 2 && (
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <h3 className="text-base font-semibold text-[var(--text-base)] opacity-80 mb-4">Personal &amp; Medical Details</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Date of Birth</label>
-                                    <input name="dob" type="date" value={formData.dob} onChange={handleChange} className={inputClass} />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1">Blood Group</label>
-                                    <select name="blood_group" value={formData.blood_group} onChange={handleChange} className={inputClass}>
-                                        <option value="">Select</option>
-                                        {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(bg => (
-                                            <option key={bg} value={bg}>{bg}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Phone Number</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                    <input name="phone" value={formData.phone} onChange={handleChange}
-                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)]"
-                                        placeholder="+1 555 000 0000" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-3 text-gray-400" size={16} />
-                                    <textarea name="address" value={formData.address} onChange={handleChange} rows={2}
-                                        className="w-full border border-[var(--border-base)] rounded-xl pl-9 pr-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-[var(--bg-base)] text-[var(--text-base)] resize-none"
-                                        placeholder="Your home address" />
-                                </div>
-                            </div>
-                            <p className="text-xs text-gray-400">Date of birth, blood group, phone and address are optional and can be updated later in your profile.</p>
-                            <div className="flex gap-3">
-                                <button type="button" onClick={() => setStep(1)} className="flex-1 py-3 border border-[var(--border-base)] text-[var(--text-base)] font-semibold rounded-xl hover:bg-[var(--bg-base)] transition-colors">
-                                    Back
-                                </button>
-                                <button type="submit" disabled={loading} className="flex-1 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-60">
-                                    {loading ? 'Creating account...' : 'Create Account'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                    <p className="mt-8 text-center text-sm text-[var(--text-base)]/60">
+                        Already have an account?{' '}
+                        <Link to="/login" className="text-primary font-semibold hover:underline">Sign in instead</Link>
+                    </p>
+
+                    <div className="mt-6 text-center">
+                        <p className="text-[10px] text-[var(--text-base)]/30 font-bold uppercase tracking-[0.2em]">
+                            Note: This registration is for Patients only. Doctor or Admin? Access is managed by your institution.
+                        </p>
+                    </div>
                 </div>
+            </div>
+            
+            <div className="w-full mt-12 mb-8 text-center text-[11px] font-medium text-[var(--text-base)]/30 z-10">
+                &copy; 2026 HealthSync. All healthcare data is encrypted and secure.
             </div>
         </div>
     );

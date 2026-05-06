@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "ROLLUP_NATIVE_ENABLED=0 vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -14,11 +14,14 @@
     "axios": "^1.16.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.576.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
     "react-webcam": "^7.2.0",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^3.5.0",
     "tesseract.js": "^7.0.0"
   },
@@ -35,5 +38,11 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.59.0"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }

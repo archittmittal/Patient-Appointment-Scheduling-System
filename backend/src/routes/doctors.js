@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 const {
     calculateCurrentDelay,
     propagateDelayToQueue,
@@ -12,7 +12,41 @@ const {
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
 
-// GET /api/doctors — all doctors
+/**
+ * @swagger
+ * tags:
+ *   name: Doctors
+ *   description: Doctor profile and management
+ */
+
+/**
+ * @swagger
+ * /api/doctors:
+ *   get:
+ *     summary: Get all doctors
+ *     tags: [Doctors]
+ *     responses:
+ *       200:
+ *         description: List of doctors retrieved successfully
+ */
+/**
+ * @swagger
+ * /api/doctors/{id}:
+ *   get:
+ *     summary: Get doctor by ID
+ *     tags: [Doctors]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor data retrieved successfully
+ *       404:
+ *         description: Doctor not found
+ */
 router.get('/', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT * FROM doctors');
@@ -36,7 +70,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can update their profile
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot } = req.body;
         await db.query(
@@ -82,7 +120,11 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, async (req, res) => {
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can update their availability
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { availability } = req.body;
         if (!availability || typeof availability !== 'object') {
@@ -96,17 +138,44 @@ router.patch('/:id/availability', authenticate, async (req, res) => {
     }
 });
 
-// GET /api/doctors/:id/reviews — mock reviews
+// GET /api/doctors/:id/reviews — real reviews from appointment_feedback
 router.get('/:id/reviews', async (req, res) => {
-    const reviews = [
-        { id: 1, name: 'Alice Walker', rating: 5.0, date: '2 days ago', comment: 'Very thorough and professional. Highly recommended.', avatar: 'https://ui-avatars.com/api/?name=Alice+Walker&background=random' },
-        { id: 2, name: 'David Chen', rating: 4.5, date: '1 week ago', comment: 'Very professional and the clinic is well-equipped.', avatar: 'https://ui-avatars.com/api/?name=David+Chen&background=random' }
-    ];
-    res.json(reviews);
+    try {
+        const [rows] = await db.query(`
+            SELECT 
+                af.id, 
+                CONCAT(p.first_name, ' ', p.last_name) as name,
+                af.weighted_score as rating,
+                af.created_at as date,
+                af.comment,
+                u.email
+            FROM appointment_feedback af
+            JOIN patients p ON af.patient_id = p.id
+            JOIN users u ON p.id = u.id
+            WHERE af.doctor_id = ?
+            ORDER BY af.created_at DESC
+            LIMIT 10
+        `, [req.params.id]);
+
+        const reviews = rows.map(r => ({
+            ...r,
+            rating: Number(r.rating),
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(r.name)}&background=random`
+        }));
+
+        res.json(reviews);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching reviews' });
+    }
 });
 
 // GET /api/doctors/:id/patients — all patients with their appointments + symptoms
-router.get('/:id/patients', async (req, res) => {
+router.get('/:id/patients', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can view their patient list
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const [rows] = await db.query(`
             SELECT a.id AS appointment_id, a.appointment_date, a.time_slot, a.symptoms, a.status,
@@ -127,11 +196,15 @@ router.get('/:id/patients', async (req, res) => {
 });
 
 // GET /api/doctors/:id/queue — today's live queue for this doctor
-router.get('/:id/queue', async (req, res) => {
+router.get('/:id/queue', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can view their queue
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const [rows] = await db.query(`
             SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status, lq.estimated_time,
-                   a.id AS appointment_id, a.time_slot, a.symptoms,
+                   a.id AS appointment_id, a.patient_id, a.time_slot, a.symptoms,
                    p.first_name, p.last_name
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
@@ -161,7 +234,11 @@ router.get('/:id/blocked-dates', async (req, res) => {
 });
 
 // POST /api/doctors/:id/blocked-dates — block a specific date
-router.post('/:id/blocked-dates', async (req, res) => {
+router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can block dates
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         const { date, reason } = req.body;
         if (!date) return res.status(400).json({ message: 'date is required' });
@@ -180,7 +257,11 @@ router.post('/:id/blocked-dates', async (req, res) => {
 });
 
 // DELETE /api/doctors/:id/blocked-dates/:dateId — unblock a date
-router.delete('/:id/blocked-dates/:dateId', async (req, res) => {
+router.delete('/:id/blocked-dates/:dateId', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    // Only the doctor themselves can unblock dates
+    if (req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
     try {
         await db.query(
             'DELETE FROM doctor_blocked_dates WHERE id = ? AND doctor_id = ?',
@@ -231,10 +312,11 @@ router.get('/:id/weekly-schedule', async (req, res) => {
         );
 
         // Doctor availability + capacity
-        const [[doctor]] = await db.query(
+        const [doctorRows] = await db.query(
             'SELECT availability, max_patients_per_slot FROM doctors WHERE id = ?',
             [req.params.id]
         );
+        const doctor = doctorRows[0];
 
         // Blocked dates in this range
         const [blocked] = await db.query(
@@ -282,7 +364,7 @@ router.get('/:id/delay-status', async (req, res) => {
 });
 
 // POST /api/doctors/:id/delay — set manual delay
-router.post('/:id/delay', authenticate, async (req, res) => {
+router.post('/:id/delay', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const { delayMins, reason } = req.body;
@@ -320,7 +402,7 @@ router.get('/:id/delay/check', async (req, res) => {
 });
 
 // GET /api/doctors/:id/delay/analytics — get delay analytics
-router.get('/:id/delay/analytics', authenticate, async (req, res) => {
+router.get('/:id/delay/analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const days = parseInt(req.query.days) || 30;
@@ -341,7 +423,7 @@ router.get('/:id/delay/analytics', authenticate, async (req, res) => {
 // ==================== Issue #41: Waitlist Endpoints (Doctor Side) ====================
 
 // GET /api/doctors/:id/waitlist - Get waitlist for this doctor
-router.get('/:id/waitlist', authenticate, async (req, res) => {
+router.get('/:id/waitlist', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { date } = req.query;
         const entries = await waitlistService.getDoctorWaitlist(parseInt(req.params.id), date);
@@ -353,7 +435,7 @@ router.get('/:id/waitlist', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-settings - Get auto-fill settings
-router.get('/:id/autofill-settings', authenticate, async (req, res) => {
+router.get('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const settings = await waitlistService.getAutoFillSettings(parseInt(req.params.id));
         res.json(settings);
@@ -364,7 +446,7 @@ router.get('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // PUT /api/doctors/:id/autofill-settings - Update auto-fill settings
-router.put('/:id/autofill-settings', authenticate, async (req, res) => {
+router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { enabled, offerWindowMins, minNoticeHours, maxOffersPerSlot, priorityMode } = req.body;
         
@@ -384,7 +466,7 @@ router.put('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-analytics - Get auto-fill analytics
-router.get('/:id/autofill-analytics', authenticate, async (req, res) => {
+router.get('/:id/autofill-analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];

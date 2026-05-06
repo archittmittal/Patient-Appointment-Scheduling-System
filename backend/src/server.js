@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const validateEnv = require('./config/validateEnv');
+validateEnv();
 
 const authRoutes = require('./routes/auth');
 const doctorRoutes = require('./routes/doctors');
@@ -18,12 +22,120 @@ const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
 const insuranceRoutes = require('./routes/insurance');
+const paymentRoutes = require('./routes/payments');
+const messageRoutes = require('./routes/messages');
+const errorHandler = require('./middleware/errorHandler');
+const reminderService = require('./services/reminderService');
 
 const app = express();
 
-// Middleware
-app.use(cors());
 app.use(express.json());
+
+// Debug Logger
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+// Root Route (Moved to top for visibility)
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'Hospital Management API is running', version: '1.0.1' });
+});
+
+// Issue #92: Swagger API Documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const swaggerOptions = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'Hospital Management API',
+            version: '1.0.0',
+            description: 'API documentation for the Patient Appointment Scheduling System',
+        },
+        servers: [
+            {
+                url: 'http://localhost:7860',
+            },
+        ],
+    },
+    apis: ['./src/routes/*.js'],
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Security Middleware
+app.use(helmet());
+
+// Strict CORS
+function normalizeOrigin(value) {
+    if (!value) return null;
+
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    try {
+        return new URL(trimmed).origin;
+    } catch {
+        return trimmed;
+    }
+}
+
+const whitelist = new Set([
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+    process.env.APP_URL,
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+].map(normalizeOrigin).filter(Boolean));
+
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+        
+        const normalizedOrigin = normalizeOrigin(origin);
+
+        // 1. Allow whitelisted origins
+        if (whitelist.has(normalizedOrigin)) return callback(null, true);
+        
+        // 2. Allow all localhost/127.0.0.1 variants for development
+        if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            return callback(null, true);
+        }
+        
+        // 3. Allow all Vercel and Hugging Face deployments
+        if (/\.vercel\.app$/.test(origin) || /\.hf\.space$/.test(origin)) {
+            return callback(null, true);
+        }
+        
+        // 4. In development, be permissive if needed
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+
+        callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+};
+app.use(cors(corsOptions));
+
+// Global Rate Limiter
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+app.use('/api/', globalLimiter);
+
+// Auth Rate Limiter (Sensitive Routes)
+const authLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // Limit each IP to 10 login/register requests per hour
+    message: 'Too many authentication attempts, please try again after an hour'
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -42,13 +154,22 @@ app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/insurance', insuranceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Hospital API is running' });
 });
 
+// Global Error Handler (Must be last)
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 7860;
-app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, () => {
+        console.log(`Server listening on port ${PORT}`);
+    });
+}
+
+module.exports = app;

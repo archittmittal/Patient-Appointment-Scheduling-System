@@ -15,7 +15,7 @@ const { authenticate } = require('../middleware/authenticate');
 router.post('/submit', authenticate, async (req, res) => {
     try {
         const { appointmentId, ratings, comment, wouldRecommend, improvements } = req.body;
-        const patientId = req.user.role === 'patient' ? req.user.id : req.body.patientId;
+        const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
 
         if (!appointmentId || !ratings) {
             return res.status(400).json({ error: 'Appointment ID and ratings required' });
@@ -39,7 +39,7 @@ router.post('/submit', authenticate, async (req, res) => {
  */
 router.get('/pending', authenticate, async (req, res) => {
     try {
-        if (req.user.role !== 'patient') {
+        if (req.user.role !== 'PATIENT') {
             return res.status(403).json({ error: 'Patients only' });
         }
 
@@ -71,7 +71,7 @@ router.get('/categories', async (req, res) => {
  */
 router.get('/history', authenticate, async (req, res) => {
     try {
-        if (req.user.role !== 'patient') {
+        if (req.user.role !== 'PATIENT') {
             return res.status(403).json({ error: 'Patients only' });
         }
 
@@ -89,7 +89,7 @@ router.get('/history', authenticate, async (req, res) => {
  */
 router.get('/doctor-analytics', authenticate, async (req, res) => {
     try {
-        if (req.user.role !== 'doctor') {
+        if (req.user.role !== 'DOCTOR') {
             return res.status(403).json({ error: 'Doctors only' });
         }
 
@@ -111,7 +111,7 @@ router.get('/doctor-analytics', authenticate, async (req, res) => {
  */
 router.get('/system-analytics', authenticate, async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
+        if (req.user.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Admin only' });
         }
 

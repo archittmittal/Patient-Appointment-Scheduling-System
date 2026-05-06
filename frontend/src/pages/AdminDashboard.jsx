@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity } from 'lucide-react';
+import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { API, authedHeaders } from '../config/api';
+import EmergencyModal from '../components/EmergencyModal';
 
 const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
     <button
@@ -103,6 +104,7 @@ const AdminDashboard = () => {
     const [statsLoading, setStatsLoading] = useState(true);
     const [queueLoading, setQueueLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
 
     useEffect(() => {
         fetch(`${API}/api/admin/stats`, { headers: authedHeaders() })
@@ -131,9 +133,17 @@ const AdminDashboard = () => {
 
     return (
         <div className="space-y-8 pb-10">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="text-gray-500 mt-1">Overview of the hospital system.</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                    <p className="text-gray-500 mt-1">Overview of the hospital system.</p>
+                </div>
+                <button 
+                    onClick={() => setIsEmergencyOpen(true)}
+                    className="btn-primary bg-danger hover:bg-red-700"
+                >
+                    <AlertCircle size={18} /> Emergency Override
+                </button>
             </div>
 
             {/* Overall stats */}
@@ -285,6 +295,15 @@ const AdminDashboard = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Emergency Modal */}
+            <EmergencyModal 
+                isOpen={isEmergencyOpen} 
+                onClose={() => setIsEmergencyOpen(false)}
+                onSuccess={() => {
+                    fetchQueue();
+                }}
+            />
         </div>
     );
 };
