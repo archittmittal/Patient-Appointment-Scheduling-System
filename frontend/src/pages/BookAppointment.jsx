@@ -1,76 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, CheckCircle2, Users, Bell } from 'lucide-react';
+import { 
+    Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
+    CheckCircle2, Users, Bell, ArrowRight, Sparkles, AlertCircle,
+    Activity, ShieldCheck, Zap, Compass, MapPin, Search, FileText,
+    Stethoscope, User, CalendarDays
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders, API_URL } from '../config/api';
 import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { safeFetch } from '../utils/apiHelper';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const parseAvailability = (av) => {
     if (!av) return null;
-    return typeof av === 'string' ? JSON.parse(av) : av;
+    try {
+        return typeof av === 'string' ? JSON.parse(av) : av;
+    } catch (e) {
+        return null;
+    }
 };
 
-// "2025-03-10" → "monday"
 const getDayOfWeek = (dateStr) => {
+    if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-').map(Number);
     return DAY_NAMES[new Date(y, m - 1, d).getDay()];
 };
 
-// Generates hourly range slots e.g. "09:00"→"17:00" gives
-// [{ label: "09:00 – 10:00", hour: 9 }, { label: "10:00 – 11:00", hour: 10 }, ...]
 const generateHourlySlots = (from, to) => {
-    const [fh] = from.split(':').map(Number);
-    const [th] = to.split(':').map(Number);
-    const slots = [];
-    for (let h = fh; h < th; h++) {
-        slots.push({
-            label: `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`,
-            hour: h,
-        });
+    if (!from || !to) return [];
+    try {
+        const [fh] = from.split(':').map(Number);
+        const [th] = to.split(':').map(Number);
+        const slots = [];
+        for (let h = fh; h < th; h++) {
+            slots.push({
+                label: `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`,
+                hour: h,
+            });
+        }
+        return slots;
+    } catch (e) {
+        return [];
     }
-    return slots;
 };
-
-const TimeSlot = ({ slot, isSelected, isFull, booked, capacity, onClick }) => (
-    <button
-        onClick={isFull ? undefined : onClick}
-        disabled={isFull}
-        className={`py-2.5 px-3 rounded-xl text-xs font-medium transition-all border flex flex-col items-center gap-0.5 ${
-            isFull
-                ? 'bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100'
-                : isSelected
-                    ? 'bg-primary text-white shadow-md shadow-primary/30 border-primary'
-                    : 'bg-white text-gray-700 hover:border-primary/50 hover:text-primary border-gray-200 cursor-pointer'
-        }`}
-    >
-        <span>{slot.label}</span>
-        <span className={`text-[10px] font-normal ${isFull ? 'text-red-400' : isSelected ? 'text-white/80' : 'text-gray-400'}`}>
-            {isFull ? 'Full' : `${booked}/${capacity}`}
-        </span>
-    </button>
-);
 
 const BookAppointment = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [doctors, setDoctors] = useState([]);
-    const [selectedDoctor, setSelectedDoctor] = useState('');
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [selectedSlot, setSelectedSlot] = useState(null);
-    const [slotCounts, setSlotCounts] = useState({});
-    const [symptoms, setSymptoms] = useState('');
+    
+    // UI State
+    const [step, setStep] = useState(1);
     const [isBooked, setIsBooked] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Data State
+    const [doctors, setDoctors] = useState([]);
+    const [specialties, setSpecialties] = useState([]);
+    const [selectedSpecialty, setSelectedSpecialty] = useState('');
+    const [selectedDoctorId, setSelectedDoctorId] = useState('');
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [selectedSlot, setSelectedSlot] = useState(null);
+    const [symptoms, setSymptoms] = useState('');
+    
+    // Calendar & Slots
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [blockedDates, setBlockedDates] = useState(new Set());
+    const [slotCounts, setSlotCounts] = useState({});
     const [bookingResult, setBookingResult] = useState(null);
     
-    // Issue #41: Waitlist state
+    // Waitlist State
     const [waitlistJoining, setWaitlistJoining] = useState(false);
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
@@ -112,259 +115,260 @@ const BookAppointment = () => {
         fetchInsurance();
     };
 
+    // Persistence Logic
     useEffect(() => {
-        fetch(`${API}/api/doctors`)
-            .then(res => res.json())
-            .then(data => {
-                setDoctors(data);
-                if (data.length > 0) setSelectedDoctor(data[0].id);
-            })
-            .catch(err => console.error(err));
+        const saved = localStorage.getItem('pendingBooking');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.doctorId) setSelectedDoctorId(data.doctorId);
+                if (data.specialty) setSelectedSpecialty(data.specialty);
+                if (data.date) setSelectedDate(data.date);
+                if (data.slot) setSelectedSlot(data.slot);
+                if (data.symptoms) setSymptoms(data.symptoms);
+                if (data.step) setStep(data.step);
+                
+                // Clear after loading
+                localStorage.removeItem('pendingBooking');
+            } catch (e) {
+                console.error('Failed to parse saved booking');
+            }
+        }
     }, []);
 
-    // Reset when doctor changes and fetch their blocked dates
-    useEffect(() => {
-        setSelectedSlot(null);
-        setSlotCounts({});
-        setBlockedDates(new Set());
-        if (!selectedDoctor) return;
-        fetch(`http://localhost:5001/api/doctors/${selectedDoctor}/blocked-dates`)
-            .then(r => r.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    // blocked_date comes as "YYYY-MM-DDT00:00:00.000Z" — normalise to YYYY-MM-DD
-                    setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
-                }
-            })
-            .catch(() => {});
-    }, [selectedDoctor]);
+    const saveAndRedirect = (target) => {
+        const state = {
+            doctorId: selectedDoctorId,
+            specialty: selectedSpecialty,
+            date: selectedDate,
+            slot: selectedSlot,
+            symptoms: symptoms,
+            step: 5
+        };
+        localStorage.setItem('pendingBooking', JSON.stringify(state));
+        navigate(target);
+    };
 
-    // Fetch current booking counts whenever doctor + date are both set
     useEffect(() => {
-        if (!selectedDoctor || !selectedDate) return;
-        setSelectedSlot(null);
-        setWaitlistJoined(false); // Reset waitlist state when date changes
-        fetch(`${API}/api/doctors/${selectedDoctor}/slot-counts?date=${selectedDate}`)
-            .then(res => res.json())
-            .then(data => setSlotCounts(data))
-            .catch(() => setSlotCounts({}));
-    }, [selectedDoctor, selectedDate]);
+        const fetchDocs = async () => {
+            const data = await safeFetch(`${API}/api/doctors`);
+            if (Array.isArray(data)) {
+                const pruned = data.filter(d => d && typeof d === 'object' && d.id);
+                setDoctors(pruned);
+                
+                // Extract unique specialties
+                const specs = [...new Set(pruned.map(d => d.specialty))].filter(Boolean).sort();
+                setSpecialties(specs);
+            }
+        };
+        fetchDocs();
+    }, []);
 
-    // Issue #41: Join waitlist handler
+    useEffect(() => {
+        if (!selectedDoctorId) return;
+        
+        const fetchBlocked = async () => {
+            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/blocked-dates`);
+            if (Array.isArray(data)) {
+                setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
+            }
+        };
+        fetchBlocked();
+    }, [selectedDoctorId]);
+
+    useEffect(() => {
+        if (!selectedDoctorId || !selectedDate) return;
+        
+        const fetchSlots = async () => {
+            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
+            setSlotCounts(data || {});
+        };
+        fetchSlots();
+    }, [selectedDoctorId, selectedDate]);
+
     const handleJoinWaitlist = async () => {
-        if (!selectedDoctor || !selectedDate) return;
+        if (!selectedDoctorId || !selectedDate) return;
         setWaitlistJoining(true);
         try {
             const res = await fetch(`${API}/api/appointments/waitlist/join`, {
                 method: 'POST',
                 headers: authedHeaders(true),
                 body: JSON.stringify({
-                    doctorId: selectedDoctor,
+                    doctorId: selectedDoctorId,
                     preferredDate: selectedDate,
                     timePreference: waitlistTimePreference,
                     maxNoticeHours: 24,
-                    reason: symptoms || 'Looking for earlier availability'
+                    reason: symptoms || 'Patient requested earlier availability'
                 })
             });
-            if (res.ok) {
-                setWaitlistJoined(true);
-            } else {
-                const data = await res.json();
-                alert(data.message || 'Failed to join waitlist');
-            }
+            if (res.ok) setWaitlistJoined(true);
         } catch (err) {
-            console.error('Join waitlist error:', err);
-            alert('Failed to join waitlist');
+            console.error('[Booking] Waitlist error:', err);
         } finally {
             setWaitlistJoining(false);
         }
     };
 
-    const year  = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
-    const daysInMonth     = new Date(year, month + 1, 0).getDate();
-    const days  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const today = new Date();
-
-    const selectedDoctorObj = doctors.find(d => String(d.id) === String(selectedDoctor));
-    const doctorAvail       = parseAvailability(selectedDoctorObj?.availability);
-    const capacity          = selectedDoctorObj?.max_patients_per_slot || 15;
-
-    const isDocClosed = (dateStr) => {
-        if (!doctorAvail) return false;
-        return !doctorAvail[getDayOfWeek(dateStr)]?.open;
+    const handleBook = async () => {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`${API}/api/appointments/book`, {
+                method: 'POST',
+                headers: authedHeaders(true),
+                body: JSON.stringify({ 
+                    patientId: user.id, 
+                    doctorId: selectedDoctorId, 
+                    date: selectedDate, 
+                    timeSlot: selectedSlot, 
+                    symptoms: symptoms || null 
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                setBookingResult(result);
+                setIsBooked(true);
+            } else {
+                alert(result.message || 'Unable to complete booking. Please try again.');
+            }
+        } catch (err) {
+            alert('A connection error occurred. Please check your network.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const currentDayAvail = selectedDate && doctorAvail ? doctorAvail[getDayOfWeek(selectedDate)] : null;
-    const allSlots        = currentDayAvail?.open ? generateHourlySlots(currentDayAvail.from, currentDayAvail.to) : [];
-    const morningSlots    = allSlots.filter(s => s.hour < 12);
-    const afternoonSlots  = allSlots.filter(s => s.hour >= 12);
+    const selectedDoctor = doctors.find(d => String(d.id) === String(selectedDoctorId));
+    const doctorAvail = parseAvailability(selectedDoctor?.availability);
+    const capacity = selectedDoctor?.max_patients_per_slot || 15;
 
-    if (isBooked) {
-        return (
-            <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-sm border border-gray-100 min-h-[60vh]">
-                <div className="w-24 h-24 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
-                    <CheckCircle2 size={48} />
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Appointment Confirmed!</h2>
-                <p className="text-gray-500 text-center max-w-md mb-4">
-                    Your appointment with Dr. {selectedDoctorObj?.first_name} {selectedDoctorObj?.last_name} is confirmed for {selectedDate} at {selectedSlot}.
-                </p>
-                
-                {/* AI Prediction Info */}
-                {bookingResult && (
-                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 max-w-md w-full">
-                        <p className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
-                            <Clock size={16} /> AI-Powered Estimates
-                        </p>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                                <p className="text-blue-600">Predicted Duration</p>
-                                <p className="font-semibold text-blue-900">~{bookingResult.predictedDuration || 15} mins</p>
-                            </div>
-                            {bookingResult.queueNumber && (
-                                <div>
-                                    <p className="text-blue-600">Queue Position</p>
-                                    <p className="font-semibold text-blue-900">#{bookingResult.queueNumber}</p>
-                                </div>
-                            )}
-                            {bookingResult.estimatedWait !== undefined && bookingResult.estimatedWait !== null && (
-                                <div className="col-span-2">
-                                    <p className="text-blue-600">Estimated Wait (if today)</p>
-                                    <p className="font-semibold text-blue-900">~{bookingResult.estimatedWait} mins</p>
-                                </div>
-                            )}
-                        </div>
+    const filteredDoctors = selectedSpecialty 
+        ? doctors.filter(d => d.specialty === selectedSpecialty)
+        : doctors;
+
+    // Helper: Step Progress
+    const StepIndicator = () => (
+        <div className="flex items-center justify-center gap-4 mb-12">
+            {[1, 2, 3, 4, 5].map(s => (
+                <div key={s} className="flex items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                        step === s ? 'bg-primary text-white scale-110 shadow-lg' : 
+                        step > s ? 'bg-success text-white' : 'bg-slate-200 text-slate-400'
+                    }`}>
+                        {step > s ? <CheckCircle2 size={16} /> : s}
                     </div>
-                )}
-                
-                <div className="flex gap-4">
-                    <button onClick={() => navigate('/queue')} className="px-6 py-3 bg-primary text-white font-medium rounded-xl shadow-sm hover:bg-primary-hover transition-colors">
-                        Track Live Queue
-                    </button>
-                    <button onClick={() => navigate('/patient-dashboard')} className="px-6 py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
-                        Back to Dashboard
-                    </button>
+                    {s < 5 && <div className={`w-8 md:w-16 h-0.5 mx-2 rounded-full ${step > s ? 'bg-success' : 'bg-slate-200'}`}></div>}
                 </div>
-            </div>
-        );
-    }
+            ))}
+        </div>
+    );
 
-    const SlotGroup = ({ label, slots }) => {
-        if (slots.length === 0) return null;
-        return (
-            <div>
-                <p className="text-sm font-medium text-gray-500 mb-3">{label}</p>
-                <div className="grid grid-cols-3 gap-3">
-                    {slots.map(s => {
-                        const booked = slotCounts[s.label] || 0;
-                        const isFull = booked >= capacity;
-                        return (
-                            <TimeSlot
-                                key={s.label}
-                                slot={s}
-                                isSelected={selectedSlot === s.label}
-                                isFull={isFull}
-                                booked={booked}
-                                capacity={capacity}
-                                onClick={() => setSelectedSlot(s.label)}
-                            />
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    };
+    // --- Renderers for Steps ---
 
-    return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Book Appointment</h1>
-                <p className="text-gray-500 mt-1">Select a doctor, date, and time slot to book your visit.</p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                {/* Doctor selector */}
-                <div className="pb-6 border-b border-gray-100">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Choose Doctor</label>
-                    <select
-                        value={selectedDoctor}
-                        onChange={e => setSelectedDoctor(e.target.value)}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+    const renderStep1 = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h2 className="text-2xl font-semibold mb-8 text-center">Which department do you need?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {specialties.map(spec => (
+                    <button
+                        key={spec}
+                        onClick={() => { setSelectedSpecialty(spec); setStep(2); }}
+                        className={`apple-card p-8 text-left hover:border-primary/50 border border-transparent group transition-all ${selectedSpecialty === spec ? 'ring-2 ring-primary ring-offset-2' : ''}`}
                     >
-                        {doctors.map(doc => (
-                            <option key={doc.id} value={doc.id}>
-                                Dr. {doc.first_name} {doc.last_name} — {doc.specialty}
-                            </option>
-                        ))}
-                    </select>
-                    {selectedDoctorObj && (
-                        <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-3">
-                                <img
-                                    src={selectedDoctorObj.image_url || `https://ui-avatars.com/api/?name=${selectedDoctorObj.first_name}+${selectedDoctorObj.last_name}&background=random`}
-                                    alt="Doctor"
-                                    className="w-10 h-10 rounded-full object-cover"
-                                />
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">Dr. {selectedDoctorObj.first_name} {selectedDoctorObj.last_name}</p>
-                                    <p className="text-xs text-primary">{selectedDoctorObj.specialty} · {selectedDoctorObj.location_room}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg">
-                                <Users size={13} />
-                                <span>{capacity} patients per slot</span>
-                            </div>
+                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                            <Stethoscope size={24} />
                         </div>
-                    )}
+                        <h3 className="text-lg font-bold mb-1">{spec}</h3>
+                        <p className="text-sm text-slate-500">View available consultants</p>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderStep2 = () => (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(1)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Change Department
+                </button>
+                <h2 className="text-2xl font-semibold">Select a Doctor</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredDoctors.map(doc => (
+                    <button
+                        key={doc.id}
+                        onClick={() => { setSelectedDoctorId(doc.id); setStep(3); }}
+                        className={`apple-card p-6 flex items-center gap-6 text-left border border-transparent hover:border-primary/50 transition-all ${selectedDoctorId === doc.id ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                    >
+                        <img 
+                            src={doc.image_url || `https://ui-avatars.com/api/?name=${doc.first_name}+${doc.last_name}&background=e8f2ff&color=0071e3`} 
+                            className="w-20 h-20 rounded-2xl object-cover"
+                            alt={doc.first_name}
+                        />
+                        <div>
+                            <h3 className="text-lg font-bold">Dr. {doc.first_name} {doc.last_name}</h3>
+                            <p className="text-sm text-primary font-medium">{doc.specialty}</p>
+                            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                                <MapPin size={12} /> {doc.location_room || 'Main Clinic'}
+                            </p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderStep3 = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = new Date();
+        
+        const currentDayAvail = selectedDate ? doctorAvail?.[getDayOfWeek(selectedDate)] : null;
+        const allSlots = currentDayAvail?.open ? generateHourlySlots(currentDayAvail.from, currentDayAvail.to) : [];
+
+        return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between mb-8">
+                    <button onClick={() => setStep(2)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                        <ChevronLeft size={16} /> Choose Doctor
+                    </button>
+                    <h2 className="text-2xl font-semibold">Choose Date & Time</h2>
                 </div>
 
-                <div className="mt-8 flex flex-col lg:flex-row lg:gap-12">
-                    {/* Calendar */}
-                    <div className="flex-1">
-                        <div className="flex justify-between items-center mb-6">
-                            <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                <CalendarIcon size={20} className="text-primary" />
-                                Select Date
-                            </h4>
-                            <div className="flex items-center gap-4 text-sm font-medium text-gray-600">
-                                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-1 hover:bg-gray-100 rounded">
-                                    <ChevronLeft size={20} />
-                                </button>
-                                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-1 hover:bg-gray-100 rounded">
-                                    <ChevronRight size={20} />
-                                </button>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* Calendar Part */}
+                    <div className="apple-card p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <span className="font-bold text-lg">{currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                            <div className="flex gap-2">
+                                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
+                                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
                             </div>
                         </div>
-                        <div className="grid grid-cols-7 gap-y-4 gap-x-2 text-center">
-                            {days.map(day => (
-                                <div key={day} className="text-xs font-medium text-gray-400 uppercase tracking-wide">{day}</div>
-                            ))}
+                        <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                            {days.map(d => <div key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>)}
+                        </div>
+                        <div className="grid grid-cols-7 gap-1">
                             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
                             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(date => {
-                                const d       = new Date(year, month, date);
-                                const isPast  = d < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
-                                const closed  = !isPast && isDocClosed(dateStr);
-                                const isBlocked = !isPast && blockedDates.has(dateStr);
+                                const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+                                const isPast = new Date(year, month, date) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                const closed = !isPast && doctorAvail?.[getDayOfWeek(dStr)]?.open === false;
+                                const isBlocked = !isPast && blockedDates.has(dStr);
                                 const disabled = isPast || closed || isBlocked;
+                                
                                 return (
                                     <button
                                         key={date}
                                         disabled={disabled}
-                                        onClick={() => setSelectedDate(dateStr)}
-                                        title={closed ? 'Doctor unavailable' : isBlocked ? 'Doctor blocked this date' : undefined}
-                                        className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center text-sm font-medium transition-colors
-                                            ${selectedDate === dateStr
-                                                ? 'bg-primary text-white shadow-md shadow-primary/30'
-                                                : isBlocked
-                                                    ? 'bg-red-50 text-red-300 cursor-not-allowed line-through'
-                                                    : disabled
-                                                        ? 'text-gray-300 cursor-not-allowed'
-                                                        : 'text-gray-700 hover:bg-gray-100'
-                                            }`}
+                                        onClick={() => setSelectedDate(dStr)}
+                                        className={`h-10 md:h-12 w-full rounded-xl flex items-center justify-center text-sm font-medium transition-all ${
+                                            selectedDate === dStr ? 'bg-primary text-white shadow-md' :
+                                            disabled ? 'text-slate-200 cursor-not-allowed' : 'hover:bg-primary-light hover:text-primary'
+                                        }`}
                                     >
                                         {date}
                                     </button>
@@ -373,80 +377,203 @@ const BookAppointment = () => {
                         </div>
                     </div>
 
-                    <div className="hidden lg:block w-px bg-gray-100"></div>
-
-                    {/* Time Slots */}
-                    <div className="flex-1 mt-8 lg:mt-0">
-                        <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2 mb-6">
-                            <Clock size={20} className="text-primary" />
-                            Available Time
-                        </h4>
-
+                    {/* Slots Part */}
+                    <div className="space-y-6">
                         {!selectedDate ? (
-                            <p className="text-sm text-gray-400 italic">Select a date to see available time slots.</p>
-                        ) : currentDayAvail && !currentDayAvail.open ? (
-                            <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600 font-medium capitalize">
-                                Doctor is not available on {getDayOfWeek(selectedDate)}s.
+                            <div className="h-full flex flex-col items-center justify-center apple-card p-12 border-dashed border-2 border-slate-100 bg-transparent text-slate-400">
+                                <CalendarDays size={40} className="mb-4 opacity-20" />
+                                <p className="text-sm font-medium">Select a date to view available times</p>
                             </div>
                         ) : allSlots.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic">No availability configured for this doctor.</p>
-                        ) : (
                             <div className="space-y-6">
-                                <SlotGroup label="Morning" slots={morningSlots} />
-                                <SlotGroup label="Afternoon" slots={afternoonSlots} />
+                                <div className="apple-card p-8 bg-amber-500/5 border-amber-500/10 text-center">
+                                    <Zap size={32} className="mx-auto mb-3 text-amber-500/50" />
+                                    <p className="text-sm font-semibold text-amber-700">No slots available on this date.</p>
+                                    <p className="text-xs text-amber-600/80 mt-1">Join our priority waitlist to get notified of cancellations.</p>
+                                </div>
+                                {!waitlistJoined ? (
+                                    <div className="apple-card p-6 border-amber-200 bg-amber-50/30">
+                                        <div className="flex flex-col gap-4">
+                                            <select 
+                                                value={waitlistTimePreference} 
+                                                onChange={e => setWaitlistTimePreference(e.target.value)} 
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                                            >
+                                                <option value="ANY">Any time of day</option>
+                                                <option value="MORNING">Morning only</option>
+                                                <option value="AFTERNOON">Afternoon only</option>
+                                            </select>
+                                            <button 
+                                                onClick={handleJoinWaitlist} 
+                                                disabled={waitlistJoining}
+                                                className="w-full py-4 bg-amber-500 text-white rounded-2xl text-sm font-bold shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all active:scale-[0.98]"
+                                            >
+                                                {waitlistJoining ? 'Joining...' : 'Join Priority Waitlist'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="apple-card p-6 border-success/20 bg-success/5 text-center">
+                                        <CheckCircle2 size={24} className="mx-auto mb-2 text-success" />
+                                        <p className="text-sm font-bold text-success">You're on the waitlist!</p>
+                                        <p className="text-xs text-success/70">We'll notify you as soon as a spot opens up.</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <p className="text-sm font-semibold text-slate-500 flex items-center gap-2">
+                                    <Clock size={16} /> Available Times for {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                                </p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {allSlots.map(s => {
+                                        const booked = slotCounts[s.label] || 0;
+                                        const isFull = booked >= capacity;
+                                        return (
+                                            <button
+                                                key={s.label}
+                                                disabled={isFull}
+                                                onClick={() => setSelectedSlot(s.label)}
+                                                className={`p-4 rounded-2xl border transition-all text-center ${
+                                                    selectedSlot === s.label ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' :
+                                                    isFull ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' :
+                                                    'bg-white border-slate-100 hover:border-primary/30 hover:bg-primary-light/30'
+                                                }`}
+                                            >
+                                                <div className="text-sm font-bold">{s.label}</div>
+                                                <div className={`text-[10px] mt-1 ${selectedSlot === s.label ? 'text-white/80' : 'text-slate-400'}`}>
+                                                    {isFull ? 'Fully Booked' : `${capacity - booked} slots left`}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <button 
+                                    disabled={!selectedSlot}
+                                    onClick={() => setStep(4)}
+                                    className="w-full btn-primary py-4 mt-8"
+                                >
+                                    Continue <ArrowRight size={18} />
+                                </button>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
+        );
+    };
 
-                {/* Symptoms field */}
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Symptoms / Reason for Visit <span className="font-normal text-gray-400">(optional)</span>
-                    </label>
-                    <textarea
-                        value={symptoms}
-                        onChange={e => setSymptoms(e.target.value)}
-                        rows={3}
-                        placeholder="Describe your symptoms or reason for this visit so the doctor can be prepared..."
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+    const renderStep4 = () => (
+        <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(3)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Change Time
+                </button>
+                <h2 className="text-2xl font-semibold">Tell us more</h2>
+            </div>
+            <div className="apple-card p-8">
+                <label className="form-label mb-4">What brings you in today?</label>
+                <textarea
+                    value={symptoms}
+                    onChange={e => setSymptoms(e.target.value)}
+                    rows={5}
+                    placeholder="Briefly describe your symptoms or reason for visit..."
+                    className="input-field mb-8 text-lg"
+                />
+                <button 
+                    onClick={() => setStep(5)}
+                    className="w-full btn-primary py-4"
+                >
+                    Review Appointment <ArrowRight size={18} />
+                </button>
+            </div>
+        </div>
+    );
+
+    const renderStep5 = () => (
+        <div className="max-w-xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between mb-8">
+                <button onClick={() => setStep(4)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                    <ChevronLeft size={16} /> Edit Details
+                </button>
+                <h2 className="text-2xl font-semibold">Confirm Appointment</h2>
+            </div>
+            <div className="apple-card overflow-hidden">
+                <div className="bg-primary-light p-8 flex items-center gap-6">
+                    <img 
+                        src={selectedDoctor?.image_url || `https://ui-avatars.com/api/?name=${selectedDoctor?.first_name}+${selectedDoctor?.last_name}&background=ffffff&color=0071e3`} 
+                        className="w-20 h-20 rounded-2xl object-cover shadow-sm"
+                        alt="Doctor"
                     />
+                    <div>
+                        <h3 className="text-xl font-bold">Dr. {selectedDoctor?.first_name} {selectedDoctor?.last_name}</h3>
+                        <p className="text-primary font-medium">{selectedDoctor?.specialty}</p>
+                    </div>
                 </div>
-
-                {/* Issue #41: Waitlist Option */}
-                {selectedDate && selectedDoctor && !waitlistJoined && (
-                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                        <div className="flex items-start gap-3">
-                            <Bell className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
-                            <div className="flex-1">
-                                <h4 className="font-semibold text-amber-800">Want an earlier slot?</h4>
-                                <p className="text-sm text-amber-700 mt-1">
-                                    Join the waitlist and we'll notify you if someone cancels their appointment.
-                                </p>
-                                <div className="flex items-center gap-3 mt-3">
-                                    <select
-                                        value={waitlistTimePreference}
-                                        onChange={e => setWaitlistTimePreference(e.target.value)}
-                                        className="text-sm border border-amber-300 rounded-lg px-2 py-1.5 bg-white text-amber-800 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                <div className="p-8 space-y-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500"><CalendarIcon size={20} /></div>
+                        <div>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Date</p>
+                            <p className="font-semibold">{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500"><Clock size={20} /></div>
+                        <div>
+                            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Time</p>
+                            <p className="font-semibold">{selectedSlot}</p>
+                        </div>
+                    </div>
+                    {symptoms && (
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 mt-1"><FileText size={20} /></div>
+                            <div>
+                                <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Reason for Visit</p>
+                                <p className="text-sm italic text-slate-600">"{symptoms}"</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="pt-6 border-t border-slate-100">
+                        {user ? (
+                            <button 
+                                disabled={isSubmitting}
+                                onClick={handleBook}
+                                className="w-full btn-primary py-4 text-lg"
+                            >
+                                {isSubmitting ? <Activity size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
+                                {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                            </button>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3 items-start">
+                                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                        You are booking as a guest. Please sign in or create an account to secure your appointment and sync it with your medical history.
+                                    </p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button 
+                                        onClick={() => saveAndRedirect('/login')}
+                                        className="btn-primary py-4 text-sm"
                                     >
-                                        <option value="ANY">Any time</option>
-                                        <option value="MORNING">Morning only</option>
-                                        <option value="AFTERNOON">Afternoon only</option>
-                                        <option value="EVENING">Evening only</option>
-                                    </select>
-                                    <button
-                                        onClick={handleJoinWaitlist}
-                                        disabled={waitlistJoining}
-                                        className="px-4 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                                        Sign In
+                                    </button>
+                                    <button 
+                                        onClick={() => saveAndRedirect('/register')}
+                                        className="bg-white border-2 border-primary/20 text-primary hover:bg-primary/5 font-bold py-4 rounded-2xl text-sm transition-all"
                                     >
-                                        {waitlistJoining ? 'Joining...' : 'Join Waitlist'}
+                                        Register
                                     </button>
                                 </div>
                             </div>
-                        </div>
+                        )}
+                        <p className="text-center text-[10px] text-slate-400 mt-4 px-4 leading-relaxed">
+                            {user 
+                                ? "By confirming, you agree to our clinical guidelines and cancellation policy." 
+                                : "Your selection will be saved during authentication."}
+                        </p>
                     </div>
-                )}
-
                 {waitlistJoined && (
                     <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
                         <div className="flex items-center gap-3">
@@ -465,7 +592,7 @@ const BookAppointment = () => {
                 <div className="mt-8 pt-6 border-t border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="font-bold text-gray-900 flex items-center gap-2">
-                            <Shield size={20} className="text-blue-600" />
+                            <ShieldCheck size={20} className="text-blue-600" />
                             Insurance Verification
                         </h4>
                         {!insurance && (
@@ -473,7 +600,7 @@ const BookAppointment = () => {
                                 onClick={() => setShowScanner(true)}
                                 className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1"
                             >
-                                <Camera size={14} />
+                                <Users size={14} />
                                 Smart Scan Card
                             </button>
                         )}
@@ -509,7 +636,7 @@ const BookAppointment = () => {
                                     onClick={() => setShowScanner(true)}
                                     className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-50 transition-colors"
                                 >
-                                    <Camera size={16} />
+                                    <Activity size={16} />
                                     Scan Card
                                 </button>
                                 <button 
@@ -547,42 +674,62 @@ const BookAppointment = () => {
                         </div>
                     )}
                 </AnimatePresence>
-
-                <div className="mt-6 flex justify-end">
-                    <button
-                        disabled={!selectedDate || !selectedSlot || !selectedDoctor || isSubmitting}
-                        onClick={async () => {
-                            setIsSubmitting(true);
-                            try {
-                                const response = await fetch(`${API}/api/appointments/book`, {
-                                    method: 'POST',
-                                    headers: authedHeaders(true),
-                                    body: JSON.stringify({
-                                        patientId: user.id,
-                                        doctorId: selectedDoctor,
-                                        date: selectedDate,
-                                        timeSlot: selectedSlot,
-                                        symptoms: symptoms || null,
-                                    })
-                                });
-                                const result = await response.json();
-                                setBookingResult(result);
-                                setIsBooked(true);
-                            } catch (err) {
-                                console.error('Failed to book:', err);
-                                alert('Failed to book appointment');
-                            } finally {
-                                setIsSubmitting(false);
-                            }
-                        }}
-                        className={`px-8 py-3.5 rounded-xl font-medium transition-all ${selectedDate && selectedSlot && selectedDoctor && !isSubmitting
-                            ? 'bg-primary text-white shadow-sm shadow-primary/30 hover:bg-primary-hover hover:-translate-y-0.5'
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
-                    >
-                        {isSubmitting ? 'Booking...' : 'Confirm Appointment'}
-                    </button>
                 </div>
+            </div>
+        </div>
+    );
+
+    if (isBooked) {
+        return (
+            <div className="max-w-2xl mx-auto py-12 px-4 animate-in zoom-in-95 duration-500">
+                <div className="apple-card p-12 text-center">
+                    <div className="w-20 h-20 bg-success text-white rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl shadow-success/20">
+                        <CheckCircle2 size={40} />
+                    </div>
+                    <h2 className="text-3xl font-bold mb-4">Appointment Confirmed</h2>
+                    <p className="text-slate-500 mb-10 max-w-sm mx-auto">Your visit with Dr. {selectedDoctor?.first_name} {selectedDoctor?.last_name} is successfully scheduled.</p>
+                    
+                    <div className="bg-slate-50 rounded-[2rem] p-8 mb-10 grid grid-cols-2 gap-4">
+                        <div className="text-left">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Queue ID</p>
+                            <p className="text-xl font-bold text-primary">#{bookingResult?.queueNumber || '1'}</p>
+                        </div>
+                        <div className="text-left">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Est. Time</p>
+                            <p className="text-xl font-bold text-primary">{selectedSlot?.split('–')[0]}</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <button onClick={() => navigate('/queue')} className="flex-1 btn-primary py-4">
+                            Track Status <ArrowRight size={18} />
+                        </button>
+                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 btn-secondary py-4">
+                            Go Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="section-container">
+            {/* Header */}
+            <div className="text-center mb-12">
+                <h1 className="text-4xl font-bold mb-3 tracking-tight">Book an Appointment</h1>
+                <p className="text-slate-500">Follow the simple steps below to schedule your visit.</p>
+            </div>
+
+            <StepIndicator />
+
+            {/* Content Area */}
+            <div className="min-h-[400px]">
+                {step === 1 && renderStep1()}
+                {step === 2 && renderStep2()}
+                {step === 3 && renderStep3()}
+                {step === 4 && renderStep4()}
+                {step === 5 && renderStep5()}
             </div>
         </div>
     );

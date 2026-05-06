@@ -32,18 +32,30 @@ CREATE TABLE IF NOT EXISTS late_arrival_log (
     FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
 );
 
--- Add columns to appointments table for late arrival tracking
+-- 35. ADD columns to appointments table for late arrival tracking
+-- These were added in a previous (partial) run.
+/*
 ALTER TABLE appointments 
-ADD COLUMN IF NOT EXISTS late_arrival_mins INT DEFAULT 0 COMMENT 'Minutes patient was late',
-ADD COLUMN IF NOT EXISTS late_handling ENUM('none', 'fit_in', 'end_of_session', 'reschedule') DEFAULT 'none' COMMENT 'How late arrival was handled',
-ADD COLUMN IF NOT EXISTS rescheduled_time TIME NULL COMMENT 'New time if moved to end of session',
-ADD COLUMN IF NOT EXISTS checked_in_at TIMESTAMP NULL COMMENT 'When patient checked in',
-ADD INDEX IF NOT EXISTS idx_late_arrival (late_arrival_mins);
+ADD COLUMN late_arrival_mins INT DEFAULT 0 COMMENT 'Minutes patient was late',
+ADD COLUMN late_handling ENUM('none', 'fit_in', 'end_of_session', 'reschedule') DEFAULT 'none' COMMENT 'How late arrival was handled',
+ADD COLUMN rescheduled_time TIME NULL COMMENT 'New time if moved to end of session',
+ADD INDEX idx_late_arrival (late_arrival_mins);
+*/
 
--- Update appointments status enum to include late arrival states
--- Note: If this fails, you may need to modify the column manually
+-- Sync existing status values with new enum labels
+-- First convert to VARCHAR to allow new values
+ALTER TABLE appointments MODIFY COLUMN status VARCHAR(50);
+
+-- Update values
+UPDATE appointments SET status = 'scheduled' WHERE status = 'PENDING' OR status = 'scheduled';
+UPDATE appointments SET status = 'confirmed' WHERE status = 'CONFIRMED' OR status = 'confirmed';
+UPDATE appointments SET status = 'cancelled' WHERE status = 'CANCELLED' OR status = 'cancelled';
+UPDATE appointments SET status = 'completed' WHERE status = 'COMPLETED' OR status = 'completed';
+
+-- Convert back to new ENUM
 ALTER TABLE appointments 
 MODIFY COLUMN status ENUM(
+    'pending',
     'scheduled', 
     'confirmed', 
     'checked_in', 

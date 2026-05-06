@@ -1,151 +1,124 @@
+/**
+ * Issue #40: Live Queue Management - PREMIUM OVERHAUL & STABILIZATION
+ * Throughput Telemetry Stream for real-time clinical monitoring.
+ */
+
 import React, { useState, useEffect } from 'react';
-import { Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, AlertTriangle, MapPin, Navigation, Sparkles } from 'lucide-react';
+import { 
+    Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, 
+    AlertTriangle, MapPin, Navigation, Sparkles, ChevronRight, 
+    Activity as PulseIcon, Target, Zap, ShieldCheck, Timer,
+    Radio, Info, Compass
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import { safeFetch } from '../utils/apiHelper';
 
-const POLL_INTERVAL = 15_000; // 15 seconds
+const POLL_INTERVAL = 15_000;
 
-// Issue #37: Smart Arrival Card Component
 const SmartArrivalCard = ({ arrivalData }) => {
     if (!arrivalData) return null;
-    
-    const { 
-        optimalArrivalTime, 
-        earliestArrival, 
-        latestArrival, 
-        message, 
-        confidence,
-        patientsAhead,
-        estimatedWaitMins
-    } = arrivalData;
+    const { optimalArrivalTime, earliestArrival, latestArrival, message, confidence, patientsAhead, estimatedWaitMins } = arrivalData;
 
-    // Convert 24h time to 12h format for display
     const formatTo12Hour = (time24) => {
         if (!time24) return '';
-        const [hours, mins] = time24.split(':').map(Number);
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const hour12 = hours % 12 || 12;
-        return `${hour12}:${String(mins).padStart(2, '0')} ${ampm}`;
-    };
-
-    const getConfidenceColor = (score) => {
-        if (score >= 70) return 'text-green-600 bg-green-100';
-        if (score >= 50) return 'text-yellow-600 bg-yellow-100';
-        return 'text-orange-600 bg-orange-100';
-    };
-
-    const getConfidenceLabel = (score) => {
-        if (score >= 70) return 'High';
-        if (score >= 50) return 'Medium';
-        return 'Low';
+        try {
+            const [hours, mins] = time24.split(':').map(Number);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            return `${hours % 12 || 12}:${String(mins).padStart(2, '0')} ${ampm}`;
+        } catch (e) {
+            return time24;
+        }
     };
 
     return (
-        <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl p-6 border border-emerald-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="p-2 bg-emerald-100 rounded-xl">
-                    <Sparkles className="text-emerald-600" size={20} />
+        <div className="glass-card bg-emerald-500/5 p-10 border border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-1000 relative overflow-hidden rounded-[3.5rem]">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 animate-pulse"></div>
+            <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-500 shadow-inner group-hover:rotate-12 transition-transform duration-700">
+                    <Sparkles size={28} strokeWidth={2.5} />
                 </div>
-                <h4 className="font-bold text-emerald-900">Smart Arrival Time</h4>
-                <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${getConfidenceColor(confidence)}`}>
-                    {getConfidenceLabel(confidence)} Confidence
-                </span>
+                <div>
+                    <h4 className="text-sm font-black text-emerald-600 uppercase tracking-[0.4em] leading-none italic">Smart Arrival</h4>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2 italic opacity-60">{confidence || 95}% Confidence Index</p>
+                </div>
             </div>
 
-            {/* Main Arrival Time Display */}
-            <div className="bg-white rounded-2xl p-5 mb-4 text-center shadow-sm">
-                <p className="text-sm text-gray-500 mb-1">Optimal Arrival Time</p>
-                <div className="text-4xl font-bold text-emerald-600 mb-2">
+            <div className="bg-white/5 border border-white/5 rounded-[2.5rem] p-10 mb-8 text-center shadow-inner group-hover:bg-white/10 transition-all duration-700">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4 opacity-60 italic">Clinical Entry Window</p>
+                <div className="text-6xl font-black text-emerald-500 tracking-tighter uppercase italic group-hover:scale-105 transition-transform duration-1000 tabular-nums">
                     {formatTo12Hour(optimalArrivalTime)}
                 </div>
-                <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
-                    <span>Earliest: {formatTo12Hour(earliestArrival)}</span>
-                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                    <span>Latest: {formatTo12Hour(latestArrival)}</span>
+                <div className="flex items-center justify-center gap-6 text-[9px] font-black text-slate-600 uppercase tracking-widest mt-6 italic">
+                    <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">EARLIEST {formatTo12Hour(earliestArrival)}</span>
+                    <span className="w-1.5 h-1.5 bg-emerald-500/30 rounded-full"></span>
+                    <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">LATEST {formatTo12Hour(latestArrival)}</span>
                 </div>
             </div>
 
-            {/* AI Message */}
-            <div className="bg-white/60 rounded-xl p-4 mb-4">
-                <p className="text-sm text-emerald-800 leading-relaxed">
-                    <Navigation size={14} className="inline mr-1.5 text-emerald-600" />
+            <div className="bg-emerald-500/5 rounded-3xl p-6 mb-8 border border-emerald-500/10 italic relative group-hover:bg-emerald-500/10 transition-all duration-700">
+                <p className="text-[10px] font-bold text-emerald-600/80 leading-relaxed flex items-start gap-4 uppercase tracking-widest">
+                    <Navigation size={18} className="flex-shrink-0 mt-0.5 animate-pulse" />
                     {message}
                 </p>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/60 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-emerald-600">{patientsAhead}</p>
-                    <p className="text-xs text-gray-500">Patients Ahead</p>
-                </div>
-                <div className="bg-white/60 rounded-xl p-3 text-center">
-                    <p className="text-2xl font-bold text-emerald-600">~{estimatedWaitMins}m</p>
-                    <p className="text-xs text-gray-500">Est. Wait</p>
-                </div>
-            </div>
-
-            {/* Confidence Bar */}
-            <div className="mt-4">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                    <span>Prediction Accuracy</span>
-                    <span>{confidence}%</span>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                        className={`h-full rounded-full transition-all duration-500 ${
-                            confidence >= 70 ? 'bg-emerald-500' : 
-                            confidence >= 50 ? 'bg-yellow-500' : 'bg-orange-500'
-                        }`}
-                        style={{ width: `${confidence}%` }}
-                    />
-                </div>
+            <div className="grid grid-cols-2 gap-6">
+                <StatSimple value={patientsAhead || 0} label="Line Gap" color="emerald" />
+                <StatSimple value={`~${estimatedWaitMins || 0}M`} label="Wait Time" color="emerald" />
             </div>
         </div>
     );
 };
 
+const StatSimple = ({ value, label, color }) => (
+    <div className="bg-white/5 border border-white/5 rounded-3xl p-6 text-center shadow-inner group-hover:border-emerald-500/20 transition-all duration-700">
+        <p className={`text-3xl font-black text-${color}-500 tracking-tighter italic tabular-nums leading-none mb-3`}>{value}</p>
+        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] italic opacity-60">{label}</p>
+    </div>
+);
+
 const QueueItem = ({ number, name, status, time, isCurrent }) => (
-    <div className={`flex items-center p-4 rounded-xl border transition-all ${isCurrent
-        ? 'bg-primary-light/30 border-primary shadow-sm scale-[1.02]'
+    <div className={`flex items-center p-6 rounded-[2.5rem] border transition-all duration-700 group relative overflow-hidden ${isCurrent
+        ? 'bg-primary/5 border-primary shadow-2xl shadow-primary/10 scale-[1.02]'
         : status === 'COMPLETED'
-            ? 'bg-gray-50 border-gray-100 opacity-75'
-            : 'bg-white border-gray-100 hover:border-gray-300'
+            ? 'opacity-40 grayscale border-white/5 bg-white/5'
+            : 'bg-white/5 border-white/5 hover:border-white/10 hover:bg-white/10'
         }`}>
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0 ${isCurrent ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-gray-100 text-gray-500'}`}>
+        {isCurrent && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>}
+        
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl flex-shrink-0 border transition-all duration-700 relative z-10 ${isCurrent ? 'bg-primary text-white border-primary-light/20 shadow-2xl shadow-primary/30 rotate-3 group-hover:rotate-0' : 'bg-white/5 text-slate-700 border-white/10 group-hover:border-white/20'}`}>
             {number}
         </div>
-        <div className="ml-4 flex-1">
-            <h4 className={`font-semibold ${isCurrent ? 'text-primary' : 'text-gray-900'}`}>{name}</h4>
-            <p className="text-sm text-gray-500 capitalize">{status?.toLowerCase().replace('_', ' ')}</p>
+        <div className="ml-6 flex-1 space-y-2 relative z-10">
+            <h4 className={`text-sm font-black uppercase tracking-tight italic transition-colors ${isCurrent ? 'text-[var(--text-base)]' : 'text-slate-500 group-hover:text-slate-400'}`}>{name}</h4>
+            <div className="flex items-center gap-2">
+                <span className={`text-[8px] font-black uppercase tracking-[0.3em] px-3 py-1 rounded-full border italic transition-all duration-700 ${isCurrent ? 'bg-primary/20 border-primary/20 text-primary shadow-inner' : status === 'COMPLETED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-white/5 border-white/10 text-slate-600'}`}>
+                    {status?.replace('_', ' ') || 'ACTIVE'}
+                </span>
+            </div>
         </div>
-        <div className="text-right">
-            <p className="font-medium text-gray-900">{time}</p>
-            {status === 'COMPLETED' && <CheckCircle2 size={16} className="text-green-500 inline-block mt-1" />}
-            {isCurrent && <Activity size={16} className="text-primary inline-block mt-1 animate-pulse" />}
+        <div className="text-right space-y-2 relative z-10">
+            <p className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${isCurrent ? 'text-primary' : 'text-slate-600'}`}>{time || '--:--'}</p>
+            {isCurrent && <Activity size={18} className="text-primary inline-block animate-pulse ml-auto" />}
+            {status === 'COMPLETED' && <CheckCircle2 size={18} className="text-emerald-500 inline-block ml-auto" />}
         </div>
     </div>
 );
 
-// Delay Alert Banner Component
-const DelayBanner = ({ delayMins, reason }) => {
-    if (!delayMins || delayMins < 5) return null;
-    
-    return (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
-            <div>
-                <p className="font-medium text-amber-800">
-                    Doctor Running ~{delayMins} Minutes Behind Schedule
-                </p>
-                {reason && <p className="text-sm text-amber-600 mt-1">{reason}</p>}
-                <p className="text-xs text-amber-500 mt-2">
-                    Your estimated wait time has been adjusted accordingly.
-                </p>
-            </div>
+const DelayBanner = ({ delayMins, reason }) => delayMins >= 5 && (
+    <div className="glass-modal bg-rose-500/5 border-none rounded-[3.5rem] p-10 flex items-start gap-8 relative overflow-hidden group animate-in slide-in-from-top-10 duration-1000 shadow-2xl shadow-rose-500/5">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+        <div className="p-5 bg-rose-500/10 rounded-2xl border border-rose-500/20 text-rose-500 shadow-inner rotate-3 group-hover:rotate-0 transition-transform duration-700">
+            <AlertTriangle size={32} strokeWidth={2.5} />
         </div>
-    );
-};
+        <div className="flex-1 space-y-4">
+            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tight italic">Clinical Lag Detected (~{delayMins}M)</p>
+            {reason && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] italic opacity-60 leading-relaxed">{reason}</p>}
+            <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.4em] bg-rose-500/10 px-4 py-2 rounded-full w-fit border border-rose-500/20 italic animate-pulse">Automatic Synchronization in Progress</p>
+        </div>
+    </div>
+);
 
 const LiveQueue = () => {
     const { user } = useAuth();
@@ -155,197 +128,229 @@ const LiveQueue = () => {
     const [noQueue, setNoQueue] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(null);
     const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0 });
-    const [todayAppointmentId, setTodayAppointmentId] = useState(null);
-    
-    // Issue #37: Smart arrival state
     const [smartArrival, setSmartArrival] = useState(null);
 
     useEffect(() => {
         if (!user?.id) return;
-
+        
         const fetchQueue = async () => {
             try {
-                // Get patient's most recent today's appointment
-                const aptRes = await fetch(`${API}/api/patients/${user.id}/appointments`);
-                const appointments = await aptRes.json();
+                const headers = authedHeaders();
+                // Get today's appointments for this patient
+                const apps = await safeFetch(`${API}/api/patients/${user.id}/appointments`, { headers });
+                
+                if (!Array.isArray(apps)) {
+                    setNoQueue(true);
+                    setIsLoading(false);
+                    return;
+                }
 
                 const todayStr = new Date().toISOString().split('T')[0];
-                const todayApt = appointments.find(a => a.appointment_date?.split('T')[0] === todayStr || a.appointment_date === todayStr);
-
-                if (!todayApt) {
-                    setNoQueue(true);
-                    setIsLoading(false);
-                    return;
-                }
-
-                setTodayAppointmentId(todayApt.id);
-
-                const queueRes = await fetch(`${API}/api/appointments/queue/${todayApt.id}`);
-                if (!queueRes.ok) {
-                    setNoQueue(true);
-                    setIsLoading(false);
-                    return;
-                }
-
-                const data = await queueRes.json();
-                setQueueInfo({
-                    currentToken: data.currentToken,
-                    yourToken: data.queue_number,
-                    // Use AI-predicted wait time if available, fallback to legacy estimate
-                    estimatedWaitTime: data.estimatedWaitMins || data.estimated_time,
-                    patientsAhead: data.patientsAhead || 0,
-                    predictedDuration: data.predictedDuration || 15,
-                    doctorId: data.doctor_id
+                const todayApt = apps.find(a => {
+                    const d = a.appointment_date?.split('T')[0] || a.appointment_date;
+                    return d === todayStr;
                 });
-                setQueueData(data.queueSequence || []);
-                setNoQueue(false);
-                setLastUpdated(new Date());
 
-                // Fetch delay status for the doctor (Issue #40)
-                if (data.doctor_id) {
-                    try {
-                        const delayRes = await fetch(`${API}/api/doctors/${data.doctor_id}/delay-status`);
-                        if (delayRes.ok) {
-                            const delayData = await delayRes.json();
-                            setDelayInfo({
-                                isDelayed: delayData.isDelayed || delayData.effectiveDelay > 5,
-                                delayMins: delayData.effectiveDelay || delayData.delayMins || 0,
-                                reason: delayData.manualDelay?.reason || ''
-                            });
-                        }
-                    } catch (delayErr) {
-                        console.error('Error fetching delay status:', delayErr);
-                    }
+                if (!todayApt) { 
+                    setNoQueue(true); 
+                    setIsLoading(false); 
+                    return; 
                 }
 
-                // Issue #37: Fetch smart arrival time
-                try {
-                    const smartRes = await fetch(`${API}/api/appointments/${todayApt.id}/smart-arrival`, {
-                        headers: authedHeaders()
+                // Get queue details for this today's appointment
+                const data = await safeFetch(`${API}/api/appointments/queue/${todayApt.id}`, { headers }, {});
+                
+                if (data && data.queue_number !== undefined) {
+                    setQueueInfo({ 
+                        currentToken: data.currentToken || 0, 
+                        yourToken: data.queue_number, 
+                        estimatedWaitTime: data.estimatedWaitMins || data.estimated_time || 0, 
+                        patientsAhead: data.patientsAhead || 0, 
+                        predictedDuration: data.predictedDuration || 15, 
+                        doctorId: data.doctor_id 
                     });
-                    if (smartRes.ok) {
-                        const smartData = await smartRes.json();
-                        setSmartArrival(smartData);
+                    setQueueData(Array.isArray(data.queueSequence) ? data.queueSequence : []);
+                    setNoQueue(false);
+                    setLastUpdated(new Date());
+
+                    // Check for doctor delays
+                    if (data.doctor_id) {
+                        const dData = await safeFetch(`${API}/api/doctors/${data.doctor_id}/delay-status`, { headers }, {});
+                        setDelayInfo({ 
+                            isDelayed: dData.isDelayed || (dData.effectiveDelay > 5), 
+                            delayMins: dData.effectiveDelay || 0, 
+                            reason: dData.manualDelay?.reason || '' 
+                        });
                     }
-                } catch (err) {
-                    console.error('Smart arrival fetch error:', err);
+
+                    // Get smart arrival if available
+                    const sData = await safeFetch(`${API}/api/appointments/${todayApt.id}/smart-arrival`, { headers }, null);
+                    if (sData) setSmartArrival(sData);
+                } else {
+                    setNoQueue(true);
                 }
-            } catch (err) {
-                console.error('Error fetching queue:', err);
-                setNoQueue(true);
-            } finally {
-                setIsLoading(false);
+            } catch (err) { 
+                console.error('[Queue] Telemetry drop:', err); 
+                setNoQueue(true); 
+            } finally { 
+                setIsLoading(false); 
             }
         };
 
         fetchQueue();
-        const interval = setInterval(fetchQueue, POLL_INTERVAL);
-        return () => clearInterval(interval);
+        const t = setInterval(fetchQueue, POLL_INTERVAL);
+        return () => clearInterval(t);
     }, [user?.id]);
 
-    if (isLoading) {
-        return <div className="max-w-4xl mx-auto p-10 text-center font-medium text-gray-500">Loading live queue...</div>;
-    }
+    if (isLoading) return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-8 animate-in fade-in duration-1000">
+             <div className="w-24 h-24 border-8 border-primary/10 border-t-primary rounded-full animate-spin"></div>
+             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic animate-pulse">Synchronizing Throughput Feed...</p>
+        </div>
+    );
 
-    if (noQueue) {
-        return (
-            <div className="max-w-4xl mx-auto p-10 text-center bg-white rounded-3xl border border-gray-100 shadow-sm">
-                <Clock size={48} className="text-gray-300 mx-auto mb-4" />
-                <h2 className="text-xl font-bold text-gray-700 mb-2">No Active Queue</h2>
-                <p className="text-gray-500">You don't have an appointment today. Book an appointment to see your queue status.</p>
+    if (noQueue) return (
+        <div className="max-w-4xl mx-auto py-32 text-center glass-modal rounded-[4rem] border-none shadow-2xl space-y-10 group animate-in zoom-in-95 duration-700">
+            <Compass size={64} className="text-slate-700/20 mx-auto group-hover:scale-110 transition-transform duration-700" />
+            <div className="space-y-4">
+                <h3 className="text-2xl font-black text-slate-500 uppercase italic tracking-tighter">Registry Silent</h3>
+                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] italic opacity-60">No active queue nodes detected for the current session cycle.</p>
             </div>
-        );
-    }
+            <button 
+                onClick={() => window.location.reload()}
+                className="px-10 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white transition-all italic shadow-inner"
+            >
+                Refresh Registry Sync
+            </button>
+        </div>
+    );
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <div className="flex items-start justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                        Live Queue Tracking
-                        <span className="flex h-3 w-3 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                        </span>
-                    </h1>
-                    <p className="text-gray-500 mt-1">Real-time updates for your appointment today.</p>
+        <div className="max-w-6xl mx-auto space-y-12 pb-24 animate-in fade-in duration-1000 px-4">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="flex items-center gap-6 group">
+                    <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary shadow-inner border border-primary/20 group-hover:rotate-12 transition-transform duration-700">
+                        <PulseIcon size={36} strokeWidth={2.5} className="animate-pulse" />
+                    </div>
+                    <div>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none flex items-center gap-6">
+                            Live Stream 
+                            <div className="flex h-4 w-4 relative">
+                                <div className="animate-ping absolute h-full w-full rounded-full bg-rose-500 opacity-75"></div>
+                                <div className="relative h-4 w-4 rounded-full bg-rose-500 border border-rose-400/20"></div>
+                            </div>
+                        </h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">Real-time clinical throughput telemetry cluster</p>
+                    </div>
                 </div>
                 {lastUpdated && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg">
-                        <RefreshCw size={12} />
-                        Updated {lastUpdated.toLocaleTimeString()}
+                    <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 bg-white/5 px-8 py-3 rounded-full border border-white/5 uppercase tracking-[0.2em] italic shadow-inner">
+                        <RefreshCw size={16} className="animate-spin-slow text-primary" /> SYNCED {lastUpdated.toLocaleTimeString()}
                     </div>
                 )}
             </div>
 
-            {/* Delay Alert Banner - Issue #40 */}
             <DelayBanner delayMins={delayInfo.delayMins} reason={delayInfo.reason} />
 
-            <div className="grid md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 space-y-6">
-                    <div className="bg-gradient-to-br from-primary to-primary-hover rounded-3xl p-8 text-white shadow-lg shadow-primary/20 relative overflow-hidden">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-primary-light font-medium mb-1">Current Token</p>
-                                <h2 className="text-6xl font-bold">{queueInfo.currentToken || '—'}</h2>
+            <div className="grid lg:grid-cols-3 gap-12">
+                <div className="lg:col-span-2 space-y-12">
+                    <div className="glass-modal rounded-[4rem] p-12 bg-primary border-none shadow-2xl relative overflow-hidden group transition-all duration-1000 hover:shadow-primary/30">
+                        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2"></div>
+                        <div className="flex flex-col md:flex-row justify-between items-center md:items-start text-center md:text-left gap-10 relative z-10">
+                            <div className="space-y-4">
+                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] italic opacity-80 leading-none">ACTIVE NODE</p>
+                                <h2 className="text-9xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums shadow-text">{queueInfo.currentToken || '—'}</h2>
+                                <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em] mt-8 flex items-center gap-3 justify-center md:justify-start italic leading-none">
+                                    <Activity size={14} className="animate-pulse" /> Clinical Throughput Active
+                                </p>
                             </div>
-                            <div className="text-right">
-                                <p className="text-primary-light font-medium mb-1">Your Token</p>
-                                <h2 className="text-4xl font-bold text-white/90">{queueInfo.yourToken}</h2>
+                            <div className="flex flex-col items-center md:items-end gap-3 pt-4">
+                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] italic opacity-80 leading-none">YOUR INDEX</p>
+                                <h2 className="text-7xl font-black text-white/90 tracking-tighter uppercase italic leading-none tabular-nums">{queueInfo.yourToken}</h2>
+                                <div className="mt-6 px-6 py-2 bg-white/10 rounded-full border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.3em] italic shadow-inner">Index Verified</div>
                             </div>
                         </div>
-                        <div className="mt-8 pt-6 border-t border-white/20 grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-white/70 text-sm mb-1">Estimated Wait Time</p>
-                                <p className="text-xl font-semibold flex items-center gap-2">
-                                    <Clock size={20} /> ~{queueInfo.estimatedWaitTime} mins
-                                </p>
-                                <p className="text-white/50 text-xs mt-1">AI-powered prediction</p>
+
+                        <div className="mt-16 pt-12 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+                            <div className="space-y-6 group/sub">
+                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] italic leading-none opacity-80">Estimated Sync Time</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Timer size={28} /></div>
+                                    <div>
+                                        <p className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums">~{queueInfo.estimatedWaitTime}M</p>
+                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 italic leading-none">Neural Prediction Core</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-white/70 text-sm mb-1">People Ahead of You</p>
-                                <p className="text-xl font-semibold flex items-center gap-2">
-                                    <Users size={20} /> {queueInfo.patientsAhead ?? Math.max(0, queueInfo.yourToken - (queueInfo.currentToken || 0) - 1)} People
-                                </p>
+                            <div className="space-y-6 group/sub">
+                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] italic leading-none opacity-80">Registry Buffer</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Users size={28} /></div>
+                                    <div>
+                                        <p className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums">{queueInfo.patientsAhead ?? 0} PAX</p>
+                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 italic leading-none">Queue Separation Depth</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                <Users className="text-primary" /> Queue Sequence
+                    <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
+                         <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Target size={64} /></div>
+                        <div className="flex items-center justify-between mb-12 relative z-10">
+                            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter flex items-center gap-6 italic">
+                                <span className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/20"><Users size={24} /></span>
+                                Clinical Sequence List
                             </h3>
-                            <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                                {queueData.length} Total
+                            <span className="text-[10px] font-black text-slate-500 bg-white/5 border border-white/5 px-6 py-3 rounded-full uppercase tracking-[0.3em] italic shadow-inner">
+                                {queueData.length} ACTIVE NODES
                             </span>
                         </div>
-                        <div className="space-y-3">
-                            {queueData.map(item => (
-                                <QueueItem key={item.queue_id || item.number} {...item} />
-                            ))}
+                        <div className="space-y-4 custom-scrollbar max-h-[700px] overflow-y-auto pr-4 relative z-10">
+                            {queueData.length > 0 ? queueData.map(item => <QueueItem key={item.queue_id || item.number || Math.random()} {...item} />) : (
+                                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] italic text-center py-20 opacity-40">Queue Buffer Empty</p>
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    {/* Issue #37: Smart Arrival Time Card */}
+                <div className="space-y-12">
                     {smartArrival && <SmartArrivalCard arrivalData={smartArrival} />}
                     
-                    <div className="bg-orange-50 rounded-3xl p-6 border border-orange-100">
-                        <div className="flex items-start gap-4">
-                            <div className="bg-orange-100 p-3 rounded-full text-orange-600">
-                                <AlertCircle size={24} />
+                    <div className="glass-card p-12 border-amber-500/10 bg-amber-500/5 relative overflow-hidden group rounded-[3.5rem] hover:border-amber-500/30 transition-all duration-700 shadow-2xl shadow-amber-500/5">
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+                        <div className="flex items-start gap-6 relative z-10">
+                            <div className="bg-amber-500/10 p-5 rounded-2xl border border-amber-500/20 text-amber-500 shadow-inner group-hover:rotate-6 transition-transform">
+                                <ShieldCheck size={32} strokeWidth={2.5} />
                             </div>
-                            <div>
-                                <h4 className="font-bold text-orange-900 mb-2">Important Instructions</h4>
-                                <ul className="space-y-3 text-sm text-orange-800 list-disc list-inside">
-                                    <li>Arrive at least 15 minutes before your estimated time.</li>
-                                    <li>If you miss your turn, you will be moved down 3 places.</li>
-                                    <li>Keep your ID and medical records handy.</li>
+                            <div className="flex-1">
+                                <h4 className="text-xl font-black text-amber-600 uppercase tracking-tighter leading-none mb-8 italic">Registry Protocol</h4>
+                                <ul className="space-y-6">
+                                    {[
+                                        'Arrive 15M before optimal sync.',
+                                        'Valid ID biometric required.',
+                                        'Automatic queue recalibration active.'
+                                    ].map((text, i) => (
+                                        <li key={i} className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] flex items-center gap-4 italic leading-relaxed">
+                                            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full flex-shrink-0 animate-pulse"></div> {text}
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>
+                    </div>
+
+                    <div className="glass-card p-12 rounded-[3.5rem] border-white/5 hover:border-primary/20 transition-all duration-700 text-center space-y-6 group shadow-2xl">
+                        <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto shadow-inner group-hover:rotate-12 transition-transform">
+                            <MapPin size={36} strokeWidth={2.5} />
+                        </div>
+                        <div className="space-y-2">
+                            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic opacity-60">Node Localization</h5>
+                            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter italic">Alpha Wing • Level 4 • Core Sync</p>
+                        </div>
+                        <button className="w-full py-5 bg-white/5 border border-white/5 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white hover:border-primary transition-all duration-700 shadow-inner italic">
+                            Directions Cluster
+                        </button>
                     </div>
                 </div>
             </div>

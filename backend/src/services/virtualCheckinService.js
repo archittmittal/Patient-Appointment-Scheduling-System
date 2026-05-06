@@ -4,6 +4,7 @@
  */
 
 const db = require('../config/db');
+const { calculateQueueWaitTime } = require('./durationPrediction');
 
 const virtualCheckinService = {
     /**
@@ -148,11 +149,10 @@ const virtualCheckinService = {
             `SELECT a.*, 
                     u.first_name, u.last_name,
                     d.first_name as doc_first, d.last_name as doc_last,
-                    s.name as specialty
+                    d.specialty
              FROM appointments a
              JOIN users u ON a.patient_id = u.id
-             JOIN users d ON a.doctor_id = d.id
-             LEFT JOIN specialties s ON d.specialty_id = s.id
+             JOIN doctors d ON a.doctor_id = d.id
              WHERE a.id = ? AND a.patient_id = ?`,
             [appointmentId, patientId]
         );
@@ -163,14 +163,15 @@ const virtualCheckinService = {
 
         const appointment = appointments[0];
 
-        // Get queue position
+        // Get queue position based on active waiting patients
         const [queuePosition] = await db.query(
             `SELECT COUNT(*) + 1 as position
-             FROM appointments 
-             WHERE doctor_id = ? 
-               AND appointment_date = ?
-               AND status IN ('CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS')
-               AND (time_slot < ? OR (time_slot = ? AND id < ?))`,
+             FROM appointments a
+             JOIN live_queue lq ON a.id = lq.appointment_id
+             WHERE a.doctor_id = ? 
+               AND a.appointment_date = ?
+               AND lq.status = 'WAITING'
+               AND (a.time_slot < ? OR (a.time_slot = ? AND a.id < ?))`,
             [appointment.doctor_id, appointment.appointment_date, 
              appointment.time_slot, appointment.time_slot, appointmentId]
         );
@@ -183,10 +184,9 @@ const virtualCheckinService = {
             [appointmentId]
         );
 
-        // Calculate estimated wait
-        const avgConsultTime = 15; // minutes
-        const position = queuePosition[0]?.position || 0;
-        const estimatedWaitMins = Math.max(0, (position - 1) * avgConsultTime);
+        // Calculate estimated wait using the centralized duration prediction service
+        const waitInfo = await calculateQueueWaitTime(appointmentId);
+        const estimatedWaitMins = waitInfo.estimatedWait || 0;
 
         return {
             appointment: {

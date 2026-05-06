@@ -6,7 +6,13 @@
 const express = require('express');
 const router = express.Router();
 const peakHoursService = require('../services/peakHoursService');
-const { authenticate } = require('../middleware/authenticate');
+const predictionService = require('../services/predictionService');
+const {
+    getDoctorWorkloads,
+    suggestDoctorForWalkin,
+    getOptimalSequence
+} = require('../services/dailyOptimizerService');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 
 /**
  * GET /api/analytics/doctor/:doctorId/peak-hours
@@ -93,18 +99,152 @@ router.get('/doctor/:doctorId/hourly-stats', async (req, res) => {
 });
 
 /**
- * GET /api/analytics/clinic
- * Get clinic-wide analytics (admin only)
+ * @swagger
+ * /api/analytics/predictions:
+ *   get:
+ *     summary: Get no-show and churn predictions
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Prediction data retrieved successfully
  */
-router.get('/clinic', authenticate, async (req, res) => {
+router.get('/predictions', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const noShowRisk = await predictionService.predictNoShowRisk();
+        const churnRisk = await predictionService.predictChurnRisk();
+        res.json({
+            noShowRisk,
+            churnRisk
+        });
+    } catch (error) {
+        console.error('Predictions error:', error);
+        res.status(500).json({ error: 'Failed to get predictions' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/analytics/clinic:
+ *   get:
+ *     summary: Get clinic-wide analytics (admin only)
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Clinic analytics retrieved successfully
+ */
+router.get('/clinic', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
         const daysBack = parseInt(req.query.days) || 30;
-
         const analytics = await peakHoursService.getClinicWideAnalytics(daysBack);
         res.json(analytics);
     } catch (error) {
         console.error('Clinic analytics error:', error);
         res.status(500).json({ error: 'Failed to get clinic analytics' });
+    }
+});
+
+/**
+ * GET /api/analytics/doctor/:doctorId/predictive
+ * Get predictive analytics for a specific doctor
+ */
+router.get('/doctor/:doctorId/predictive', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        
+        // Security: Doctors can only see their own analytics
+        if (req.user.role === 'DOCTOR' && req.user.id != doctorId) {
+            return res.status(403).json({ error: 'You can only view your own predictive analytics' });
+        }
+        const analysis = await predictionService.getDoctorPredictiveAnalytics(doctorId);
+        res.json(analysis);
+    } catch (error) {
+        console.error('Predictive analytics error:', error);
+        res.status(500).json({ error: 'Failed to get predictive analytics' });
+    }
+});
+
+/**
+ * GET /api/analytics/appointment/:appointmentId/no-show-risk
+ * Get no-show risk for a specific appointment
+ */
+router.get('/appointment/:appointmentId/no-show-risk', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        const prediction = await predictionService.predictNoShowProbability(appointmentId);
+        res.json(prediction);
+    } catch (error) {
+        console.error('No-show prediction error:', error);
+        res.status(500).json({ error: 'Failed to predict no-show risk' });
+    }
+});
+
+/**
+ * GET /api/analytics/patient/:patientId/churn-risk
+ * Get churn risk for a specific patient
+ */
+router.get('/patient/:patientId/churn-risk', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const prediction = await predictionService.predictChurnRisk(patientId);
+        res.json(prediction);
+    } catch (error) {
+        console.error('Churn prediction error:', error);
+        res.status(500).json({ error: 'Failed to predict churn risk' });
+    }
+});
+
+/**
+ * GET /api/analytics/optimizer/workloads
+ * Get real-time workload/congestion for all active doctors
+ */
+router.get('/optimizer/workloads', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const workloads = await getDoctorWorkloads();
+        res.json(workloads);
+    } catch (error) {
+        console.error('Error in workload analytics:', error);
+        res.status(500).json({ error: 'Failed to fetch doctor workloads' });
+    }
+});
+
+/**
+ * POST /api/analytics/optimizer/suggest-doctor
+ * Suggest the best doctor for a new walk-in based on congestion
+ */
+router.post('/optimizer/suggest-doctor', authenticate, async (req, res) => {
+    try {
+        const { symptoms } = req.body;
+        const patientId = req.user.id;
+        
+        const suggestion = await suggestDoctorForWalkin(patientId, symptoms);
+        res.json(suggestion);
+    } catch (error) {
+        console.error('Error in doctor suggestion:', error);
+        res.status(500).json({ error: 'Failed to suggest doctor' });
+    }
+});
+
+/**
+ * GET /api/analytics/optimizer/optimal-sequence/:doctorId
+ * Get theoretically optimal sequence of waiting patients using DP
+ */
+router.get('/optimizer/optimal-sequence/:doctorId', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        
+        // Security: Doctors can only optimize their own sequence
+        if (req.user.role === 'DOCTOR' && req.user.id != doctorId) {
+            return res.status(403).json({ error: 'You can only optimize your own appointment sequence' });
+        }
+        const result = await getOptimalSequence(doctorId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error in schedule optimization:', error);
+        res.status(500).json({ error: 'Failed to generate optimal sequence' });
     }
 });
 
