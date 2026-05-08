@@ -24,29 +24,92 @@ router.get('/patients/list', async (req, res) => {
 // GET /api/admin/users — all users with profile info
 router.get('/users', async (req, res) => {
     try {
-        const [users] = await db.query('SELECT id, email, role, created_at FROM users ORDER BY role, id');
-        const result = [];
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
 
-        for (const user of users) {
-            let name = 'Admin';
-            let extra = {};
-            if (user.role === 'PATIENT') {
-                const [rows] = await db.query('SELECT first_name, last_name, phone, blood_group FROM patients WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            } else if (user.role === 'DOCTOR') {
-                const [rows] = await db.query('SELECT first_name, last_name, specialty, location_room FROM doctors WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            }
-            result.push({ ...user, name, ...extra });
+        const role = req.query.role;
+        const sortBy = req.query.sort_by || 'id';
+        const order = req.query.order?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+        let whereClause = '';
+        let queryParams = [];
+
+        if (role && role !== 'ALL') {
+            whereClause = 'WHERE u.role = ?';
+            queryParams.push(role);
         }
 
-        res.json(result);
+        let orderByClause = '';
+        if (sortBy === 'name') {
+            orderByClause = `ORDER BY COALESCE(p.first_name, d.first_name, 'Admin') ${order}`;
+        } else if (sortBy === 'created_at') {
+            orderByClause = `ORDER BY u.created_at ${order}`;
+        } else if (sortBy === 'role') {
+            orderByClause = `ORDER BY u.role ${order}, u.id ASC`;
+        } else {
+            orderByClause = `ORDER BY u.id ${order}`;
+        }
+
+        const countQuery = `SELECT COUNT(*) AS total FROM users u ${whereClause}`;
+        const [countResult] = await db.query(countQuery, queryParams);
+        const total = countResult[0].total;
+
+        const dataQuery = `
+            SELECT 
+                u.id, u.email, u.role, u.created_at,
+                p.first_name AS p_first, p.last_name AS p_last, p.phone, p.blood_group,
+                d.first_name AS d_first, d.last_name AS d_last, d.specialty, d.location_room
+            FROM users u
+            LEFT JOIN patients p ON u.id = p.id
+            LEFT JOIN doctors d ON u.id = d.id
+            ${whereClause}
+            ${orderByClause}
+            LIMIT ? OFFSET ?
+        `;
+        
+        queryParams.push(limit, offset);
+        const [rows] = await db.query(dataQuery, queryParams);
+
+        const users = rows.map(row => {
+            let name = 'Admin';
+            let extra = {};
+            if (row.role === 'PATIENT') {
+                name = `${row.p_first || ''} ${row.p_last || ''}`.trim();
+                extra = {
+                    first_name: row.p_first,
+                    last_name: row.p_last,
+                    phone: row.phone,
+                    blood_group: row.blood_group
+                };
+            } else if (row.role === 'DOCTOR') {
+                name = `${row.d_first || ''} ${row.d_last || ''}`.trim();
+                extra = {
+                    first_name: row.d_first,
+                    last_name: row.d_last,
+                    specialty: row.specialty,
+                    location_room: row.location_room
+                };
+            }
+            return {
+                id: row.id,
+                email: row.email,
+                role: row.role,
+                created_at: row.created_at,
+                name: name || 'Unknown',
+                ...extra
+            };
+        });
+
+        res.json({
+            data: users,
+            meta: {
+                total,
+                page,
+                limit,
+                total_pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
