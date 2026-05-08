@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, ChevronRight, CheckCircle2, Loader2, AlertCircle, Search, Edit3 } from 'lucide-react';
-import axios from 'axios';
-import { API_URL } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => {
     const [providers, setProviders] = useState([]);
@@ -25,15 +24,15 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
 
     const fetchProviders = async () => {
         try {
-            const res = await axios.get(`${API_URL}/insurance/providers`);
-            setProviders(res.data);
-            
-            // Try to match scanned provider name to ID if exists
-            if (initialData?.provider) {
-                const match = res.data.find(p => 
-                    p.name.toLowerCase().includes(initialData.provider.toLowerCase())
-                );
-                if (match) setFormData(prev => ({ ...prev, providerId: match.id }));
+            const data = await apiClient.get('/api/insurance/providers');
+            if (data && !data.error) {
+                setProviders(data);
+                if (initialData?.provider) {
+                    const match = data.find(p => 
+                        p.name.toLowerCase().includes(initialData.provider.toLowerCase())
+                    );
+                    if (match) setFormData(prev => ({ ...prev, providerId: match.id }));
+                }
             }
         } catch (err) {
             console.error(err);
@@ -51,24 +50,21 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
         setError(null);
 
         try {
-            const res = await axios.post(`${API_URL}/insurance/save`, formData, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
+            const res = await apiClient.post('/api/insurance/save', formData);
+            if (res.error) throw new Error(res.error);
             
-            const insuranceId = res.data.id;
+            const insuranceId = res.id;
             
-            // Automatically trigger verification
             setVerifying(true);
-            const verifyRes = await axios.post(`${API_URL}/insurance/verify/${insuranceId}`, {}, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
+            const verifyRes = await apiClient.post(`/api/insurance/verify/${insuranceId}`, {});
+            if (verifyRes.error) throw new Error(verifyRes.error);
             
-            setVerificationResult(verifyRes.data);
+            setVerificationResult(verifyRes);
             setVerifying(false);
             setLoading(false);
         } catch (err) {
             console.error(err);
-            setError(err.response?.data?.message || "Failed to save and verify insurance.");
+            setError(err.message || "Failed to save and verify insurance.");
             setLoading(false);
             setVerifying(false);
         }

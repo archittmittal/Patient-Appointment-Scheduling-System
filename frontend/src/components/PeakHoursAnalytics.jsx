@@ -3,7 +3,7 @@ import {
     Clock, TrendingUp, TrendingDown, Calendar, Users, 
     Zap, Sun, Moon, Star, Info, ChevronDown, ChevronUp 
 } from 'lucide-react';
-import { API } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 // Traffic level badge component
 const TrafficBadge = ({ level }) => {
@@ -82,17 +82,17 @@ const PeakHoursAnalytics = ({ doctorId }) => {
 
         const fetchData = async () => {
             try {
-                const [analysisRes, heatmapRes, bestTimesRes, crowdRes] = await Promise.all([
-                    fetch(`${API}/api/analytics/doctor/${doctorId}/peak-hours`),
-                    fetch(`${API}/api/analytics/doctor/${doctorId}/heatmap`),
-                    fetch(`${API}/api/analytics/doctor/${doctorId}/best-times`),
-                    fetch(`${API}/api/analytics/doctor/${doctorId}/crowd-level`)
+                const [analysisData, heatmapData, bestTimesData, crowdData] = await Promise.all([
+                    apiClient.get(`/api/analytics/doctor/${doctorId}/peak-hours`),
+                    apiClient.get(`/api/analytics/doctor/${doctorId}/heatmap`),
+                    apiClient.get(`/api/analytics/doctor/${doctorId}/best-times`),
+                    apiClient.get(`/api/analytics/doctor/${doctorId}/crowd-level`)
                 ]);
 
-                setAnalysis(await analysisRes.json());
-                setHeatmapData(await heatmapRes.json());
-                setBestTimes(await bestTimesRes.json());
-                setCrowdLevel(await crowdRes.json());
+                if (analysisData && !analysisData.error) setAnalysis(analysisData);
+                if (heatmapData && !heatmapData.error) setHeatmapData(heatmapData);
+                if (bestTimesData && !bestTimesData.error) setBestTimes(bestTimesData);
+                if (crowdData && !crowdData.error) setCrowdLevel(crowdData);
             } catch (err) {
                 console.error('Analytics fetch error:', err);
             } finally {

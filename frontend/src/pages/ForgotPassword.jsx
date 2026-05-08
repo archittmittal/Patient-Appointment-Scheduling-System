@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, HeartPulse, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
-import { API } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
@@ -17,13 +17,8 @@ const ForgotPassword = () => {
         setMessage('');
 
         try {
-            const res = await fetch(`${API}/api/auth/forgot-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
+            const data = await apiClient.post('/api/auth/forgot-password', { email });
+            if (data && data.error) {
                 setError(data.message || 'Error sending OTP');
                 return;
             }

@@ -1,8 +1,3 @@
-/**
- * Issue #46: Patient Prep Checklist Page - PREMIUM OVERHAUL
- * Clinical Readiness Protocol interface for pre-visit synchronization.
- */
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -13,7 +8,7 @@ import {
     Activity, ShieldCheck, Zap, Compass, Info, Target
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const PriorityBadge = ({ priority }) => {
     const config = {
@@ -162,11 +157,10 @@ const PrepChecklist = () => {
         const fetchData = async () => {
             try {
                 if (appointmentId) {
-                    const res = await fetch(`${API}/api/prep/appointment/${appointmentId}`, { headers: authedHeaders() });
-                    setSelectedPrep(await res.json());
+                    const data = await apiClient.get(`/api/prep/appointment/${appointmentId}`);
+                    if (data && !data.error) setSelectedPrep(data);
                 } else {
-                    const res = await fetch(`${API}/api/prep/overview`, { headers: authedHeaders() });
-                    const data = await res.json();
+                    const data = await apiClient.get('/api/prep/overview');
                     setOverview(Array.isArray(data) ? data : []);
                 }
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
@@ -178,7 +172,10 @@ const PrepChecklist = () => {
         if (!selectedPrep) return;
         setIsUpdating(true);
         try {
-            await fetch(`${API}/api/prep/complete/${selectedPrep.appointment.id}/${itemId}`, { method: completed ? 'POST' : 'DELETE', headers: authedHeaders() });
+            const endpoint = `/api/prep/complete/${selectedPrep.appointment.id}/${itemId}`;
+            if (completed) await apiClient.post(endpoint, {});
+            else await apiClient.delete(endpoint);
+
             setSelectedPrep(prev => ({
                 ...prev,
                 items: prev.items.map(item => item.id === itemId ? { ...item, isCompleted: completed } : item),

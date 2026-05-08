@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
@@ -40,35 +40,43 @@ const DoctorProfileEdit = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`${API}/api/doctors/${user.id}`)
-            .then(res => res.json())
-            .then(data => {
-                setProfile({
-                    first_name: data.first_name || '',
-                    last_name: data.last_name || '',
-                    specialty: data.specialty || '',
-                    degree: data.degree || '',
-                    experience_years: data.experience_years ?? '',
-                    about: data.about || '',
-                    location_room: data.location_room || '',
-                    image_url: data.image_url || '',
-                    max_patients_per_slot: data.max_patients_per_slot ?? 15,
-                });
-                if (data.availability) {
-                    const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
-                    setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
+        const fetchProfile = async () => {
+            try {
+                const data = await apiClient.get(`/api/doctors/${user.id}`);
+                if (data) {
+                    setProfile({
+                        first_name: data.first_name || '',
+                        last_name: data.last_name || '',
+                        specialty: data.specialty || '',
+                        degree: data.degree || '',
+                        experience_years: data.experience_years ?? '',
+                        about: data.about || '',
+                        location_room: data.location_room || '',
+                        image_url: data.image_url || '',
+                        max_patients_per_slot: data.max_patients_per_slot ?? 15,
+                    });
+                    if (data.availability) {
+                        const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
+                        setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
+                    }
                 }
-            })
-            .catch(err => console.error(err))
-            .finally(() => setIsLoading(false));
+            } catch (err) {
+                console.error('Failed to fetch profile:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProfile();
     }, [user?.id]);
 
-    const fetchBlockedDates = () => {
+    const fetchBlockedDates = async () => {
         if (!user?.id) return;
-        fetch(`${API}/api/doctors/${user.id}/blocked-dates`)
-            .then(r => r.json())
-            .then(data => setBlockedDates(Array.isArray(data) ? data : []))
-            .catch(err => console.error(err));
+        try {
+            const data = await apiClient.get(`/api/doctors/${user.id}/blocked-dates`);
+            setBlockedDates(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to fetch blocked dates:', err);
+        }
     };
 
     useEffect(() => { fetchBlockedDates(); }, [user?.id]);
@@ -93,15 +101,13 @@ const DoctorProfileEdit = () => {
         setSavingProfile(true);
         setProfileMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify(profile),
-            });
-            if (!res.ok) throw new Error();
-            const updated = await res.json();
-            login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
-            showMsg(setProfileMsg, { type: 'success', text: 'Clinical Identity Synchronized' });
+            const updated = await apiClient.patch(`/api/doctors/${user.id}`, profile);
+            if (updated && !updated.error) {
+                login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
+                showMsg(setProfileMsg, { type: 'success', text: 'Clinical Identity Synchronized' });
+            } else {
+                throw new Error();
+            }
         } catch {
             showMsg(setProfileMsg, { type: 'error', text: 'Registry Link Down. Data not saved.' });
         } finally { setSavingProfile(false); }
@@ -113,13 +119,12 @@ const DoctorProfileEdit = () => {
     const saveAvailability = async () => {
         setSavingAvail(true); setAvailMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/availability`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ availability }),
-            });
-            if (!res.ok) throw new Error();
-            showMsg(setAvailMsg, { type: 'success', text: 'Operational Window Updated' });
+            const data = await apiClient.patch(`/api/doctors/${user.id}/availability`, { availability });
+            if (data && !data.error) {
+                showMsg(setAvailMsg, { type: 'success', text: 'Operational Window Updated' });
+            } else {
+                throw new Error();
+            }
         } catch { showMsg(setAvailMsg, { type: 'error', text: 'Sync Error. Check connectivity.' }); }
         finally { setSavingAvail(false); }
     };
@@ -128,20 +133,19 @@ const DoctorProfileEdit = () => {
         if (!newBlockDate) { showMsg(setBlockMsg, { type: 'error', text: 'Select valid timestamp' }); return; }
         setBlockMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/blocked-dates`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: newBlockDate, reason: newBlockReason || null }),
-            });
-            if (!res.ok) throw new Error();
-            setNewBlockDate(''); setNewBlockReason(''); fetchBlockedDates();
-            showMsg(setBlockMsg, { type: 'success', text: 'Clinical Downtime Indexed' });
+            const data = await apiClient.post(`/api/doctors/${user.id}/blocked-dates`, { date: newBlockDate, reason: newBlockReason || null });
+            if (data && !data.error) {
+                setNewBlockDate(''); setNewBlockReason(''); fetchBlockedDates();
+                showMsg(setBlockMsg, { type: 'success', text: 'Clinical Downtime Indexed' });
+            } else {
+                throw new Error();
+            }
         } catch { showMsg(setBlockMsg, { type: 'error', text: 'Exclusion Protocol Failed' }); }
     };
 
     const removeBlockedDate = async (id) => {
         try {
-            await fetch(`${API}/api/doctors/${user.id}/blocked-dates/${id}`, { method: 'DELETE' });
+            await apiClient.delete(`/api/doctors/${user.id}/blocked-dates/${id}`);
             setBlockedDates(prev => prev.filter(d => d.id !== id));
         } catch (err) { console.error(err); }
     };

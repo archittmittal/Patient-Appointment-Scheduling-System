@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import { 
     Clock, AlertTriangle, CheckCircle2, Timer, Calendar,
     RefreshCw, ArrowRight, Hourglass, ChevronRight, Shield,
@@ -39,22 +39,26 @@ const LateArrival = () => {
 
     const fetchTodayAppointments = async () => {
         try {
-            const res = await API.get('/appointments/my');
-            const today = new Date().toISOString().split('T')[0];
-            const todayApts = res.data.filter(apt => 
-                apt.appointment_date.split('T')[0] === today &&
-                ['scheduled', 'confirmed'].includes(apt.status)
-            );
-            setAppointments(todayApts);
+            const data = await apiClient.get('/api/appointments/my');
+            if (data && !data.error) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayApts = data.filter(apt => 
+                    apt.appointment_date.split('T')[0] === today &&
+                    ['scheduled', 'confirmed'].includes(apt.status)
+                );
+                setAppointments(todayApts);
+            }
         } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
     const checkLateStatus = async (aptId) => {
         setLoading(true);
         try {
-            const res = await API.get(`/late-arrival/check/${aptId}`);
-            setStatus(res.data);
-            setSelectedAppointment(aptId);
+            const data = await apiClient.get(`/api/late-arrival/check/${aptId}`);
+            if (data && !data.error) {
+                setStatus(data);
+                setSelectedAppointment(aptId);
+            }
         } catch (err) { console.error(err); } finally { setLoading(false); }
     };
 
@@ -62,11 +66,13 @@ const LateArrival = () => {
         setSelectedOption(optionId);
         setProcessing(true);
         try {
-            const res = await API.post('/late-arrival/process', {
+            const data = await apiClient.post('/api/late-arrival/process', {
                 appointmentId: selectedAppointment,
                 optionId
             });
-            setResult(res.data);
+            if (data && !data.error) {
+                setResult(data);
+            }
         } catch (err) { console.error(err); } finally { setProcessing(false); }
     };
 

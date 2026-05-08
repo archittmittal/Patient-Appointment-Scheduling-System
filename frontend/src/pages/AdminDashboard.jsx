@@ -1,28 +1,46 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle } from 'lucide-react';
+import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle, TrendingUp, ArrowUpRight, Zap, RefreshCw, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
 import EmergencyModal from '../components/EmergencyModal';
 
-const StatCard = ({ title, value, icon: Icon, color, onClick }) => (
+const StatCard = ({ title, value, icon: Icon, color, onClick, trend }) => (
     <button
         onClick={onClick}
-        className={`bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-start justify-between hover:shadow-md transition-all text-left w-full group ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`glass-card p-8 rounded-[2.5rem] border-none shadow-xl shadow-slate-200/50 flex flex-col items-start justify-between hover:shadow-2xl hover:-translate-y-1 transition-all text-left w-full group relative overflow-hidden ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
     >
+        <div className={`absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity`}>
+            <Icon size={80} />
+        </div>
+        
+        <div className="flex items-center justify-between w-full mb-6">
+            <div className={`p-4 rounded-2xl ${color} shadow-inner border border-white/20 group-hover:rotate-12 transition-transform`}>
+                <Icon size={24} strokeWidth={2.5} />
+            </div>
+            {trend && (
+                <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full uppercase tracking-widest italic">
+                    <TrendingUp size={12} /> {trend}
+                </div>
+            )}
+        </div>
+
         <div>
-            <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-            <h3 className="text-3xl font-bold text-gray-800">{value}</h3>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 italic opacity-60">{title}</p>
+            <h3 className="text-4xl font-black text-[var(--text-base)] tracking-tighter italic tabular-nums leading-none">{value}</h3>
         </div>
-        <div className={`p-3 rounded-xl ${color} group-hover:scale-110 transition-transform`}>
-            <Icon size={22} />
-        </div>
+        
+        {onClick && (
+            <div className="mt-6 flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest italic opacity-0 group-hover:opacity-100 transition-opacity">
+                Execute Matrix <ArrowUpRight size={14} />
+            </div>
+        )}
     </button>
 );
 
 const QueueBadge = ({ label, count, bg, text }) => (
-    <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg ${bg}`}>
-        <span className={`text-lg font-bold ${text}`}>{count}</span>
-        <span className={`text-xs font-medium ${text} opacity-80`}>{label}</span>
+    <div className={`flex flex-col items-center flex-1 px-3 py-4 rounded-2xl border ${bg} transition-all hover:scale-[1.02]`}>
+        <span className={`text-xl font-black italic tracking-tighter ${text}`}>{count}</span>
+        <span className={`text-[9px] font-black uppercase tracking-[0.1em] ${text} opacity-60 mt-1 italic`}>{label}</span>
     </div>
 );
 
@@ -31,33 +49,35 @@ const DoctorQueueCard = ({ data }) => {
     const completedPct = total > 0 ? Math.round((data.completed / total) * 100) : 0;
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-start justify-between mb-3">
+        <div className="glass-card rounded-[2.5rem] border-none shadow-xl shadow-slate-200/40 p-8 hover:shadow-2xl transition-all group relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-[0.02]"><Activity size={60} /></div>
+            
+            <div className="flex items-start justify-between mb-8 relative z-10">
                 <div>
-                    <h4 className="font-bold text-gray-900">{data.doctor_name}</h4>
-                    <p className="text-sm text-gray-500">{data.specialty}</p>
+                    <h4 className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tighter leading-none">{data.doctor_name}</h4>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-2 italic opacity-70">{data.specialty}</p>
                 </div>
-                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    {data.total_today} today
-                </span>
+                <div className="flex flex-col items-end">
+                    <span className="text-[20px] font-black text-[var(--text-base)] italic leading-none">{data.total_today}</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1 italic">Total Nodes</span>
+                </div>
             </div>
 
-            <div className="flex gap-2 mb-4">
-                <QueueBadge label="Waiting"  count={data.waiting}     bg="bg-yellow-50"  text="text-yellow-700" />
-                <QueueBadge label="Active"   count={data.in_progress} bg="bg-blue-50"    text="text-blue-700" />
-                <QueueBadge label="Done"     count={data.completed}   bg="bg-green-50"   text="text-green-700" />
-                <QueueBadge label="Missed"   count={data.missed}      bg="bg-red-50"     text="text-red-600" />
+            <div className="flex gap-3 mb-8 relative z-10">
+                <QueueBadge label="Waiting"  count={data.waiting}     bg="bg-amber-500/10 border-amber-500/10"  text="text-amber-600" />
+                <QueueBadge label="Active"   count={data.in_progress} bg="bg-primary/10 border-primary/10"    text="text-primary" />
+                <QueueBadge label="Done"     count={data.completed}   bg="bg-emerald-500/10 border-emerald-500/10"   text="text-emerald-600" />
             </div>
 
             {total > 0 && (
-                <div className="mb-4">
-                    <div className="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>Progress</span>
-                        <span>{completedPct}%</span>
+                <div className="mb-8 relative z-10">
+                    <div className="flex justify-between text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">
+                        <span>Cluster Progress</span>
+                        <span className="text-primary">{completedPct}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div className="w-full bg-slate-100/50 rounded-full h-1.5 overflow-hidden border border-slate-100/30 p-0.5">
                         <div
-                            className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                            className="bg-primary h-full rounded-full transition-all duration-1000 ease-out shadow-lg shadow-primary/20"
                             style={{ width: `${completedPct}%` }}
                         />
                     </div>
@@ -65,25 +85,22 @@ const DoctorQueueCard = ({ data }) => {
             )}
 
             {data.queue.length > 0 && (
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                <div className="space-y-2.5 max-h-48 overflow-y-auto pr-2 no-scrollbar relative z-10">
                     {data.queue.map(q => (
-                        <div key={q.queue_id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 text-gray-600">
+                        <div key={q.queue_id} className="flex items-center justify-between text-[11px] bg-white/40 border border-slate-100/50 rounded-xl px-4 py-3 hover:bg-white/60 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <span className="font-black text-[9px] bg-primary/10 text-primary border border-primary/10 rounded-lg px-2 py-1 italic tracking-tighter">
                                     #{q.queue_number}
                                 </span>
-                                <span className="text-gray-700 font-medium">{q.patient_name}</span>
-                                {q.time_slot && (
-                                    <span className="text-gray-400 text-xs">{q.time_slot}</span>
-                                )}
+                                <span className="text-[var(--text-base)] font-black uppercase italic tracking-tighter">{q.patient_name}</span>
                             </div>
-                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                                q.queue_status === 'WAITING'     ? 'bg-yellow-100 text-yellow-700' :
-                                q.queue_status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                q.queue_status === 'COMPLETED'   ? 'bg-green-100 text-green-700' :
-                                                                   'bg-red-100 text-red-600'
+                            <span className={`text-[8px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest italic border ${
+                                q.queue_status === 'WAITING'     ? 'bg-amber-500/10 text-amber-500 border-amber-500/10' :
+                                q.queue_status === 'IN_PROGRESS' ? 'bg-primary/10 text-primary border-primary/10 animate-pulse' :
+                                q.queue_status === 'COMPLETED'   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/10' :
+                                                                    'bg-rose-500/10 text-rose-500 border-rose-500/10'
                             }`}>
-                                {q.queue_status === 'IN_PROGRESS' ? 'Active' : q.queue_status.charAt(0) + q.queue_status.slice(1).toLowerCase()}
+                                {q.queue_status === 'IN_PROGRESS' ? 'Active' : q.queue_status}
                             </span>
                         </div>
                     ))}
@@ -91,7 +108,9 @@ const DoctorQueueCard = ({ data }) => {
             )}
 
             {data.queue.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">No queue entries yet today</p>
+                <div className="py-6 text-center border border-dashed border-slate-200 rounded-2xl">
+                    <p className="text-[10px] font-black text-slate-300 uppercase italic tracking-widest">No active nodes detected</p>
+                </div>
             )}
         </div>
     );
@@ -107,22 +126,16 @@ const AdminDashboard = () => {
     const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
 
     useEffect(() => {
-        fetch(`${API}/api/admin/stats`, { headers: authedHeaders() })
-            .then(r => r.json())
+        apiClient.get('/api/admin/stats')
             .then(data => setStats(data))
-            .catch(err => console.error(err))
             .finally(() => setStatsLoading(false));
     }, []);
 
-    const fetchQueue = useCallback(() => {
-        fetch(`${API}/api/admin/queue-overview`, { headers: authedHeaders() })
-            .then(r => r.json())
-            .then(data => {
-                setQueueData(Array.isArray(data) ? data : []);
-                setLastUpdated(new Date());
-            })
-            .catch(err => console.error(err))
-            .finally(() => setQueueLoading(false));
+    const fetchQueue = useCallback(async () => {
+        const data = await apiClient.get('/api/admin/queue-overview');
+        setQueueData(Array.isArray(data) ? data : []);
+        setLastUpdated(new Date());
+        setQueueLoading(false);
     }, []);
 
     useEffect(() => {
@@ -131,84 +144,108 @@ const AdminDashboard = () => {
         return () => clearInterval(interval);
     }, [fetchQueue]);
 
+    if (statsLoading && queueLoading) return (
+        <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-4">
+             <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+             <p className="text-sm font-medium text-slate-500 tracking-wide uppercase italic">Synchronizing Admin Matrix...</p>
+        </div>
+    );
+
     return (
-        <div className="space-y-8 pb-10">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                    <p className="text-gray-500 mt-1">Overview of the hospital system.</p>
+        <div className="max-w-7xl mx-auto space-y-12 pb-24 animate-in fade-in duration-1000 px-1">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-8 px-1">
+                <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 bg-primary/10 rounded-[2.5rem] flex items-center justify-center text-primary shadow-inner border border-primary/20 group-hover:rotate-12 transition-transform duration-700">
+                        <Activity size={36} strokeWidth={2.5} className="animate-pulse" />
+                    </div>
+                    <div>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Admin Matrix</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity clinical infrastructure control</p>
+                    </div>
                 </div>
-                <button 
-                    onClick={() => setIsEmergencyOpen(true)}
-                    className="btn-primary bg-danger hover:bg-red-700"
-                >
-                    <AlertCircle size={18} /> Emergency Override
-                </button>
+                
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <button 
+                        onClick={() => setIsEmergencyOpen(true)}
+                        className="flex-1 md:flex-none px-8 py-5 bg-rose-500 text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] italic shadow-2xl shadow-rose-500/20 hover:shadow-rose-500/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+                    >
+                        <AlertCircle size={18} strokeWidth={3} /> Emergency Override
+                    </button>
+                    <button 
+                        onClick={() => fetchQueue()}
+                        className="p-5 bg-white/40 border border-slate-100/50 rounded-[2rem] text-slate-400 hover:text-primary transition-all active:rotate-180 duration-700"
+                    >
+                        <RefreshCw size={20} />
+                    </button>
+                </div>
             </div>
 
             {/* Overall stats */}
-            <section>
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Overall</h2>
-                {statsLoading ? (
-                    <div className="text-center text-gray-400 animate-pulse py-6">Loading stats...</div>
-                ) : stats && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <section className="space-y-6">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center gap-3 px-1">
+                    <div className="w-8 h-[1px] bg-slate-200"></div> System Core Stats
+                </h2>
+                {stats && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                         <StatCard
                             title="Total Doctors"
                             value={stats.total_doctors}
                             icon={Stethoscope}
-                            color="bg-blue-50 text-blue-600"
+                            color="bg-primary/10 text-primary"
                             onClick={() => navigate('/admin-users')}
+                            trend="+2.4%"
                         />
                         <StatCard
                             title="Total Patients"
                             value={stats.total_patients}
                             icon={Users}
-                            color="bg-green-50 text-green-600"
+                            color="bg-emerald-500/10 text-emerald-500"
                             onClick={() => navigate('/admin-users')}
+                            trend="+12.1%"
                         />
                         <StatCard
-                            title="All Appointments"
+                            title="Global Connections"
                             value={stats.total_appointments}
                             icon={Calendar}
-                            color="bg-purple-50 text-purple-600"
+                            color="bg-violet-500/10 text-violet-500"
                             onClick={() => navigate('/admin-appointments')}
+                            trend="+5.7%"
                         />
                     </div>
                 )}
             </section>
 
             {/* Today's breakdown */}
-            <section>
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Today's Appointments</h2>
-                {statsLoading ? (
-                    <div className="text-center text-gray-400 animate-pulse py-6">Loading...</div>
-                ) : stats && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <section className="space-y-6">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center gap-3 px-1">
+                    <div className="w-8 h-[1px] bg-slate-200"></div> Temporal Load Matrix
+                </h2>
+                {stats && (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard
-                            title="Total Today"
+                            title="Active Today"
                             value={stats.today_total ?? 0}
                             icon={Activity}
-                            color="bg-orange-50 text-orange-600"
+                            color="bg-orange-500/10 text-orange-500"
                             onClick={() => navigate('/admin-appointments')}
                         />
                         <StatCard
-                            title="Confirmed"
+                            title="Confirmed Nodes"
                             value={stats.today_confirmed ?? 0}
                             icon={CheckCircle}
-                            color="bg-blue-50 text-blue-600"
+                            color="bg-primary/10 text-primary"
                         />
                         <StatCard
-                            title="Completed"
+                            title="Processed Nodes"
                             value={stats.today_completed ?? 0}
-                            icon={CheckCircle}
-                            color="bg-green-50 text-green-600"
+                            icon={Zap}
+                            color="bg-emerald-500/10 text-emerald-500"
                         />
                         <StatCard
-                            title="Pending"
+                            title="Pending Cycles"
                             value={stats.today_pending ?? 0}
                             icon={Clock}
-                            color="bg-yellow-50 text-yellow-600"
+                            color="bg-amber-500/10 text-amber-500"
                         />
                     </div>
                 )}
@@ -216,51 +253,57 @@ const AdminDashboard = () => {
 
             {/* Top doctors today */}
             {stats?.top_doctors_today?.length > 0 && (
-                <section>
-                    <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Top Doctors Today</h2>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                                <tr>
-                                    <th className="px-4 py-3 text-left">Doctor</th>
-                                    <th className="px-4 py-3 text-left">Specialty</th>
-                                    <th className="px-4 py-3 text-right">Appointments</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {stats.top_doctors_today.map(d => (
-                                    <tr key={d.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 font-medium text-gray-800">Dr. {d.first_name} {d.last_name}</td>
-                                        <td className="px-4 py-3 text-gray-500">{d.specialty}</td>
-                                        <td className="px-4 py-3 text-right font-bold text-gray-800">{d.count}</td>
+                <section className="space-y-6">
+                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center gap-3 px-1">
+                        <div className="w-8 h-[1px] bg-slate-200"></div> High-Volume Specialists
+                    </h2>
+                    <div className="glass-card rounded-[3rem] border-none shadow-2xl shadow-slate-200/50 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50/50 border-b border-slate-100/50">
+                                    <tr>
+                                        <th className="px-8 py-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Doctor Node</th>
+                                        <th className="px-8 py-6 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Specialization</th>
+                                        <th className="px-8 py-6 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Cycle Volume</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50/50">
+                                    {stats.top_doctors_today.map(d => (
+                                        <tr key={d.id} className="hover:bg-primary-light/5 transition-colors group">
+                                            <td className="px-8 py-5 font-black text-[var(--text-base)] uppercase italic tracking-tighter">Dr. {d.first_name} {d.last_name}</td>
+                                            <td className="px-8 py-5 text-[10px] font-black text-primary uppercase tracking-widest italic opacity-70">{d.specialty}</td>
+                                            <td className="px-8 py-5 text-right font-black text-2xl text-[var(--text-base)] italic tabular-nums tracking-tighter">{d.count}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
             )}
 
             {/* Live queue overview (A3) */}
-            <section>
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide">Today's Live Queue</h2>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
+            <section className="space-y-6">
+                <div className="flex items-center justify-between px-1">
+                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center gap-3">
+                        <div className="w-8 h-[1px] bg-slate-200"></div> Real-Time Queue Matrix
+                    </h2>
+                    <div className="flex items-center gap-3 text-[9px] font-black text-slate-400 uppercase tracking-widest italic bg-white/40 px-4 py-2 rounded-full border border-slate-100/50 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/40" />
                         {lastUpdated
-                            ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
-                            : 'Refreshing every 20s'}
+                            ? `SYNCED ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+                            : 'REFRESHING...'}
                     </div>
                 </div>
 
-                {queueLoading ? (
-                    <div className="text-center text-gray-400 animate-pulse py-10">Loading queue data...</div>
-                ) : queueData.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-gray-400">
-                        No appointments scheduled for today yet.
+                {queueData.length === 0 && !queueLoading ? (
+                    <div className="glass-card p-24 text-center rounded-[4rem] border-none shadow-2xl opacity-60">
+                        <Clock size={64} className="text-slate-200 mx-auto mb-8 opacity-20" />
+                        <h3 className="text-xl font-black text-slate-400 uppercase italic tracking-tighter">No Active Cycles</h3>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] italic mt-4">System idling. Waiting for patient node engagement.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         {queueData.map(d => (
                             <DoctorQueueCard key={d.doctor_id} data={d} />
                         ))}
@@ -269,29 +312,37 @@ const AdminDashboard = () => {
             </section>
 
             {/* Quick actions */}
-            <section>
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick Actions</h2>
-                <div className="grid sm:grid-cols-2 gap-5">
+            <section className="space-y-6">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center gap-3 px-1">
+                    <div className="w-8 h-[1px] bg-slate-200"></div> Direct Command Interface
+                </h2>
+                <div className="grid md:grid-cols-2 gap-8">
                     <div
                         onClick={() => navigate('/admin-users')}
-                        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+                        className="glass-card p-10 rounded-[3rem] border-none shadow-xl shadow-slate-200/40 cursor-pointer hover:shadow-2xl hover:bg-primary-light/10 transition-all group flex items-center justify-between"
                     >
-                        <div className="flex items-center gap-4 mb-3">
-                            <div className="p-3 bg-primary-light text-primary rounded-xl"><Users size={22} /></div>
-                            <h3 className="text-lg font-bold text-gray-900">Manage Users</h3>
+                        <div className="flex items-center gap-8">
+                            <div className="p-5 bg-primary/10 text-primary rounded-2xl border border-primary/20 shadow-inner group-hover:rotate-12 transition-transform"><Users size={32} strokeWidth={2.5} /></div>
+                            <div>
+                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter leading-none">Manage Registry</h3>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-3 italic opacity-60">Provision & audit system nodes</p>
+                            </div>
                         </div>
-                        <p className="text-gray-500 text-sm">Add or remove doctors and patients from the system.</p>
+                        <ArrowUpRight size={24} className="text-slate-200 group-hover:text-primary group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
                     </div>
 
                     <div
                         onClick={() => navigate('/admin-appointments')}
-                        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+                        className="glass-card p-10 rounded-[3rem] border-none shadow-xl shadow-slate-200/40 cursor-pointer hover:shadow-2xl hover:bg-emerald-500/5 transition-all group flex items-center justify-between"
                     >
-                        <div className="flex items-center gap-4 mb-3">
-                            <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Calendar size={22} /></div>
-                            <h3 className="text-lg font-bold text-gray-900">All Appointments</h3>
+                        <div className="flex items-center gap-8">
+                            <div className="p-5 bg-emerald-500/10 text-emerald-500 rounded-2xl border border-emerald-500/20 shadow-inner group-hover:rotate-12 transition-transform"><Calendar size={32} strokeWidth={2.5} /></div>
+                            <div>
+                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter leading-none">Global Log</h3>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-3 italic opacity-60">Full-spectrum synchronization audit</p>
+                            </div>
                         </div>
-                        <p className="text-gray-500 text-sm">View all appointments across all doctors with patient symptoms.</p>
+                        <ArrowUpRight size={24} className="text-slate-200 group-hover:text-emerald-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
                     </div>
                 </div>
             </section>
@@ -307,5 +358,7 @@ const AdminDashboard = () => {
         </div>
     );
 };
+
+export default AdminDashboard;
 
 export default AdminDashboard;

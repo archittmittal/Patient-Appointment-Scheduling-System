@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../hooks/useProfile';
 import { usePermissions } from '../hooks/usePermissions';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import QueueAlertModal from './QueueAlertModal';
 import ThemeToggle from './ThemeToggle';
 
@@ -21,7 +21,7 @@ const NOTIFICATION_ICONS = {
 };
 
 const Navbar = () => {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const { fullName, profile } = useProfile();
     const { role, isAdmin, isDoctor } = usePermissions();
     const navigate = useNavigate();
@@ -45,16 +45,15 @@ const Navbar = () => {
         
         const fetchNotifications = async () => {
             try {
-                const [notifRes, countRes] = await Promise.all([
-                    fetch(`${API}/api/notifications?limit=10`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/notifications/unread-count`, { headers: authedHeaders() })
+                const [notifData, countData] = await Promise.all([
+                    apiClient.get('/api/notifications?limit=10'),
+                    apiClient.get('/api/notifications/unread-count')
                 ]);
                 
-                if (notifRes.ok) {
-                    const data = await notifRes.json();
-                    setNotifications(data);
+                if (notifData && !notifData.error) {
+                    setNotifications(notifData);
                     
-                    const priorityAlerts = data.filter(n => 
+                    const priorityAlerts = notifData.filter(n => 
                         (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING' || n.type === 'MISSED') && 
                         !n.read_at &&
                         new Date(n.sent_at) > new Date(Date.now() - 5 * 60000)
@@ -72,9 +71,8 @@ const Navbar = () => {
                         }
                     }
                 }
-                if (countRes.ok) {
-                    const { count } = await countRes.json();
-                    setUnreadCount(count);
+                if (countData && !countData.error) {
+                    setUnreadCount(countData.count);
                 }
             } catch (err) {
                 console.error('Fetch notifications error:', err);
@@ -84,7 +82,7 @@ const Navbar = () => {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 15000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, profile]);
 
     const handleAlertAction = async () => {
         if (!activeAlert) return;
@@ -93,10 +91,7 @@ const Navbar = () => {
         localStorage.setItem('seen_queue_alerts', JSON.stringify(seenAlerts));
 
         try {
-            await fetch(`${API}/api/notifications/${activeAlert.id}/read`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
+            await apiClient.post(`/api/notifications/${activeAlert.id}/read`, {});
             if (activeAlert.type === 'YOUR_TURN' && activeAlert.data?.appointment_id) {
                 navigate(`/virtual-waiting/${activeAlert.data.appointment_id}`);
             }
@@ -126,7 +121,7 @@ const Navbar = () => {
 
     const markAllAsRead = async () => {
         try {
-            await fetch(`${API}/api/notifications/mark-all-read`, { method: 'POST', headers: authedHeaders() });
+            await apiClient.post('/api/notifications/mark-all-read', {});
             setUnreadCount(0);
             setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
         } catch (err) {
