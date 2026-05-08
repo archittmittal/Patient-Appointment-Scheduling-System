@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Stethoscope, Users, X, Pencil } from 'lucide-react';
+import { Plus, Trash2, X, Pencil } from 'lucide-react';
 import { API, authedHeaders } from '../config/api';
 
 const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
@@ -58,7 +58,7 @@ const AdminUsers = () => {
     const handleEdit = async (id, role) => {
         setError('');
         const url = role === 'DOCTOR' ? `${API}/api/doctors/${id}` : `${API}/api/patients/${id}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authedHeaders() });
         const data = await res.json();
         setFormData({
             first_name: data.first_name || '',
@@ -126,7 +126,7 @@ const AdminUsers = () => {
                 : `${API}/api/patients/${editId}`;
             const res = await fetch(url, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             if (!res.ok) { const d = await res.json(); setError(d.message); return; }
@@ -135,8 +135,6 @@ const AdminUsers = () => {
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
-
-
 
     return (
         <div className="space-y-8 pb-10">
