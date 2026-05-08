@@ -180,5 +180,3 @@ const AdminAppointments = () => {
 };
 
 export default AdminAppointments;
-
-export default AdminAppointments;
