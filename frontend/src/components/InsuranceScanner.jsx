@@ -1,8 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import Tesseract from 'tesseract.js';
 import { createWorker } from 'tesseract.js';
-import { Camera, RefreshCw, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, AlertCircle, Loader2, X, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const InsuranceScanner = ({ onScanComplete, onClose }) => {
@@ -67,11 +66,11 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                 }
             });
 
-            const { data: { text } } = await worker.recognize(processedImage);
+            const { data: { text, confidence } } = await worker.recognize(processedImage);
             await worker.terminate();
 
             // Simple parsing logic (can be improved with regex)
-            const result = parseOCRText(text);
+            const result = parseOCRText(text, confidence / 100);
             
             setIsScanning(false);
             setCapturedImage(null); // Clear PHI from memory
@@ -83,7 +82,14 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
         }
     }, [webcamRef, onScanComplete]);
 
-    const parseOCRText = (text) => {
+    const handleClose = useCallback(() => {
+        if (webcamRef.current && webcamRef.current.video && webcamRef.current.video.srcObject) {
+            webcamRef.current.video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        onClose();
+    }, [onClose]);
+
+    const parseOCRText = (text, confidenceScore) => {
         const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
         
         // Basic heuristic-based parsing
@@ -112,7 +118,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
             memberId,
             groupId,
             provider,
-            confidence: 0.8 // Dummy confidence
+            confidence: confidenceScore || 0
         };
     };
 
@@ -127,7 +133,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                 <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
                 
                 <button 
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="absolute top-6 right-6 z-10 p-2 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 rounded-2xl transition-all duration-300"
                 >
                     <X size={20} />
@@ -152,6 +158,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                                 screenshotFormat="image/jpeg"
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 videoConstraints={{ facingMode: "environment" }}
+                                onUserMediaError={(err) => setError("Camera access denied. Please enable permissions.")}
                             />
                         )}
 
@@ -204,7 +211,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                                 >
                                     <Loader2 size={48} className="text-blue-400" />
                                 </motion.div>
-                                <p className="font-bold tracking-widest text-xs uppercase">Analyzing Encryption... {progress}%</p>
+                                <p className="font-bold tracking-widest text-xs uppercase">Analyzing Card... {progress}%</p>
                             </div>
                         )}
                     </div>
@@ -234,7 +241,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                     <div className="mt-8 flex items-center justify-center gap-2">
                         <Shield size={12} className="text-green-500" />
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                            Edge AI Processing • 256-bit Encrypted
+                            Secure Processing
                         </p>
                     </div>
                 </div>

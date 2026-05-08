@@ -7,7 +7,7 @@ import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const getAuthHeaders = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
 });
 
 const PatientInsurance = () => {
@@ -216,7 +216,7 @@ const PatientInsurance = () => {
                     <div>
                         <h4 className="text-xl font-black text-white mb-2 tracking-tight">HIPAA Compliant Protection</h4>
                         <p className="text-blue-100/60 font-medium leading-relaxed">
-                            Your health data is encrypted with 256-bit AES protection. Our Edge AI processing ensures your card images never leave your device, maintaining absolute privacy and security for your PHI.
+                            Your health data is handled securely to maintain privacy and security for your PHI.
                         </p>
                     </div>
                 </div>
