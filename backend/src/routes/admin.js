@@ -22,39 +22,43 @@ router.get('/patients/list', async (req, res) => {
 });
 
 // GET /api/admin/users — all users with profile info
+// Allowed sort columns — explicit whitelist to prevent SQL injection on ORDER BY
+const ALLOWED_SORT = {
+    id: 'u.id',
+    name: "COALESCE(p.first_name, d.first_name, 'Admin')",
+    created_at: 'u.created_at',
+    role: 'u.role'
+};
+
 router.get('/users', async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        // Sanitise & clamp pagination inputs
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
         const offset = (page - 1) * limit;
 
         const role = req.query.role;
-        const sortBy = req.query.sort_by || 'id';
+        const sortColumn = ALLOWED_SORT[req.query.sort_by] || ALLOWED_SORT.id;
         const order = req.query.order?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
 
         let whereClause = '';
-        let queryParams = [];
+        const filterParams = [];
 
         if (role && role !== 'ALL') {
             whereClause = 'WHERE u.role = ?';
-            queryParams.push(role);
+            filterParams.push(role);
         }
 
-        let orderByClause = '';
-        if (sortBy === 'name') {
-            orderByClause = `ORDER BY COALESCE(p.first_name, d.first_name, 'Admin') ${order}`;
-        } else if (sortBy === 'created_at') {
-            orderByClause = `ORDER BY u.created_at ${order}`;
-        } else if (sortBy === 'role') {
-            orderByClause = `ORDER BY u.role ${order}, u.id ASC`;
-        } else {
-            orderByClause = `ORDER BY u.id ${order}`;
-        }
+        const orderByClause = sortColumn === ALLOWED_SORT.role
+            ? `ORDER BY ${sortColumn} ${order}, u.id ASC`
+            : `ORDER BY ${sortColumn} ${order}`;
 
+        // --- Count query (uses only filterParams) ---
         const countQuery = `SELECT COUNT(*) AS total FROM users u ${whereClause}`;
-        const [countResult] = await db.query(countQuery, queryParams);
+        const [countResult] = await db.query(countQuery, filterParams);
         const total = countResult[0].total;
 
+        // --- Data query (clone filterParams + append limit/offset) ---
         const dataQuery = `
             SELECT 
                 u.id, u.email, u.role, u.created_at,
@@ -67,9 +71,9 @@ router.get('/users', async (req, res) => {
             ${orderByClause}
             LIMIT ? OFFSET ?
         `;
-        
-        queryParams.push(limit, offset);
-        const [rows] = await db.query(dataQuery, queryParams);
+
+        const dataParams = [...filterParams, limit, offset];
+        const [rows] = await db.query(dataQuery, dataParams);
 
         const users = rows.map(row => {
             let name = 'Admin';
