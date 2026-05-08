@@ -6,20 +6,12 @@ import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const getAuthHeaders = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-});
-
 const PatientInsurance = () => {
     const [insuranceList, setInsuranceList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showScanner, setShowScanner] = useState(false);
     const [scannedData, setScannedData] = useState(null);
     const [showForm, setShowForm] = useState(false);
-
-    useEffect(() => {
-        fetchInsurance();
-    }, []);
 
     const fetchInsurance = async () => {
         try {
@@ -33,6 +25,10 @@ const PatientInsurance = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchInsurance();
+    }, []);
 
     const handleScanComplete = (data) => {
         setScannedData(data);

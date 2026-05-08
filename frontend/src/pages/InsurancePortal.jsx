@@ -15,10 +15,7 @@ const InsurancePortal = () => {
     const [patients, setPatients] = useState([]);
     const [selectedPatientId, setSelectedPatientId] = useState('');
 
-    useEffect(() => {
-        fetchData();
-        fetchPatients();
-    }, []);
+
 
     const fetchPatients = async () => {
         try {
@@ -43,12 +40,17 @@ const InsurancePortal = () => {
             ]);
             setStats(statsRes.data);
             setPolicies(policiesRes.data);
-            setLoading(false);
         } catch (err) {
             console.error(err);
+        } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchData();
+        fetchPatients();
+    }, []);
 
     const handleVerify = async (id) => {
         try {
