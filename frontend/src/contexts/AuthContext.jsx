@@ -8,18 +8,19 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(false);
 
     const login = useCallback((userData) => {
-        // authService.login() already saved the correct slim user object to localStorage.
-        // Read from there to guarantee we get {id, email, role, first_name, last_name}.
-        // Fall back to extracting from userData if localStorage isn't set yet.
         const stored = authService.getCurrentUser();
         const userToSet = stored || userData.user || {
             id: userData.id,
             email: userData.email,
             role: userData.role,
-            first_name: userData.first_name,
-            last_name: userData.last_name,
         };
-        setUser(userToSet);
+        // Ensure we don't store name fields in the primary auth user object if they exist in userData
+        const sessionUser = {
+            id: userToSet.id,
+            email: userToSet.email,
+            role: userToSet.role
+        };
+        setUser(sessionUser);
     }, []);
 
     const logout = useCallback(() => {
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
         setUser(null);
     }, []);
 
-    const value = {
+    const value = React.useMemo(() => ({
         user,
         loading,
         setLoading,
@@ -35,7 +36,7 @@ export function AuthProvider({ children }) {
         logout,
         isAuthenticated: !!user,
         role: user?.role || null
-    };
+    }), [user, loading, login, logout]);
 
     return (
         <AuthContext.Provider value={value}>

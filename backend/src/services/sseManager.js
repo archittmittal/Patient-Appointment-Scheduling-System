@@ -8,13 +8,28 @@ class SSEManager {
         // Map of connectionId -> res object
         this.connections = new Map();
         // Map of appointmentId -> Set of connectionIds
-        this.subscriptions = new Map();
+        this.appointmentSubscriptions = new Map();
+        // Map of doctorId -> Set of connectionIds
+        this.doctorSubscriptions = new Map();
+
+        // Ensure methods are bound to this instance
+        this.addClient = this.addClient.bind(this);
+        this.removeClient = this.removeClient.bind(this);
+        this.sendToClient = this.sendToClient.bind(this);
+        this.broadcastToAppointment = this.broadcastToAppointment.bind(this);
+        this.broadcastToDoctor = this.broadcastToDoctor.bind(this);
+        this.broadcastQueueUpdate = this.broadcastQueueUpdate.bind(this);
     }
 
     /**
      * Add a new SSE client
+     * @param {string} connectionId 
+     * @param {object} res 
+     * @param {object} metadata { appointmentId, doctorId }
      */
-    addClient(connectionId, res, appointmentId) {
+    addClient(connectionId, res, metadata = {}) {
+        const { appointmentId, doctorId } = metadata;
+
         // Set proper headers for SSE
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
@@ -26,35 +41,48 @@ class SSEManager {
         // Add to connections
         this.connections.set(connectionId, res);
 
-        // Add to subscriptions
+        // Add to appointment subscriptions
         if (appointmentId) {
-            if (!this.subscriptions.has(appointmentId)) {
-                this.subscriptions.set(appointmentId, new Set());
+            if (!this.appointmentSubscriptions.has(appointmentId)) {
+                this.appointmentSubscriptions.set(appointmentId, new Set());
             }
-            this.subscriptions.get(appointmentId).add(connectionId);
+            this.appointmentSubscriptions.get(appointmentId).add(connectionId);
+        }
+
+        // Add to doctor subscriptions
+        if (doctorId) {
+            if (!this.doctorSubscriptions.has(doctorId)) {
+                this.doctorSubscriptions.set(doctorId, new Set());
+            }
+            this.doctorSubscriptions.get(doctorId).add(connectionId);
         }
 
         // Send initial connection event
-        this.sendToClient(connectionId, 'connected', { status: 'Connected to waiting room' });
+        this.sendToClient(connectionId, 'connected', { status: 'Neural Link Established' });
 
         // Setup cleanup on close
         res.on('close', () => {
-            this.removeClient(connectionId, appointmentId);
+            this.removeClient(connectionId, metadata);
         });
     }
 
     /**
      * Remove a client
      */
-    removeClient(connectionId, appointmentId) {
+    removeClient(connectionId, metadata = {}) {
+        const { appointmentId, doctorId } = metadata;
         this.connections.delete(connectionId);
         
-        if (appointmentId && this.subscriptions.has(appointmentId)) {
-            const subs = this.subscriptions.get(appointmentId);
+        if (appointmentId && this.appointmentSubscriptions.has(appointmentId)) {
+            const subs = this.appointmentSubscriptions.get(appointmentId);
             subs.delete(connectionId);
-            if (subs.size === 0) {
-                this.subscriptions.delete(appointmentId);
-            }
+            if (subs.size === 0) this.appointmentSubscriptions.delete(appointmentId);
+        }
+
+        if (doctorId && this.doctorSubscriptions.has(doctorId)) {
+            const subs = this.doctorSubscriptions.get(doctorId);
+            subs.delete(connectionId);
+            if (subs.size === 0) this.doctorSubscriptions.delete(doctorId);
         }
     }
 
@@ -63,17 +91,29 @@ class SSEManager {
      */
     sendToClient(connectionId, event, data) {
         const res = this.connections.get(connectionId);
-        if (res) {
+        if (res && !res.writableEnded) {
             res.write(`event: ${event}\n`);
             res.write(`data: ${JSON.stringify(data)}\n\n`);
         }
     }
 
     /**
-     * Broadcast generic event to all clients an appointment
+     * Broadcast generic event to all clients of an appointment
      */
     broadcastToAppointment(appointmentId, event, data) {
-        const subs = this.subscriptions.get(appointmentId);
+        const subs = this.appointmentSubscriptions.get(appointmentId);
+        if (subs) {
+            subs.forEach(connectionId => {
+                this.sendToClient(connectionId, event, data);
+            });
+        }
+    }
+
+    /**
+     * Broadcast generic event to all clients of a doctor
+     */
+    broadcastToDoctor(doctorId, event, data) {
+        const subs = this.doctorSubscriptions.get(doctorId);
         if (subs) {
             subs.forEach(connectionId => {
                 this.sendToClient(connectionId, event, data);
@@ -90,5 +130,4 @@ class SSEManager {
 }
 
 // Export singleton instance
-const sseManager = new SSEManager();
-module.exports = sseManager;
+module.exports = new SSEManager();

@@ -22,22 +22,26 @@ const PatientProfile = () => {
     const [pastVisits, setPastVisits] = useState([]);
     const [latestFollowup, setLatestFollowup] = useState(null);
     const [activeVisit, setActiveVisit] = useState(null);
+    const [vitals, setVitals] = useState([]);
 
     useEffect(() => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
                 const headers = authedHeaders();
-                const [pRes, vRes] = await Promise.all([
+                const [pRes, vRes, vitRes] = await Promise.all([
                     fetch(`${API}/api/patients/${user.id}`, { headers }),
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers })
+                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers }),
+                    fetch(`${API}/api/patients/${user.id}/vitals`, { headers })
                 ]);
                 const pData = await pRes.json();
                 const vData = await vRes.json();
+                const vitData = await vitRes.json();
                 
                 setProfile(pData);
                 const visits = Array.isArray(vData) ? vData : [];
                 setPastVisits(visits);
+                setVitals(Array.isArray(vitData) ? vitData : []);
                 
                 const withFollowup = visits
                     .filter(a => a.follow_up_date && new Date(a.follow_up_date) >= new Date())
@@ -261,6 +265,63 @@ const PatientProfile = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Vitals History */}
+                    <div className="apple-card p-8">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500">
+                                    <Activity size={20} />
+                                </div>
+                                <h3 className="text-xl font-bold">Health Vitals</h3>
+                            </div>
+                            <button className="text-xs font-bold text-primary uppercase tracking-widest hover:underline">Trend Analytics</button>
+                        </div>
+
+                        {vitals.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-50">
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">BP (sys/dia)</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">HR</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">SpO2</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Temp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {vitals.slice(0, 5).map((v, i) => (
+                                            <tr key={i} className="hover:bg-slate-50/50 transition-all">
+                                                <td className="py-4 text-sm font-medium text-slate-600">
+                                                    {new Date(v.recorded_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.blood_pressure_sys && v.blood_pressure_dia ? `${v.blood_pressure_sys}/${v.blood_pressure_dia}` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.heart_rate ? `${v.heart_rate} bpm` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.spo2 ? `${v.spo2}%` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.temperature_c ? `${v.temperature_c}°C` : '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                    <Activity size={32} />
+                                </div>
+                                <p className="text-slate-400 text-sm">No vital records found yet.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
             

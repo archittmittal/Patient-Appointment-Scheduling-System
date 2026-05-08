@@ -13,8 +13,9 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
 import { safeFetch } from '../utils/apiHelper';
+import sseService from '../services/sseService';
 
-const POLL_INTERVAL = 15_000;
+const FALLBACK_POLL = 60_000; // Minimal fallback polling
 
 const SmartArrivalCard = ({ arrivalData }) => {
     if (!arrivalData) return null;
@@ -198,9 +199,32 @@ const LiveQueue = () => {
         };
 
         fetchQueue();
-        const t = setInterval(fetchQueue, POLL_INTERVAL);
+        const t = setInterval(fetchQueue, FALLBACK_POLL);
         return () => clearInterval(t);
     }, [user?.id]);
+
+    useEffect(() => {
+        const aptId = queueData.find(item => item.isCurrent)?.appointment_id || 
+                     (queueData.length > 0 ? queueData[0].appointment_id : null);
+
+        if (!aptId) return;
+
+        sseService.connect(
+            aptId,
+            (data) => {
+                if (data.refresh) {
+                    // Trigger a re-fetch or update state
+                    setLastUpdated(new Date());
+                } else {
+                    // It might be a waiting room status update, but for LiveQueue we mostly care about refreshes
+                    setLastUpdated(new Date());
+                }
+            },
+            () => console.warn('[Queue] Stream Interrupted')
+        );
+
+        return () => sseService.disconnect();
+    }, [queueData.length > 0]);
 
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-8 animate-in fade-in duration-1000">
