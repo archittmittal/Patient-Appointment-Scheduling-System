@@ -12,7 +12,7 @@ import {
     MoveRight, Building, Map, Activity, Zap, Compass, ZapOff, Filter
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 // Stop status config
 const STOP_CONFIG = {
@@ -199,9 +199,8 @@ const MultiDoctorJourney = () => {
     useEffect(() => {
         const fetchJourneys = async () => {
             try {
-                const res = await fetch(`${API}/api/multi-doctor/journeys`, { headers: authedHeaders() });
-                const data = await res.json();
-                setJourneys(Array.isArray(data) ? data : []);
+                const data = await apiClient.get('/api/multi-doctor/journeys');
+                setJourneys(Array.isArray(data) && !data.error ? data : []);
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
         };
         fetchJourneys();
@@ -209,9 +208,10 @@ const MultiDoctorJourney = () => {
 
     useEffect(() => {
         if (showCreateModal) {
-            fetch(`${API}/api/doctors`, { headers: authedHeaders() })
-                .then(res => res.json())
-                .then(data => setDoctors(Array.isArray(data) ? data : []))
+            apiClient.get('/api/doctors')
+                .then(data => {
+                    if (data && !data.error) setDoctors(Array.isArray(data) ? data : []);
+                })
                 .catch(err => console.error(err));
         }
     }, [showCreateModal]);
@@ -219,9 +219,8 @@ const MultiDoctorJourney = () => {
     const handleSymptomSearch = async () => {
         if (!searchTerm.trim()) return;
         try {
-            const res = await fetch(`${API}/api/multi-doctor/suggestions?symptom=${encodeURIComponent(searchTerm)}`, { headers: authedHeaders() });
-            const data = await res.json();
-            setSuggestions(data);
+            const data = await apiClient.get(`/api/multi-doctor/suggestions?symptom=${encodeURIComponent(searchTerm)}`);
+            if (data && !data.error) setSuggestions(data);
         } catch (err) { console.error(err); }
     };
 
@@ -237,12 +236,10 @@ const MultiDoctorJourney = () => {
         if (!selectedDate) return alert('Select sync date');
         setIsCreating(true);
         try {
-            const res = await fetch(`${API}/api/multi-doctor/coordinate-slots`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ doctorIds: selectedDoctors.map(d => d.id), date: selectedDate })
+            const data = await apiClient.post('/api/multi-doctor/coordinate-slots', { 
+                doctorIds: selectedDoctors.map(d => d.id), 
+                date: selectedDate 
             });
-            const data = await res.json();
             if (data.error) throw new Error(data.error);
             setOptimalPaths(data);
             setCreationStep(2);
@@ -254,20 +251,15 @@ const MultiDoctorJourney = () => {
         const path = optimalPaths[selectedPathIndex];
         setIsCreating(true);
         try {
-            const res = await fetch(`${API}/api/multi-doctor/journey`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({
-                    appointments: path.items.map(item => ({
-                        doctorId: item.doctorId,
-                        reason: 'Clinical Consensus',
-                        timeSlot: item.slot,
-                        date: selectedDate
-                    }))
-                })
+            const data = await apiClient.post('/api/multi-doctor/journey', {
+                appointments: path.items.map(item => ({
+                    doctorId: item.doctorId,
+                    reason: 'Clinical Consensus',
+                    timeSlot: item.slot,
+                    date: selectedDate
+                }))
             });
-            if (!res.ok) throw new Error('Sync failed');
-            const data = await res.json();
+            if (data.error) throw new Error(data.error || 'Sync failed');
             setJourneys(prev => [data, ...prev]);
             setShowCreateModal(false);
             resetCreationState();

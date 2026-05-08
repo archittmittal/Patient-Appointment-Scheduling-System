@@ -1,8 +1,3 @@
-/**
- * Issue #42: Walk-in Registration Page - PREMIUM OVERHAUL
- * Physical Entry Portal for high-fidelity clinical registration.
- */
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -12,7 +7,7 @@ import {
     Activity as Pulse, Navigation
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const URGENCY_LEVELS = [
     { value: 'LOW', label: 'Idle Priority', description: 'Minor nodes, delay allowed', theme: 'slate', icon: Target },
@@ -115,18 +110,12 @@ const WalkinRegistration = () => {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const docRes = await fetch(`${API}/api/doctors`);
-                const docData = await docRes.json();
+                const docData = await apiClient.get('/api/doctors');
                 setDoctors(Array.isArray(docData) ? docData : []);
 
-                const workRes = await fetch(`${API}/api/analytics/optimizer/workloads`, { headers: authedHeaders() });
-                if (workRes.ok) {
-                    const workData = await workRes.json();
-                    setWorkloads(workData);
-                }
-            } catch (err) {
-                console.error('Error loading registration data:', err);
-            }
+                const workData = await apiClient.get('/api/analytics/optimizer/workloads');
+                if (workData && !workData.error) setWorkloads(workData);
+            } catch (err) { console.error('Error loading registration data:', err); }
         };
         loadData();
     }, []);
@@ -144,9 +133,9 @@ const WalkinRegistration = () => {
         if (!selectedDoctor || !reason) return alert('Protocol Denied: Selection required');
         setIsLoading(true);
         try {
-            const res = await fetch(`${API}/api/walkin/register`, { method: 'POST', headers: authedHeaders(), body: JSON.stringify({ doctorId: selectedDoctor.id, urgencyLevel: urgency, reason, symptoms, vitalSigns: Object.keys(vitals).length > 0 ? vitals : null }) });
-            if (!res.ok) throw new Error((await res.json()).error || 'Registry Link Severed');
-            setResult(await res.json());
+            const data = await apiClient.post('/api/walkin/register', { doctorId: selectedDoctor.id, urgencyLevel: urgency, reason, symptoms, vitalSigns: Object.keys(vitals).length > 0 ? vitals : null });
+            if (data && data.error) throw new Error(data.message || 'Registry Link Severed');
+            setResult(data);
             setStep(3);
         } catch (err) { alert(err.message); } finally { setIsLoading(false); }
     };

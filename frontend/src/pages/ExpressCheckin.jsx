@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const ExpressBadge = ({ eligible }) => (
     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest italic transition-all ${
@@ -226,14 +226,12 @@ const ExpressCheckin = () => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [aptRes, infoRes] = await Promise.all([
-                    fetch(`${API}/api/express-checkin/today`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/express-checkin/prefilled-info`, { headers: authedHeaders() })
+                const [aptData, infoData] = await Promise.all([
+                    apiClient.get('/api/express-checkin/today'),
+                    apiClient.get('/api/express-checkin/prefilled-info')
                 ]);
-                const aptData = await aptRes.json();
-                const infoData = await infoRes.json();
-                setAppointments(Array.isArray(aptData) ? aptData : []);
-                setPrefilledInfo(infoData);
+                if (aptData && !aptData.error) setAppointments(Array.isArray(aptData) ? aptData : []);
+                if (infoData && !infoData.error) setPrefilledInfo(infoData);
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
         };
         fetchData();
@@ -242,24 +240,18 @@ const ExpressCheckin = () => {
     const handleOneTap = async (appointmentId) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/express-checkin/one-tap/${appointmentId}`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            if (!res.ok) throw new Error((await res.json()).error || 'Sync failed');
-            setSuccess(await res.json());
+            const data = await apiClient.post(`/api/express-checkin/one-tap/${appointmentId}`, {});
+            if (data.error) throw new Error(data.error);
+            setSuccess(data);
         } catch (err) { alert(err.message); } finally { setActionLoading(false); }
     };
 
     const handleGenerateQR = async (appointmentId) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/express-checkin/generate-token/${appointmentId}`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            if (!res.ok) throw new Error((await res.json()).error || 'Failed to generate credential');
-            setQrData(await res.json());
+            const data = await apiClient.post(`/api/express-checkin/generate-token/${appointmentId}`, {});
+            if (data.error) throw new Error(data.error);
+            setQrData(data);
         } catch (err) { alert(err.message); } finally { setActionLoading(false); }
     };
 

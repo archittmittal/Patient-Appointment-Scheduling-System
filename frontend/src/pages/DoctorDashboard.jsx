@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler, BarChart3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import EmergencyModal from '../components/EmergencyModal';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
@@ -36,19 +36,11 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
 
     useEffect(() => {
         const fetchPrevious = async () => {
-            try {
-                const res = await fetch(`${API}/api/patients/${item.patient_id}/vitals`, {
-                    headers: authedHeaders()
-                });
-                const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    setPreviousVitals(data[data.length - 1]);
-                }
-            } catch (err) {
-                console.error('Failed to fetch previous vitals:', err);
-            } finally {
-                setLoadingVitals(false);
+            const data = await apiClient.get(`/api/patients/${item.patient_id}/vitals`);
+            if (Array.isArray(data) && data.length > 0) {
+                setPreviousVitals(data[data.length - 1]);
             }
+            setLoadingVitals(false);
         };
         fetchPrevious();
     }, [item.patient_id]);
@@ -257,18 +249,16 @@ const DoctorDashboard = () => {
     const fetchData = async () => {
         if (!user?.id) return;
         try {
-            const headers = authedHeaders();
-            const [patientsRes, queueRes, delayRes] = await Promise.all([
-                fetch(`${API}/api/doctors/${user.id}/patients`, { headers }),
-                fetch(`${API}/api/doctors/${user.id}/queue`, { headers }),
-                fetch(`${API}/api/doctors/${user.id}/delay-status`, { headers })
+            const [patientsData, queueData, delayData] = await Promise.all([
+                apiClient.get(`/api/doctors/${user.id}/patients`),
+                apiClient.get(`/api/doctors/${user.id}/queue`),
+                apiClient.get(`/api/doctors/${user.id}/delay-status`)
             ]);
-            setPatients(await patientsRes.json());
-            setQueue(await queueRes.json());
+            setPatients(patientsData);
+            setQueue(queueData);
             setQueueLastUpdated(new Date());
 
-            if (delayRes.ok) {
-                const delayData = await delayRes.json();
+            if (delayData && !delayData.error) {
                 setDelayInfo({
                     isDelayed: delayData.isDelayed || false,
                     delayMins: delayData.delayMins || 0,
@@ -286,15 +276,11 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         setSettingDelay(true);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/delay`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({
-                    delayMins: delayForm.minutes,
-                    reason: delayForm.reason || 'Surgical emergency'
-                })
+            const data = await apiClient.post(`/api/doctors/${user.id}/delay`, {
+                delayMins: delayForm.minutes,
+                reason: delayForm.reason || 'Surgical emergency'
             });
-            if (res.ok) {
+            if (data && !data.error) {
                 setDelayInfo({ isDelayed: true, delayMins: delayForm.minutes, reason: delayForm.reason || 'Surgical emergency' });
                 setShowDelayModal(false);
             }
@@ -307,11 +293,7 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         setSettingDelay(true);
         try {
-            await fetch(`${API}/api/doctors/${user.id}/delay`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ delayMins: 0, reason: '' })
-            });
+            await apiClient.post(`/api/doctors/${user.id}/delay`, { delayMins: 0, reason: '' });
             setDelayInfo({ isDelayed: false, delayMins: 0, reason: '' });
         } finally {
             setSettingDelay(false);
@@ -323,13 +305,9 @@ const DoctorDashboard = () => {
     useEffect(() => {
         if (!user?.id) return;
         const interval = setInterval(async () => {
-            try {
-                const res = await fetch(`${API}/api/doctors/${user.id}/queue`, {
-                    headers: authedHeaders()
-                });
-                setQueue(await res.json());
-                setQueueLastUpdated(new Date());
-            } catch (err) { console.error('Queue sync error:', err); }
+            const data = await apiClient.get(`/api/doctors/${user.id}/queue`);
+            setQueue(data);
+            setQueueLastUpdated(new Date());
         }, QUEUE_POLL_INTERVAL);
         return () => clearInterval(interval);
     }, [user?.id]);
@@ -337,11 +315,7 @@ const DoctorDashboard = () => {
     const updateQueueStatus = async (queueId, newStatus, extra = {}) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ status: newStatus, ...extra })
-            });
+            await apiClient.patch(`/api/appointments/queue/${queueId}/status`, { status: newStatus, ...extra });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
         } finally { setUpdatingId(null); }
     };

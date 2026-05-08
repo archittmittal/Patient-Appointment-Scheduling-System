@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Camera, Plus, History, CheckCircle2, AlertTriangle, ChevronRight, Info, Clock, X, Loader2 } from 'lucide-react';
-import axios from 'axios';
-import { API_URL } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,10 +14,8 @@ const PatientInsurance = () => {
 
     const fetchInsurance = async () => {
         try {
-            const res = await axios.get(`${API_URL}/insurance/my`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
-            setInsuranceList(res.data);
+            const data = await apiClient.get('/api/insurance/my');
+            setInsuranceList(data && !data.error ? data : []);
             setLoading(false);
         } catch (err) {
             console.error(err);

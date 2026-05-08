@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { API } from '../config/api';
+import apiClient from '../services/apiClient';
 import { 
     Star, 
     MessageSquare, 
@@ -29,7 +29,8 @@ import {
     Zap,
     MoveRight,
     Search,
-    ShieldCheck
+    ShieldCheck,
+    ArrowRight
 } from 'lucide-react';
 
 const FeedbackAnalytics = () => {
@@ -64,22 +65,23 @@ const FeedbackAnalytics = () => {
         setLoading(true);
         try {
             const [catRes, pendingRes, historyRes] = await Promise.all([
-                API.get('/feedback/categories'),
-                user?.role === 'PATIENT' ? API.get('/feedback/pending') : Promise.resolve({ data: [] }),
-                user?.role === 'PATIENT' ? API.get('/feedback/history') : Promise.resolve({ data: [] })
+                apiClient.get('/api/feedback/categories'),
+                user?.role === 'PATIENT' ? apiClient.get('/api/feedback/pending') : Promise.resolve([]),
+                user?.role === 'PATIENT' ? apiClient.get('/api/feedback/history') : Promise.resolve([])
             ]);
 
-            setCategories(catRes.data);
-            setPendingFeedback(pendingRes.data);
-            setFeedbackHistory(historyRes.data);
+            setCategories(Array.isArray(catRes) ? catRes : (catRes?.data || []));
+            setPendingFeedback(Array.isArray(pendingRes) ? pendingRes : (pendingRes?.data || []));
+            setFeedbackHistory(Array.isArray(historyRes) ? historyRes : (historyRes?.data || []));
 
             const initialRatings = {};
-            catRes.data.forEach(cat => { initialRatings[cat.id] = 0; });
+            const catList = Array.isArray(catRes) ? catRes : (catRes?.data || []);
+            catList.forEach(cat => { initialRatings[cat.id] = 0; });
             setRatings(initialRatings);
 
             if (user?.role === 'DOCTOR') {
-                const analyticsRes = await API.get('/feedback/doctor-analytics');
-                setAnalytics(analyticsRes.data);
+                const analyticsRes = await apiClient.get('/api/feedback/doctor-analytics');
+                setAnalytics(analyticsRes?.data || analyticsRes);
             }
         } catch (err) { console.error(err); } finally { setLoading(false); }
     };
@@ -96,7 +98,7 @@ const FeedbackAnalytics = () => {
         if (!selectedAppointment) return;
         setSubmitting(true);
         try {
-            await API.post('/feedback/submit', {
+            await apiClient.post('/api/feedback/submit', {
                 appointmentId: selectedAppointment.id,
                 ratings, comment, wouldRecommend, improvements
             });

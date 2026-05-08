@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Users, CheckCircle, Clock, AlertCircle, Search, Filter, ArrowUpRight, BarChart3, Database, RefreshCw, X, Plus } from 'lucide-react';
-import axios from 'axios';
-import { API_URL } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import InsuranceForm from '../components/InsuranceForm';
 
@@ -15,14 +14,10 @@ const InsurancePortal = () => {
     const [patients, setPatients] = useState([]);
     const [selectedPatientId, setSelectedPatientId] = useState('');
 
-
-
     const fetchPatients = async () => {
         try {
-            const res = await axios.get(`${API_URL}/admin/patients/list`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
-            setPatients(res.data);
+            const data = await apiClient.get('/api/admin/patients/list');
+            if (data && !data.error) setPatients(data);
         } catch (err) {
             console.error(err);
         }
@@ -31,15 +26,11 @@ const InsurancePortal = () => {
     const fetchData = async () => {
         try {
             const [statsRes, policiesRes] = await Promise.all([
-                axios.get(`${API_URL}/insurance/stats`, {
-                    headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-                }),
-                axios.get(`${API_URL}/insurance/all`, {
-                    headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-                })
+                apiClient.get('/api/insurance/stats'),
+                apiClient.get('/api/insurance/all')
             ]);
-            setStats(statsRes.data);
-            setPolicies(policiesRes.data);
+            if (statsRes && !statsRes.error) setStats(statsRes);
+            if (policiesRes && !policiesRes.error) setPolicies(policiesRes);
         } catch (err) {
             console.error(err);
         } finally {
@@ -54,10 +45,9 @@ const InsurancePortal = () => {
 
     const handleVerify = async (id) => {
         try {
-            await axios.post(`${API_URL}/insurance/verify/${id}`, {}, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
-            fetchData();
+            const data = await apiClient.post(`/api/insurance/verify/${id}`, {});
+            if (data && !data.error) fetchData();
+            else alert(data?.error || 'Verification failed');
         } catch (err) {
             console.error(err);
             alert('Verification failed');
@@ -67,10 +57,9 @@ const InsurancePortal = () => {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this insurance record?')) return;
         try {
-            await axios.delete(`${API_URL}/insurance/${id}`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
-            });
-            fetchData();
+            const data = await apiClient.delete(`/api/insurance/${id}`);
+            if (data && !data.error) fetchData();
+            else alert(data?.error || 'Delete failed');
         } catch (err) {
             console.error(err);
             alert('Delete failed');

@@ -13,7 +13,7 @@ import {
     Target, Compass, Info
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
 
 const BATCH_TYPE_CONFIG = {
     VACCINATION: { icon: Syringe, color: 'emerald', label: 'Immunity Protocol' },
@@ -169,12 +169,10 @@ const BatchAppointments = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [typesRes, myAptRes] = await Promise.all([
-                    fetch(`${API}/api/batching/types`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/batching/my-appointments`, { headers: authedHeaders() })
+                const [types, myApts] = await Promise.all([
+                    apiClient.get('/api/batching/types'),
+                    apiClient.get('/api/batching/my-appointments')
                 ]);
-                const types = await typesRes.json();
-                const myApts = await myAptRes.json();
                 setBatchTypes(Array.isArray(types) ? types : []);
                 setMyAppointments(Array.isArray(myApts) ? myApts : []);
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
@@ -186,9 +184,8 @@ const BatchAppointments = () => {
         if (!searchTerm && !selectedType) { setSlots([]); return; }
         const fetchSlots = async () => {
             try {
-                let url = searchTerm ? `${API}/api/batching/suggest?appointmentType=${encodeURIComponent(searchTerm)}` : `${API}/api/batching/slots/all/${new Date().toISOString().split('T')[0]}`;
-                const res = await fetch(url, { headers: authedHeaders() });
-                const data = await res.json();
+                let endpoint = searchTerm ? `/api/batching/suggest?appointmentType=${encodeURIComponent(searchTerm)}` : `/api/batching/slots/all/${new Date().toISOString().split('T')[0]}`;
+                const data = await apiClient.get(endpoint);
                 setSlots(searchTerm ? (data.suggestions || []) : (Array.isArray(data) ? data : []));
             } catch (err) { console.error(err); }
         };
@@ -199,11 +196,10 @@ const BatchAppointments = () => {
     const handleBook = async (slotId) => {
         setIsBooking(true);
         try {
-            const res = await fetch(`${API}/api/batching/book/${slotId}`, { method: 'POST', headers: authedHeaders(), body: JSON.stringify({ reason: searchTerm || selectedType }) });
-            if (!res.ok) throw new Error((await res.json()).error || 'Registry Failure');
-            setSuccessBooking(await res.json());
-            const myRes = await fetch(`${API}/api/batching/my-appointments`, { headers: authedHeaders() });
-            setMyAppointments(await myRes.json());
+            const data = await apiClient.post(`/api/batching/book/${slotId}`, { reason: searchTerm || selectedType });
+            setSuccessBooking(data);
+            const myApts = await apiClient.get('/api/batching/my-appointments');
+            setMyAppointments(myApts);
         } catch (err) { alert(err.message); } finally { setIsBooking(false); }
     };
 

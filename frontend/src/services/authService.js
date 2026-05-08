@@ -1,17 +1,11 @@
-import { API, authedHeaders } from '../config/api';
-import { safeFetch } from '../utils/apiHelper';
+import { apiClient } from './apiClient';
 
 export const authService = {
     async login(email, password) {
-        const data = await safeFetch(`${API}/api/auth/login`, {
-            method: 'POST',
-            headers: authedHeaders(true),
-            body: JSON.stringify({ email, password })
-        });
+        const data = await apiClient.post('/api/auth/login', { email, password });
         
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
-            // Construct user object from top-level response fields
             const user = {
                 id: data.id,
                 email: data.email,
@@ -26,11 +20,7 @@ export const authService = {
     },
 
     async register(userData) {
-        const data = await safeFetch(`${API}/api/auth/register`, {
-            method: 'POST',
-            headers: authedHeaders(true),
-            body: JSON.stringify(userData)
-        });
+        const data = await apiClient.post('/api/auth/register', userData);
 
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
