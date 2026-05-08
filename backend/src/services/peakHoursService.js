@@ -6,7 +6,23 @@
 
 const db = require('../config/db');
 
-const peakHoursService = {
+class PeakHoursService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.getDoctorHourlyStats = this.getDoctorHourlyStats.bind(this);
+        this.getPeakHoursAnalysis = this.getPeakHoursAnalysis.bind(this);
+        this.getWeeklyHeatmap = this.getWeeklyHeatmap.bind(this);
+        this.getBestBookingTimes = this.getBestBookingTimes.bind(this);
+        this.getCurrentCrowdLevel = this.getCurrentCrowdLevel.bind(this);
+        this.getClinicWideAnalytics = this.getClinicWideAnalytics.bind(this);
+        this.formatHour = this.formatHour.bind(this);
+        this.getTrafficLevel = this.getTrafficLevel.bind(this);
+        this.calculateBookingScore = this.calculateBookingScore.bind(this);
+        this.generateRecommendation = this.generateRecommendation.bind(this);
+        this.getCrowdRecommendation = this.getCrowdRecommendation.bind(this);
+        this.formatHourlyStats = this.formatHourlyStats.bind(this);
+    }
+
     /**
      * Get hourly appointment distribution for a doctor
      */
@@ -28,7 +44,7 @@ const peakHoursService = {
         `, [doctorId, daysBack]);
 
         return this.formatHourlyStats(rows);
-    },
+    }
 
     /**
      * Get peak hours analysis for a doctor
@@ -94,7 +110,7 @@ const peakHoursService = {
             quietestDay: quietestDay?.day_name || 'N/A',
             recommendation: this.generateRecommendation(quietHours, quietestDay?.day_name)
         };
-    },
+    }
 
     /**
      * Get weekly heatmap data for a doctor
@@ -129,7 +145,7 @@ const peakHoursService = {
             hours: Array(24).fill(0).map((_, i) => this.formatHour(i)),
             maxValue: maxCount
         };
-    },
+    }
 
     /**
      * Get best booking times (slots with historically lower wait times)
@@ -166,7 +182,7 @@ const peakHoursService = {
             noShowRate: Math.round(row.no_show_rate || 0),
             score: this.calculateBookingScore(row)
         }));
-    },
+    }
 
     /**
      * Get real-time crowd level for today
@@ -219,7 +235,7 @@ const peakHoursService = {
             remainingToday: current.total_remaining,
             recommendation: this.getCrowdRecommendation(crowdLevel)
         };
-    },
+    }
 
     /**
      * Get clinic-wide analytics (for admin)
@@ -267,14 +283,14 @@ const peakHoursService = {
                 busiestDept: deptStats[0]?.specialty
             }
         };
-    },
+    }
 
     // Helper methods
     formatHour(hour) {
         const ampm = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour % 12 || 12;
         return `${displayHour}:00 ${ampm}`;
-    },
+    }
 
     getTrafficLevel(count, average) {
         if (count > average * 1.5) return 'very-high';
@@ -282,7 +298,7 @@ const peakHoursService = {
         if (count > average * 0.8) return 'normal';
         if (count > average * 0.5) return 'low';
         return 'very-low';
-    },
+    }
 
     calculateBookingScore(row) {
         // Lower wait + Lower crowd = Better score (0-100)
@@ -290,7 +306,7 @@ const peakHoursService = {
         const crowdScore = Math.max(0, 100 - row.total_appointments * 5);
         const noShowPenalty = row.no_show_rate * 0.5;
         return Math.round((waitScore * 0.6 + crowdScore * 0.4 - noShowPenalty));
-    },
+    }
 
     generateRecommendation(quietHours, quietestDay) {
         if (quietHours.length === 0) {
@@ -299,7 +315,7 @@ const peakHoursService = {
         
         const quietTimeStr = quietHours.slice(0, 2).map(h => this.formatHour(h)).join(' or ');
         return `For shorter wait times, consider booking on ${quietestDay || 'weekdays'} around ${quietTimeStr}.`;
-    },
+    }
 
     getCrowdRecommendation(level) {
         const recommendations = {
@@ -309,7 +325,7 @@ const peakHoursService = {
             quiet: "Low traffic right now. Great time for your visit!"
         };
         return recommendations[level] || recommendations.normal;
-    },
+    }
 
     formatHourlyStats(rows) {
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -319,6 +335,6 @@ const peakHoursService = {
             hour_display: this.formatHour(row.hour)
         }));
     }
-};
+}
 
-module.exports = peakHoursService;
+module.exports = new PeakHoursService();

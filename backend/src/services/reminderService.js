@@ -8,6 +8,11 @@ const notificationService = require('./notificationService');
  */
 class ReminderService {
     constructor() {
+        // Ensure methods are bound to this instance
+        this.checkReminders = this.checkReminders.bind(this);
+        this.send24hReminders = this.send24hReminders.bind(this);
+        this.send1hReminders = this.send1hReminders.bind(this);
+
         // Issue #152: Don't start cron during tests to avoid open handles
         if (process.env.NODE_ENV !== 'test') {
             this.hourlyTask = cron.schedule('0 * * * *', () => {

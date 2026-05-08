@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
+import { sseService } from '../services/sseService';
 
 const PING_INTERVAL = 30_000;
 const FALLBACK_POLL = 60_000;
@@ -127,23 +128,15 @@ const VirtualWaitingRoom = () => {
 
     useEffect(() => {
         if (!appointmentId || !user?.id) return;
-        let eventSource = null;
-        let retryTimeout = null;
-        const connectSSE = () => {
-            const token = localStorage.getItem('token');
-            eventSource = new EventSource(`${API}/api/virtual-checkin/${appointmentId}/stream?token=${token}`);
-            eventSource.onopen = () => { setIsConnected(true); setError(null); };
-            eventSource.addEventListener('queue_update', (e) => { try { setStatus(JSON.parse(e.data)); } catch (err) { console.error(err); } });
-            eventSource.onerror = () => { 
-                if (eventSource) eventSource.close();
-                setIsConnected(false);
-                fetchStatus();
-                retryTimeout = setTimeout(connectSSE, 5000);
-            };
-        };
-        connectSSE();
-        return () => { if (eventSource) eventSource.close(); if (retryTimeout) clearTimeout(retryTimeout); };
-    }, [appointmentId, user?.id, fetchStatus]);
+        
+        sseService.connect(
+            appointmentId,
+            (data) => setStatus(data),
+            () => setIsConnected(false)
+        );
+        
+        return () => sseService.disconnect();
+    }, [appointmentId, user?.id]);
 
     useEffect(() => {
         if (!status?.isCheckedIn) return;

@@ -13,6 +13,17 @@ const KNOWN_INTERACTIONS = {
 };
 
 class PrescriptionService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.getPatientPrescriptions = this.getPatientPrescriptions.bind(this);
+        this.createPrescription = this.createPrescription.bind(this);
+        this.validatePrescription = this.validatePrescription.bind(this);
+        this.checkDrugInteractions = this.checkDrugInteractions.bind(this);
+        this.processRefill = this.processRefill.bind(this);
+        this.getPrescriptionHistory = this.getPrescriptionHistory.bind(this);
+        this.deactivatePrescription = this.deactivatePrescription.bind(this);
+    }
+
     /**
      * Fetch all prescriptions for a specific patient
      * Includes doctor info and medication details

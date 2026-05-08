@@ -6,7 +6,25 @@
 const db = require('../config/db');
 const notificationService = require('./notificationService');
 
-const walkinPriorityService = {
+class WalkinPriorityService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.registerWalkin = this.registerWalkin.bind(this);
+        this.calculateTriageScore = this.calculateTriageScore.bind(this);
+        this.determineQueuePosition = this.determineQueuePosition.bind(this);
+        this.reorderQueue = this.reorderQueue.bind(this);
+        this.estimateWaitTime = this.estimateWaitTime.bind(this);
+        this.getNextWalkin = this.getNextWalkin.bind(this);
+        this.getWalkinQueue = this.getWalkinQueue.bind(this);
+        this.callWalkin = this.callWalkin.bind(this);
+        this.completeWalkin = this.completeWalkin.bind(this);
+        this.updateUrgency = this.updateUrgency.bind(this);
+        this.getWalkinStats = this.getWalkinStats.bind(this);
+        this.cancelWalkin = this.cancelWalkin.bind(this);
+        this.getUrgencyColor = this.getUrgencyColor.bind(this);
+        this.getWaitMessage = this.getWaitMessage.bind(this);
+    }
+
     /**
      * Register a new walk-in patient
      */
@@ -61,7 +79,7 @@ const walkinPriorityService = {
             estimatedWaitMinutes: waitTime,
             message: this.getWaitMessage(urgencyLevel, waitTime)
         };
-    },
+    }
 
     /**
      * Calculate triage score based on multiple factors
@@ -98,7 +116,7 @@ const walkinPriorityService = {
         }
 
         return Math.min(baseScore, 200); // Cap at 200
-    },
+    }
 
     /**
      * Determine initial queue position
@@ -130,7 +148,7 @@ const walkinPriorityService = {
         }
 
         return position;
-    },
+    }
 
     /**
      * Reorder queue based on priority scores
@@ -171,7 +189,7 @@ const walkinPriorityService = {
                 [i + 1, Math.min(adjustedScore, 200), item.id]
             );
         }
-    },
+    }
 
     /**
      * Estimate wait time for a walk-in patient
@@ -204,7 +222,7 @@ const walkinPriorityService = {
         }
 
         return Math.max(5, patientsAhead * avgConsultTime);
-    },
+    }
 
     /**
      * Get next walk-in patient to be called
@@ -221,7 +239,7 @@ const walkinPriorityService = {
         );
 
         return next[0] || null;
-    },
+    }
 
     /**
      * Get all walk-ins waiting for a doctor
@@ -242,7 +260,7 @@ const walkinPriorityService = {
             patientName: `${w.first_name} ${w.last_name}`,
             urgencyColor: this.getUrgencyColor(w.urgency_level)
         }));
-    },
+    }
 
     /**
      * Call/assign a walk-in patient
@@ -284,7 +302,7 @@ const walkinPriorityService = {
             appointmentId: aptResult.insertId,
             message: 'Patient called successfully'
         };
-    },
+    }
 
     /**
      * Complete a walk-in consultation
@@ -314,7 +332,7 @@ const walkinPriorityService = {
         }
 
         return { success: true };
-    },
+    }
 
     /**
      * Update walk-in urgency (escalate/de-escalate)
@@ -336,7 +354,7 @@ const walkinPriorityService = {
         }
 
         return { success: true, newTriageScore: triageScore };
-    },
+    }
 
     /**
      * Get walk-in statistics for dashboard
@@ -377,7 +395,7 @@ const walkinPriorityService = {
             avgCurrentWait: Math.round(stats[0]?.avg_current_wait || 0),
             urgencyBreakdown
         };
-    },
+    }
 
     /**
      * Cancel/remove a walk-in from queue
@@ -396,7 +414,7 @@ const walkinPriorityService = {
         }
 
         return { success: true };
-    },
+    }
 
     // Helper methods
     getUrgencyColor(level) {
@@ -408,7 +426,7 @@ const walkinPriorityService = {
             EMERGENCY: 'bg-red-500 text-white'
         };
         return colors[level] || colors.NORMAL;
-    },
+    }
 
     getWaitMessage(urgency, waitMins) {
         if (urgency === 'EMERGENCY') {
@@ -425,6 +443,6 @@ const walkinPriorityService = {
         }
         return `Current wait time is approximately ${waitMins} minutes. We'll call you when it's your turn.`;
     }
-};
+}
 
-module.exports = walkinPriorityService;
+module.exports = new WalkinPriorityService();

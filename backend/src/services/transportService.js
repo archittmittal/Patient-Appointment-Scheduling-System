@@ -28,7 +28,14 @@ try {
     // console.log('Twilio not configured');
 }
 
-const transportService = {
+class TransportService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.sendPush = this.sendPush.bind(this);
+        this.sendSMS = this.sendSMS.bind(this);
+        this.sendEmail = this.sendEmail.bind(this);
+    }
+
     /**
      * Send push notification
      */
@@ -57,7 +64,7 @@ const transportService = {
             console.error('Push notification error:', error);
             return false;
         }
-    },
+    }
 
     /**
      * Send SMS notification
@@ -79,7 +86,7 @@ const transportService = {
             console.error('SMS notification error:', error);
             return false;
         }
-    },
+    }
 
     /**
      * Send email notification
@@ -89,6 +96,6 @@ const transportService = {
         console.log('[Email Notification LOG]', { to: email, subject, body: htmlBody.substring(0, 100) + '...' });
         return false;
     }
-};
+}
 
-module.exports = transportService;
+module.exports = new TransportService();
