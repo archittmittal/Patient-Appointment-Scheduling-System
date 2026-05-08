@@ -23,7 +23,7 @@ const InsurancePortal = () => {
     const fetchPatients = async () => {
         try {
             const res = await axios.get(`${API_URL}/admin/patients/list`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
             });
             setPatients(res.data);
         } catch (err) {
@@ -53,7 +53,7 @@ const InsurancePortal = () => {
     const handleVerify = async (id) => {
         try {
             await axios.post(`${API_URL}/insurance/verify/${id}`, {}, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
             });
             fetchData();
         } catch (err) {
@@ -66,7 +66,7 @@ const InsurancePortal = () => {
         if (!window.confirm('Are you sure you want to delete this insurance record?')) return;
         try {
             await axios.delete(`${API_URL}/insurance/${id}`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                headers: { Authorization: `Bearer ${localStorage.getItem('hs_token')}` }
             });
             fetchData();
         } catch (err) {
@@ -110,7 +110,7 @@ const InsurancePortal = () => {
                     </button>
                     <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md px-6 py-3 rounded-2xl border border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 text-sm font-black flex items-center gap-3 shadow-sm">
                         <Shield size={20} className="text-indigo-600" />
-                        SECURE NODE: 0x7F2
+                        PORTAL ACTIVE
                     </div>
                 </div>
             </div>

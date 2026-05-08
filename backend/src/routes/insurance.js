@@ -64,8 +64,11 @@ router.post('/save', authenticate, async (req, res) => {
  */
 router.post('/verify/:id', authenticate, async (req, res) => {
     try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+
         // Check if user is allowed to verify (Patient for self, or Admin/Staff)
-        const [insurance] = await db.query('SELECT patient_id FROM patient_insurance WHERE id = ?', [req.params.id]);
+        const [insurance] = await db.query('SELECT patient_id FROM patient_insurance WHERE id = ?', [id]);
         
         if (insurance.length === 0) {
             return res.status(404).json({ message: 'Insurance record not found' });
@@ -75,7 +78,7 @@ router.post('/verify/:id', authenticate, async (req, res) => {
             return res.status(403).json({ message: 'You can only verify your own insurance' });
         }
 
-        const result = await insuranceService.verifyEligibility(req.params.id);
+        const result = await insuranceService.verifyEligibility(id);
         res.json(result);
     } catch (error) {
         console.error(error);
@@ -89,11 +92,14 @@ router.post('/verify/:id', authenticate, async (req, res) => {
  */
 router.get('/patient/:id', authenticate, async (req, res) => {
     try {
-        if (req.user.role === 'PATIENT' && req.user.id !== parseInt(req.params.id)) {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+
+        if (req.user.role === 'PATIENT' && req.user.id !== id) {
             return res.status(403).json({ message: 'Access denied' });
         }
         
-        const insurance = await insuranceService.getPatientInsurance(req.params.id);
+        const insurance = await insuranceService.getPatientInsurance(id);
         res.json(insurance);
     } catch (error) {
         console.error(error);
@@ -135,7 +141,16 @@ router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
  */
 router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
-        await db.query('DELETE FROM patient_insurance WHERE id = ?', [req.params.id]);
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+        
+        // Ensure record exists
+        const [existing] = await db.query('SELECT id FROM patient_insurance WHERE id = ?', [id]);
+        if (existing.length === 0) {
+            return res.status(404).json({ message: 'Insurance record not found' });
+        }
+
+        await db.query('DELETE FROM patient_insurance WHERE id = ?', [id]);
         res.json({ message: 'Insurance record deleted successfully' });
     } catch (error) {
         console.error(error);
