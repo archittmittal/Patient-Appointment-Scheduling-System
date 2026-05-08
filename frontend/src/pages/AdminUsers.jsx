@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Stethoscope, Users, X, Pencil } from 'lucide-react';
 import { API, authedHeaders } from '../config/api';
 
@@ -18,7 +18,7 @@ const AdminUsers = () => {
     const [sortBy, setSortBy] = useState('id');
     const [order, setOrder] = useState('ASC');
 
-    const fetchUsers = (page = meta.page) => {
+    const fetchUsers = useCallback((page = 1) => {
         setIsLoading(true);
         const query = new URLSearchParams({
             page,
@@ -39,16 +39,17 @@ const AdminUsers = () => {
             })
             .catch(err => console.error(err))
             .finally(() => setIsLoading(false));
-    };
+    }, [filterRole, sortBy, order]);
 
-    useEffect(() => { fetchUsers(1); }, [filterRole, sortBy, order]);
+    useEffect(() => { fetchUsers(1); }, [fetchUsers]);
 
     const handleDelete = async (id, role) => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
         const endpoint = role === 'DOCTOR' ? `/api/admin/doctors/${id}` : `/api/admin/patients/${id}`;
         try {
             await fetch(`${API}${endpoint}`, { method: 'DELETE', headers: authedHeaders() });
-            setUsers(prev => prev.filter(u => u.id !== id));
+            // Re-fetch from server to keep meta.total in sync instead of optimistic local removal
+            fetchUsers(meta.page);
         } catch (err) {
             console.error(err);
         }
@@ -92,7 +93,7 @@ const AdminUsers = () => {
             const data = await res.json();
             if (!res.ok) { setError(data.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
@@ -110,7 +111,7 @@ const AdminUsers = () => {
             const data = await res.json();
             if (!res.ok) { setError(data.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
@@ -130,12 +131,12 @@ const AdminUsers = () => {
             });
             if (!res.ok) { const d = await res.json(); setError(d.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
 
-    const filtered = users; // Filtering is now handled by the backend
+
 
     return (
         <div className="space-y-8 pb-10">
@@ -272,7 +273,7 @@ const AdminUsers = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filtered.map(u => (
+                            {users.map(u => (
                                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -310,7 +311,7 @@ const AdminUsers = () => {
                             ))}
                         </tbody>
                     </table>
-                    {filtered.length === 0 && (
+                    {users.length === 0 && (
                         <div className="py-12 text-center text-gray-400">No users found.</div>
                     )}
                     {meta.total_pages > 1 && (
