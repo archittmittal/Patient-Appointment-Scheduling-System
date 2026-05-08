@@ -94,7 +94,10 @@ router.get('/:appointmentId/stream', authenticate, async (req, res) => {
         }
 
         const connectionId = `${patientId}-${Date.now()}`;
-        sseManager.addClient(connectionId, res, appointmentId);
+        sseManager.addClient(connectionId, res, { 
+            appointmentId, 
+            doctorId: status.appointment.doctorId || status.appointment.doctor_id 
+        });
         
         // Push initial status immediately over SSE
         sseManager.sendToClient(connectionId, 'queue_update', status);

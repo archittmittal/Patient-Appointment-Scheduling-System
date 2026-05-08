@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { safeFetch } from '../utils/apiHelper';
+import { apiClient } from '../services/apiClient';
 import { X, Search, AlertCircle, User, Activity, Clock } from 'lucide-react';
 
 const EmergencyModal = ({ isOpen, onClose, onSuccess }) => {
@@ -25,8 +25,8 @@ const EmergencyModal = ({ isOpen, onClose, onSuccess }) => {
     }, [isOpen]);
 
     const fetchDoctors = async () => {
-        const { data } = await safeFetch('/api/doctors');
-        if (data) setDoctors(data);
+        const data = await apiClient.get('/api/doctors');
+        if (data && !data.error) setDoctors(data);
     };
 
     const handleSearch = async (val) => {
@@ -37,8 +37,8 @@ const EmergencyModal = ({ isOpen, onClose, onSuccess }) => {
         }
 
         setSearching(true);
-        const { data } = await safeFetch(`/api/admin/patients/search?q=${encodeURIComponent(val)}`);
-        if (data) setPatients(data);
+        const data = await apiClient.get(`/api/admin/patients/search?q=${encodeURIComponent(val)}`);
+        if (data && !data.error) setPatients(data);
         setSearching(false);
     };
 
@@ -62,22 +62,19 @@ const EmergencyModal = ({ isOpen, onClose, onSuccess }) => {
         setLoading(true);
         setError('');
 
-        const { data, error: apiError } = await safeFetch('/api/walkin/register', {
-            method: 'POST',
-            body: JSON.stringify({
-                overridePatientId: selectedPatient.id,
-                doctorId: selectedDoctor,
-                urgencyLevel: 'EMERGENCY',
-                reason: reason || 'Emergency triage override',
-                symptoms: symptoms || 'Immediate medical attention required',
-                vitalSigns: {} // Optional for now
-            })
+        const data = await apiClient.post('/api/walkin/register', {
+            overridePatientId: selectedPatient.id,
+            doctorId: selectedDoctor,
+            urgencyLevel: 'EMERGENCY',
+            reason: reason || 'Emergency triage override',
+            symptoms: symptoms || 'Immediate medical attention required',
+            vitalSigns: {} // Optional for now
         });
 
         setLoading(false);
 
-        if (apiError) {
-            setError(apiError.message || 'Failed to register emergency.');
+        if (data && data.error) {
+            setError(data.message || 'Failed to register emergency.');
         } else {
             onSuccess?.(data);
             onClose();

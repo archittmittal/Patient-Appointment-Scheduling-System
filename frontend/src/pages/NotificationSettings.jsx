@@ -1,8 +1,3 @@
-/**
- * Issue #48: Notification Settings Page - PREMIUM OVERHAUL
- * Communication Control Center for high-fidelity clinical synchronicity.
- */
-
 import React, { useState, useEffect } from 'react';
 import { 
     Bell, BellOff, Clock, Mail, MessageSquare, Smartphone, Save, 
@@ -10,7 +5,7 @@ import {
     Volume2, VolumeX, Moon, Sun, Target, Activity
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const NotificationSettings = () => {
     const [preferences, setPreferences] = useState(null);
@@ -24,8 +19,8 @@ const NotificationSettings = () => {
 
     const fetchPreferences = async () => {
         try {
-            const res = await fetch(`${API}/api/notifications/preferences`, { headers: authedHeaders() });
-            if (res.ok) setPreferences(await res.json());
+            const data = await apiClient.get('/api/notifications/preferences');
+            if (data && !data.error) setPreferences(data);
         } catch (err) { console.error(err); } finally { setIsLoading(false); }
     };
 
@@ -37,8 +32,8 @@ const NotificationSettings = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await fetch(`${API}/api/notifications/preferences`, { method: 'PUT', headers: authedHeaders(true), body: JSON.stringify(preferences) });
-            if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+            const data = await apiClient.put('/api/notifications/preferences', preferences);
+            if (data && !data.error) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
         } catch (err) { console.error(err); } finally { setIsSaving(false); }
     };
 

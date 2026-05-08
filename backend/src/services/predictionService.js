@@ -5,7 +5,14 @@
 
 const db = require('../config/db');
 
-const predictionService = {
+class PredictionService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.predictNoShowProbability = this.predictNoShowProbability.bind(this);
+        this.predictChurnRisk = this.predictChurnRisk.bind(this);
+        this.getDoctorPredictiveAnalytics = this.getDoctorPredictiveAnalytics.bind(this);
+    }
+
     /**
      * Predict probability of a patient not showing up for a specific appointment
      * Returns: { probability: 0-1, riskLevel: 'LOW'|'MEDIUM'|'HIGH', factors: [] }
@@ -89,7 +96,7 @@ const predictionService = {
             console.error('Error predicting no-show probability:', error);
             return { probability: 0.1, riskLevel: 'LOW', factors: ['Error in prediction model'] };
         }
-    },
+    }
 
     /**
      * Predict probability of a patient churning (not returning)
@@ -189,7 +196,7 @@ const predictionService = {
             console.error('Error predicting churn risk:', error);
             return { probability: 0.2, riskLevel: 'LOW', factors: ['Error in churn model'] };
         }
-    },
+    }
 
     /**
      * Get aggregated predictive analytics for a doctor
@@ -244,6 +251,6 @@ const predictionService = {
             throw error;
         }
     }
-};
+}
 
-module.exports = predictionService;
+module.exports = new PredictionService();

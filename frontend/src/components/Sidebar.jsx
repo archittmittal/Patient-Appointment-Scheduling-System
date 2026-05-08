@@ -7,7 +7,7 @@ import {
     ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const PATIENT_MENU = [
     { name: 'Overview', icon: LayoutDashboard, path: '/patient-dashboard' },
@@ -67,9 +67,8 @@ const Sidebar = () => {
 
         const checkFeedback = async () => {
             try {
-                const res = await fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() });
-                if (res.ok) {
-                    const data = await res.json();
+                const data = await apiClient.get('/api/feedback/pending');
+                if (data && !data.error) {
                     setPendingFeedbackCount(Array.isArray(data) ? data.length : 0);
                 }
             } catch (err) {
