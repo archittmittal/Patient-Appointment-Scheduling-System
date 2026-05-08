@@ -3,6 +3,12 @@ const { Parser } = require('json2csv');
 const db = require('../config/db');
 
 class ExportService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.generatePrescriptionPDF = this.generatePrescriptionPDF.bind(this);
+        this.exportVitalsCSV = this.exportVitalsCSV.bind(this);
+    }
+
     /**
      * Generate Prescription PDF
      */

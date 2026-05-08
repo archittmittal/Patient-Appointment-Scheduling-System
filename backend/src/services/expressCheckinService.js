@@ -6,7 +6,17 @@
 const db = require('../config/db');
 const crypto = require('crypto');
 
-const expressCheckinService = {
+class ExpressCheckinService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.generateCheckinToken = this.generateCheckinToken.bind(this);
+        this.processExpressCheckin = this.processExpressCheckin.bind(this);
+        this.checkExpressEligibility = this.checkExpressEligibility.bind(this);
+        this.oneTapCheckin = this.oneTapCheckin.bind(this);
+        this.getPrefilledInfo = this.getPrefilledInfo.bind(this);
+        this.getTodayExpressEligible = this.getTodayExpressEligible.bind(this);
+    }
+
     /**
      * Generate QR code token for express check-in
      */
@@ -57,7 +67,7 @@ const expressCheckinService = {
                 time: apt.time_slot
             })
         };
-    },
+    }
 
     /**
      * Validate and process express check-in via token
@@ -119,7 +129,7 @@ const expressCheckinService = {
             queuePosition: queuePos[0]?.position || 1,
             checkinTime: new Date().toISOString()
         };
-    },
+    }
 
     /**
      * Check eligibility for express check-in (returning patient)
@@ -163,7 +173,7 @@ const expressCheckinService = {
                 ? 'Eligible for express check-in'
                 : 'First-time patient - standard check-in required'
         };
-    },
+    }
 
     /**
      * One-tap check-in for eligible patients
@@ -220,7 +230,7 @@ const expressCheckinService = {
             queuePosition: (queuePos[0]?.position || 0) + 1,
             estimatedWaitMins: ((queuePos[0]?.position || 0)) * 15
         };
-    },
+    }
 
     /**
      * Get pre-filled patient info for express check-in
@@ -263,7 +273,7 @@ const expressCheckinService = {
                 name: `Dr. ${lastVisit[0].doc_first} ${lastVisit[0].doc_last}`
             } : null
         };
-    },
+    }
 
     /**
      * Get today's appointments eligible for express check-in
@@ -291,6 +301,6 @@ const expressCheckinService = {
             previousVisits: apt.previous_visits
         }));
     }
-};
+}
 
-module.exports = expressCheckinService;
+module.exports = new ExpressCheckinService();

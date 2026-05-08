@@ -12,8 +12,7 @@ import {
     Heart, Pill, FileText, Droplets, Thermometer
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
-import { safeFetch } from '../utils/apiHelper';
+import apiClient from '../services/apiClient';
 
 const STATUS_STYLES = {
     CONFIRMED: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -29,7 +28,7 @@ const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
         onClick={onClick}
         className="flex flex-col items-center gap-3 group transition-all"
     >
-        <div className={`w-16 h-16 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-300`}>
+        <div className="w-16 h-16 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-300">
             <Icon size={24} className="text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
         </div>
         <span className="text-[13px] font-semibold text-slate-600 tracking-tight">{title}</span>
@@ -43,7 +42,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
     const dateStr = apt.appointment_date ? new Date(apt.appointment_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'Date TBD';
     
     return (
-        <div className="apple-card p-6 flex flex-col gap-6 group hover:shadow-xl transition-all duration-500">
+        <div className="glass-card p-6 flex flex-col gap-6 group hover:shadow-xl transition-all duration-500 rounded-3xl">
             <div className="flex justify-between items-start">
                 <div className="flex gap-4 items-center">
                     <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-100 shadow-inner">
@@ -59,7 +58,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
                 </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-50">
+            <div className="grid grid-cols-2 gap-4 py-4 border-y border-slate-100/50">
                 <div className="flex items-center gap-3">
                     <CalendarIcon size={16} className="text-slate-400" strokeWidth={1.5} />
                     <span className="text-[13px] font-medium text-slate-700">{dateStr}</span>
@@ -72,7 +71,7 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
 
             <button 
                 onClick={() => navigate(`/virtual-waiting/${apt.id}`)}
-                className="w-full py-3.5 bg-primary text-white text-sm font-bold rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary-hover active:scale-[0.98] transition-all"
+                className="btn-primary w-full"
             >
                 View Details <ChevronRight size={16} />
             </button>
@@ -85,7 +84,6 @@ const PatientDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState({ upcoming: [], past: [], waitlist: [], offers: [], feedback: [], express: [], prep: [], vitals: [], prescriptions: [] });
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedReportApt, setSelectedReportApt] = useState(null);
 
     useEffect(() => {
         if (authLoading) return;
@@ -97,21 +95,22 @@ const PatientDashboard = () => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const headers = authedHeaders();
-                const endpoints = [
-                    { key: 'upcoming', url: `${API}/api/patients/${user.id}/appointments?type=upcoming` },
-                    { key: 'past', url: `${API}/api/patients/${user.id}/appointments?type=past` },
-                    { key: 'feedback', url: `${API}/api/feedback/pending` },
-                    { key: 'vitals', url: `${API}/api/patients/${user.id}/vitals` },
-                    { key: 'prescriptions', url: `${API}/api/patients/${user.id}/prescriptions` }
-                ];
+                const [upcoming, past, feedback, vitals, prescriptions] = await Promise.all([
+                    apiClient.get(`/api/patients/${user.id}/appointments?type=upcoming`),
+                    apiClient.get(`/api/patients/${user.id}/appointments?type=past`),
+                    apiClient.get('/api/feedback/pending'),
+                    apiClient.get(`/api/patients/${user.id}/vitals`),
+                    apiClient.get(`/api/patients/${user.id}/prescriptions`)
+                ]);
 
-                const results = await Promise.all(endpoints.map(ep => safeFetch(ep.url, { headers })));
-                const newStats = {};
-                endpoints.forEach((ep, i) => {
-                    newStats[ep.key] = Array.isArray(results[i]) ? results[i] : (results[i]?.data || []);
+                setStats({
+                    upcoming: Array.isArray(upcoming) ? upcoming : [],
+                    past: Array.isArray(past) ? past : [],
+                    feedback: Array.isArray(feedback) ? feedback : [],
+                    vitals: Array.isArray(vitals) ? vitals : [],
+                    prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
+                    waitlist: [], offers: [], express: [], prep: []
                 });
-                setStats(prev => ({ ...prev, ...newStats }));
             } catch (err) { 
                 console.error('Failed to sync health data:', err); 
             } finally { 

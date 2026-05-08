@@ -7,12 +7,10 @@ import {
     Stethoscope, User, CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders, API_URL } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
-import { safeFetch } from '../utils/apiHelper';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -90,12 +88,10 @@ const BookAppointment = () => {
 
     const fetchInsurance = async () => {
         try {
-            const res = await axios.get(`${API_URL}/insurance/my`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
-            if (res.data && res.data.length > 0) {
+            const data = await apiClient.get('/api/insurance/my');
+            if (data && data.length > 0 && !data.error) {
                 // Get the most recently updated/verified insurance
-                const sorted = res.data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                const sorted = data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
                 setInsurance(sorted[0]);
             }
         } catch (err) {
@@ -151,8 +147,8 @@ const BookAppointment = () => {
 
     useEffect(() => {
         const fetchDocs = async () => {
-            const data = await safeFetch(`${API}/api/doctors`);
-            if (Array.isArray(data)) {
+            const data = await apiClient.get('/api/doctors');
+            if (Array.isArray(data) && !data.error) {
                 const pruned = data.filter(d => d && typeof d === 'object' && d.id);
                 setDoctors(pruned);
                 
@@ -168,8 +164,8 @@ const BookAppointment = () => {
         if (!selectedDoctorId) return;
         
         const fetchBlocked = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/blocked-dates`);
-            if (Array.isArray(data)) {
+            const data = await apiClient.get(`/api/doctors/${selectedDoctorId}/blocked-dates`);
+            if (Array.isArray(data) && !data.error) {
                 setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
             }
         };
@@ -180,8 +176,8 @@ const BookAppointment = () => {
         if (!selectedDoctorId || !selectedDate) return;
         
         const fetchSlots = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
-            setSlotCounts(data || {});
+            const data = await apiClient.get(`/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
+            if (data && !data.error) setSlotCounts(data);
         };
         fetchSlots();
     }, [selectedDoctorId, selectedDate]);
@@ -190,18 +186,14 @@ const BookAppointment = () => {
         if (!selectedDoctorId || !selectedDate) return;
         setWaitlistJoining(true);
         try {
-            const res = await fetch(`${API}/api/appointments/waitlist/join`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({
-                    doctorId: selectedDoctorId,
-                    preferredDate: selectedDate,
-                    timePreference: waitlistTimePreference,
-                    maxNoticeHours: 24,
-                    reason: symptoms || 'Patient requested earlier availability'
-                })
+            const data = await apiClient.post('/api/appointments/waitlist/join', {
+                doctorId: selectedDoctorId,
+                preferredDate: selectedDate,
+                timePreference: waitlistTimePreference,
+                maxNoticeHours: 24,
+                reason: symptoms || 'Patient requested earlier availability'
             });
-            if (res.ok) setWaitlistJoined(true);
+            if (data && !data.error) setWaitlistJoined(true);
         } catch (err) {
             console.error('[Booking] Waitlist error:', err);
         } finally {
@@ -212,23 +204,18 @@ const BookAppointment = () => {
     const handleBook = async () => {
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${API}/api/appointments/book`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ 
-                    patientId: user.id, 
-                    doctorId: selectedDoctorId, 
-                    date: selectedDate, 
-                    timeSlot: selectedSlot, 
-                    symptoms: symptoms || null 
-                })
+            const data = await apiClient.post('/api/appointments/book', { 
+                patientId: user.id, 
+                doctorId: selectedDoctorId, 
+                date: selectedDate, 
+                timeSlot: selectedSlot, 
+                symptoms: symptoms || null 
             });
-            const result = await response.json();
-            if (response.ok) {
-                setBookingResult(result);
+            if (!data.error) {
+                setBookingResult(data);
                 setIsBooked(true);
             } else {
-                alert(result.message || 'Unable to complete booking. Please try again.');
+                alert(data.message || 'Unable to complete booking. Please try again.');
             }
         } catch (err) {
             alert('A connection error occurred. Please check your network.');

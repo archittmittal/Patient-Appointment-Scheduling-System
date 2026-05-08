@@ -3,7 +3,7 @@
  * Throughput Telemetry Stream for real-time clinical monitoring.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, 
     AlertTriangle, MapPin, Navigation, Sparkles, ChevronRight, 
@@ -11,10 +11,10 @@ import {
     Radio, Info, Compass
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
-import { safeFetch } from '../utils/apiHelper';
+import apiClient from '../services/apiClient';
+import { sseService } from '../services/sseService';
 
-const POLL_INTERVAL = 15_000;
+const FALLBACK_POLL = 60_000; // Minimal fallback polling
 
 const SmartArrivalCard = ({ arrivalData }) => {
     if (!arrivalData) return null;
@@ -32,7 +32,7 @@ const SmartArrivalCard = ({ arrivalData }) => {
     };
 
     return (
-        <div className="glass-card bg-emerald-500/5 p-10 border border-emerald-500/20 group hover:border-emerald-500/40 transition-all duration-1000 relative overflow-hidden rounded-[3.5rem]">
+        <div className="glass-card bg-emerald-500/5 p-10 border-none group hover:shadow-2xl transition-all duration-1000 relative overflow-hidden rounded-[3.5rem]">
             <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 animate-pulse"></div>
             <div className="flex items-center gap-4 mb-8 relative z-10">
                 <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-500 shadow-inner group-hover:rotate-12 transition-transform duration-700">
@@ -130,77 +130,97 @@ const LiveQueue = () => {
     const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0 });
     const [smartArrival, setSmartArrival] = useState(null);
 
-    useEffect(() => {
+    const fetchQueue = useCallback(async () => {
         if (!user?.id) return;
-        
-        const fetchQueue = async () => {
-            try {
-                const headers = authedHeaders();
-                // Get today's appointments for this patient
-                const apps = await safeFetch(`${API}/api/patients/${user.id}/appointments`, { headers });
-                
-                if (!Array.isArray(apps)) {
-                    setNoQueue(true);
-                    setIsLoading(false);
-                    return;
-                }
-
-                const todayStr = new Date().toISOString().split('T')[0];
-                const todayApt = apps.find(a => {
-                    const d = a.appointment_date?.split('T')[0] || a.appointment_date;
-                    return d === todayStr;
-                });
-
-                if (!todayApt) { 
-                    setNoQueue(true); 
-                    setIsLoading(false); 
-                    return; 
-                }
-
-                // Get queue details for this today's appointment
-                const data = await safeFetch(`${API}/api/appointments/queue/${todayApt.id}`, { headers }, {});
-                
-                if (data && data.queue_number !== undefined) {
-                    setQueueInfo({ 
-                        currentToken: data.currentToken || 0, 
-                        yourToken: data.queue_number, 
-                        estimatedWaitTime: data.estimatedWaitMins || data.estimated_time || 0, 
-                        patientsAhead: data.patientsAhead || 0, 
-                        predictedDuration: data.predictedDuration || 15, 
-                        doctorId: data.doctor_id 
-                    });
-                    setQueueData(Array.isArray(data.queueSequence) ? data.queueSequence : []);
-                    setNoQueue(false);
-                    setLastUpdated(new Date());
-
-                    // Check for doctor delays
-                    if (data.doctor_id) {
-                        const dData = await safeFetch(`${API}/api/doctors/${data.doctor_id}/delay-status`, { headers }, {});
-                        setDelayInfo({ 
-                            isDelayed: dData.isDelayed || (dData.effectiveDelay > 5), 
-                            delayMins: dData.effectiveDelay || 0, 
-                            reason: dData.manualDelay?.reason || '' 
-                        });
-                    }
-
-                    // Get smart arrival if available
-                    const sData = await safeFetch(`${API}/api/appointments/${todayApt.id}/smart-arrival`, { headers }, null);
-                    if (sData) setSmartArrival(sData);
-                } else {
-                    setNoQueue(true);
-                }
-            } catch (err) { 
-                console.error('[Queue] Telemetry drop:', err); 
-                setNoQueue(true); 
-            } finally { 
-                setIsLoading(false); 
+        try {
+            // Get today's appointments for this patient
+            const apps = await apiClient.get(`/api/patients/${user.id}/appointments`);
+            
+            if (!Array.isArray(apps) || apps.length === 0) {
+                setNoQueue(true);
+                setIsLoading(false);
+                return;
             }
-        };
 
-        fetchQueue();
-        const t = setInterval(fetchQueue, POLL_INTERVAL);
-        return () => clearInterval(t);
+            const todayStr = new Date().toISOString().split('T')[0];
+            const todayApt = apps.find(a => {
+                const d = a.appointment_date?.split('T')[0] || a.appointment_date;
+                return d === todayStr;
+            });
+
+            if (!todayApt) { 
+                setNoQueue(true); 
+                setIsLoading(false); 
+                return; 
+            }
+
+            // Get queue details for this today's appointment
+            const data = await apiClient.get(`/api/appointments/queue/${todayApt.id}`);
+            
+            if (data && data.queue_number !== undefined) {
+                setQueueInfo({ 
+                    currentToken: data.currentToken || 0, 
+                    yourToken: data.queue_number, 
+                    estimatedWaitTime: data.estimatedWaitMins || data.estimated_time || 0, 
+                    patientsAhead: data.patientsAhead || 0, 
+                    predictedDuration: data.predictedDuration || 15, 
+                    doctorId: data.doctor_id 
+                });
+                setQueueData(Array.isArray(data.queueSequence) ? data.queueSequence : []);
+                setNoQueue(false);
+                setLastUpdated(new Date());
+
+                // Check for doctor delays
+                if (data.doctor_id) {
+                    const dData = await apiClient.get(`/api/doctors/${data.doctor_id}/delay-status`);
+                    setDelayInfo({ 
+                        isDelayed: dData.isDelayed || (dData.effectiveDelay > 5), 
+                        delayMins: dData.effectiveDelay || 0, 
+                        reason: dData.manualDelay?.reason || '' 
+                    });
+                }
+
+                // Get smart arrival if available
+                const sData = await apiClient.get(`/api/appointments/${todayApt.id}/smart-arrival`, null);
+                if (sData) setSmartArrival(sData);
+            } else {
+                setNoQueue(true);
+            }
+        } catch (err) { 
+            console.error('[Queue] Telemetry drop:', err); 
+            setNoQueue(true); 
+        } finally { 
+            setIsLoading(false); 
+        }
     }, [user?.id]);
+
+    useEffect(() => {
+        fetchQueue();
+        const t = setInterval(fetchQueue, FALLBACK_POLL);
+        return () => clearInterval(t);
+    }, [fetchQueue]);
+
+    useEffect(() => {
+        const aptId = queueData.find(item => item.isCurrent)?.appointment_id || 
+                     (queueData.length > 0 ? queueData[0].appointment_id : null);
+
+        if (!aptId) return;
+
+        sseService.connect(
+            aptId,
+            (data) => {
+                if (data.refresh) {
+                    setLastUpdated(new Date());
+                    fetchQueue();
+                } else {
+                    setLastUpdated(new Date());
+                }
+            },
+            () => console.warn('[Queue] Stream Interrupted')
+        );
+
+        return () => sseService.disconnect();
+    }, [queueData, fetchQueue]);
 
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-8 animate-in fade-in duration-1000">
@@ -317,7 +337,7 @@ const LiveQueue = () => {
                 <div className="space-y-12">
                     {smartArrival && <SmartArrivalCard arrivalData={smartArrival} />}
                     
-                    <div className="glass-card p-12 border-amber-500/10 bg-amber-500/5 relative overflow-hidden group rounded-[3.5rem] hover:border-amber-500/30 transition-all duration-700 shadow-2xl shadow-amber-500/5">
+                    <div className="glass-card p-12 border-none bg-amber-500/5 relative overflow-hidden group rounded-[3.5rem] hover:border-amber-500/30 transition-all duration-700 shadow-2xl shadow-amber-500/5">
                         <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
                         <div className="flex items-start gap-6 relative z-10">
                             <div className="bg-amber-500/10 p-5 rounded-2xl border border-amber-500/20 text-amber-500 shadow-inner group-hover:rotate-6 transition-transform">
@@ -340,7 +360,7 @@ const LiveQueue = () => {
                         </div>
                     </div>
 
-                    <div className="glass-card p-12 rounded-[3.5rem] border-white/5 hover:border-primary/20 transition-all duration-700 text-center space-y-6 group shadow-2xl">
+                    <div className="glass-card p-12 rounded-[3.5rem] border-none hover:border-primary/20 transition-all duration-700 text-center space-y-6 group shadow-2xl">
                         <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary mx-auto shadow-inner group-hover:rotate-12 transition-transform">
                             <MapPin size={36} strokeWidth={2.5} />
                         </div>

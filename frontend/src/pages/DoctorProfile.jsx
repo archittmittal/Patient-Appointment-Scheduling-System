@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronRight } from 'lucide-react';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
@@ -36,20 +36,25 @@ const DoctorProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const headers = authedHeaders();
-        Promise.all([
-            fetch(`${API}/api/doctors/${id}`, { headers }).then(res => res.json()),
-            fetch(`${API}/api/doctors/${id}/reviews`, { headers }).then(res => res.json())
-        ]).then(([docData, reviewData]) => {
-            setDoctor({
-                ...docData,
-                name: `Dr. ${docData.first_name} ${docData.last_name}`,
-                experience: `${docData.experience_years}+ Years`,
-                patients: "2.5K+",
-            });
-            setReviews(reviewData);
-        }).catch(err => console.error(err))
-          .finally(() => setIsLoading(false));
+        const fetchDoctorData = async () => {
+            try {
+                const [docData, reviewData] = await Promise.all([
+                    apiClient.get(`/api/doctors/${id}`),
+                    apiClient.get(`/api/doctors/${id}/reviews`)
+                ]);
+
+                if (docData && !docData.error) {
+                    setDoctor({
+                        ...docData,
+                        name: `Dr. ${docData.first_name} ${docData.last_name}`,
+                        experience: `${docData.experience_years}+ Years`,
+                        patients: "2.5K+",
+                    });
+                }
+                if (reviewData && !reviewData.error) setReviews(reviewData);
+            } catch (err) { console.error(err); } finally { setIsLoading(false); }
+        };
+        fetchDoctorData();
     }, [id]);
 
     if (isLoading || !doctor) return <div className="p-20 text-center text-slate-500 font-bold animate-pulse uppercase tracking-widest">Accessing Clinical Registry...</div>;

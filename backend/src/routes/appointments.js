@@ -15,6 +15,8 @@ const vitalsService = require('../services/vitalsService');
 const exportService = require('../services/exportService');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
+const sseManager = require('../services/sseManager');
+const virtualCheckinService = require('../services/virtualCheckinService');
 
 const bookSchema = Joi.object({
     doctorId: Joi.number().required(),
@@ -205,6 +207,34 @@ router.get('/queue/:appointmentId', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET /api/appointments/queue/:appointmentId/stream
+router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        
+        // Get initial data
+        const [rows] = await db.query(`
+            SELECT a.doctor_id, a.patient_id
+            FROM appointments a WHERE a.id = ?
+        `, [appointmentId]);
+        
+        if (rows.length === 0) return res.status(404).json({ message: 'Appointment not found' });
+        const { doctor_id, patient_id } = rows[0];
+
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const connectionId = `queue-${appointmentId}-${Date.now()}`;
+        sseManager.addClient(connectionId, res, { appointmentId, doctorId: doctor_id });
+
+    } catch (error) {
+        console.error('Queue SSE Error:', error);
+        if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
     }
 });
 
@@ -440,6 +470,30 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         }
 
         await conn.commit();
+
+        // BROADCAST UPDATES
+        // 1. Update individual waiting rooms
+        const [waitingPatients] = await db.query(`
+            SELECT lq.appointment_id, a.patient_id 
+            FROM live_queue lq
+            JOIN appointments a ON lq.appointment_id = a.id
+            WHERE lq.status IN ('WAITING', 'IN_PROGRESS') 
+            AND a.doctor_id = ? AND a.appointment_date = ?
+        `, [queueRow.doctor_id, queueRow.appointment_date]);
+
+        for (const p of waitingPatients) {
+            const status = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
+            if (status) {
+                sseManager.broadcastQueueUpdate(p.appointment_id, status);
+            }
+        }
+
+        // 2. Update Live Queue for all subscribers of this doctor
+        sseManager.broadcastToDoctor(queueRow.doctor_id, 'doctor_queue_update', {
+            refresh: true,
+            timestamp: new Date().toISOString()
+        });
+
         res.json({ message: 'Queue status updated' });
     } catch (error) {
         await conn.rollback();

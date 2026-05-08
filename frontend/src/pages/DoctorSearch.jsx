@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Filter, Calendar as CalendarIcon, Users, ArrowRight, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { API } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -89,18 +89,24 @@ const DoctorSearch = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
-        fetch(`${API}/api/doctors`)
-            .then(res => res.json())
-            .then(data => {
-                setDoctors(data.map(doc => ({
-                    ...doc,
-                    name: `Dr. ${doc.first_name} ${doc.last_name}`,
-                    nextAvailable: getNextAvailableDate(doc.availability),
-                })));
-            })
-            .catch(err => console.error(err))
-            .finally(() => setIsLoading(false));
+        const fetchDoctors = async () => {
+            setIsLoading(true);
+            try {
+                const data = await apiClient.get('/api/doctors');
+                if (data && Array.isArray(data)) {
+                    setDoctors(data.map(doc => ({
+                        ...doc,
+                        name: `Dr. ${doc.first_name} ${doc.last_name}`,
+                        nextAvailable: getNextAvailableDate(doc.availability),
+                    })));
+                }
+            } catch (err) {
+                console.error('Failed to fetch doctors:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDoctors();
     }, []);
 
     const specialties = ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))];

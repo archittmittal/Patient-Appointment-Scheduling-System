@@ -69,6 +69,8 @@ describe('Auth Endpoints', () => {
     it('should fail if email already exists', async () => {
       const conn = {
         query: jest.fn().mockResolvedValueOnce([[{ id: 1 }]]),
+        beginTransaction: jest.fn().mockResolvedValue(),
+        rollback: jest.fn().mockResolvedValue(),
         release: jest.fn()
       };
       db.getConnection.mockResolvedValueOnce(conn);

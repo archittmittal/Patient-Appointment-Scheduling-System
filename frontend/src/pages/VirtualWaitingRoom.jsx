@@ -1,5 +1,5 @@
 /**
- * Issue #39: Virtual Waiting Room Page - PREMIUM OVERHAUL
+ * Issue #42: Virtual Waiting Room - PREMIUM OVERHAUL
  * Neural Latency Tracker for real-time remote clinical synchronization.
  */
 
@@ -9,10 +9,12 @@ import {
     Home, Clock, MapPin, CheckCircle2, AlertCircle, RefreshCw, 
     Navigation2, Car, Building2, Wifi, WifiOff, Bell, X, 
     Users, Timer, Sparkles, ArrowRight, Phone, Activity,
-    Zap, ShieldCheck, Compass, Info, Target, Heart, Radio
+    Zap, ShieldCheck, Compass, Info, Target, Heart, Radio,
+    Calendar
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
+import { sseService } from '../services/sseService';
 
 const PING_INTERVAL = 30_000;
 const FALLBACK_POLL = 60_000;
@@ -103,20 +105,27 @@ const VirtualWaitingRoom = () => {
     const fetchStatus = useCallback(async () => {
         if (!appointmentId || !user?.id) return;
         try {
-            const res = await fetch(`${API}/api/virtual-checkin/${appointmentId}/status`, { headers: authedHeaders() });
-            if (!res.ok) throw new Error('Sync Failure');
-            setStatus(await res.json());
+            const data = await apiClient.get(`/api/virtual-checkin/${appointmentId}/status`, null);
+            if (!data) throw new Error('Sync Failure');
+            setStatus(data);
             setIsConnected(true);
             setError(null);
-        } catch (err) { setIsConnected(false); setError('Neural Link Severed'); } finally { setIsLoading(false); }
+        } catch (err) { 
+            setIsConnected(false); 
+            setError('Neural Link Severed'); 
+        } finally { 
+            setIsLoading(false); 
+        }
     }, [appointmentId, user?.id]);
 
     const pingSession = useCallback(async () => {
         if (!appointmentId || !status?.isCheckedIn) return;
         try {
-            await fetch(`${API}/api/virtual-checkin/${appointmentId}/ping`, { method: 'POST', headers: authedHeaders() });
+            await apiClient.post(`/api/virtual-checkin/${appointmentId}/ping`, {});
             setIsConnected(true);
-        } catch (err) { setIsConnected(false); }
+        } catch (err) { 
+            setIsConnected(false); 
+        }
     }, [appointmentId, status?.isCheckedIn]);
 
     useEffect(() => {
@@ -127,23 +136,15 @@ const VirtualWaitingRoom = () => {
 
     useEffect(() => {
         if (!appointmentId || !user?.id) return;
-        let eventSource = null;
-        let retryTimeout = null;
-        const connectSSE = () => {
-            const token = localStorage.getItem('token');
-            eventSource = new EventSource(`${API}/api/virtual-checkin/${appointmentId}/stream?token=${token}`);
-            eventSource.onopen = () => { setIsConnected(true); setError(null); };
-            eventSource.addEventListener('queue_update', (e) => { try { setStatus(JSON.parse(e.data)); } catch (err) { console.error(err); } });
-            eventSource.onerror = () => { 
-                if (eventSource) eventSource.close();
-                setIsConnected(false);
-                fetchStatus();
-                retryTimeout = setTimeout(connectSSE, 5000);
-            };
-        };
-        connectSSE();
-        return () => { if (eventSource) eventSource.close(); if (retryTimeout) clearTimeout(retryTimeout); };
-    }, [appointmentId, user?.id, fetchStatus]);
+        
+        sseService.connect(
+            appointmentId,
+            (data) => setStatus(data),
+            () => setIsConnected(false)
+        );
+        
+        return () => sseService.disconnect();
+    }, [appointmentId, user?.id]);
 
     useEffect(() => {
         if (!status?.isCheckedIn) return;
@@ -154,31 +155,43 @@ const VirtualWaitingRoom = () => {
     const handleCheckin = async (etaMinutes) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/virtual-checkin/${appointmentId}/checkin`, { method: 'POST', headers: authedHeaders(), body: JSON.stringify({ etaMinutes, device: 'web' }) });
-            if (!res.ok) throw new Error((await res.json()).error || 'Protocol Failure');
+            const res = await apiClient.post(`/api/virtual-checkin/${appointmentId}/checkin`, { etaMinutes, device: 'web' });
+            if (res.error) throw new Error(res.error || 'Protocol Failure');
             await fetchStatus();
             setShowETAModal(false);
-        } catch (err) { alert(err.message); } finally { setActionLoading(false); }
+        } catch (err) { 
+            alert(err.message); 
+        } finally { 
+            setActionLoading(false); 
+        }
     };
 
     const handleStatusUpdate = async (newStatus, etaMinutes = null) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/virtual-checkin/${appointmentId}/status`, { method: 'POST', headers: authedHeaders(), body: JSON.stringify({ status: newStatus, etaMinutes }) });
-            if (!res.ok) throw new Error('Status Refusal');
+            const res = await apiClient.post(`/api/virtual-checkin/${appointmentId}/status`, { status: newStatus, etaMinutes });
+            if (res.error) throw new Error('Status Refusal');
             await fetchStatus();
             setShowETAModal(false);
             setPendingAction(null);
-        } catch (err) { alert(err.message); } finally { setActionLoading(false); }
+        } catch (err) { 
+            alert(err.message); 
+        } finally { 
+            setActionLoading(false); 
+        }
     };
 
     const handleCancel = async () => {
         if (!confirm('Abort virtual check-in protocol?')) return;
         setActionLoading(true);
         try {
-            await fetch(`${API}/api/virtual-checkin/${appointmentId}/checkin`, { method: 'DELETE', headers: authedHeaders() });
+            await apiClient.delete(`/api/virtual-checkin/${appointmentId}/checkin`);
             await fetchStatus();
-        } catch (err) { alert('Abort Failure'); } finally { setActionLoading(false); }
+        } catch (err) { 
+            alert('Abort Failure'); 
+        } finally { 
+            setActionLoading(false); 
+        }
     };
 
     const handleETASubmit = (eta) => {
@@ -332,7 +345,7 @@ const VirtualWaitingRoom = () => {
                 )}
             </div>
 
-            <div className="glass-card rounded-[3rem] p-10 border-amber-500/10 bg-amber-500/5 relative overflow-hidden group">
+            <div className="glass-card rounded-[3rem] p-10 border-none bg-amber-500/5 relative overflow-hidden group">
                  <div className="absolute top-0 right-0 p-8 opacity-5"><Bell size={48} /></div>
                 <div className="flex items-start gap-8 relative z-10">
                     <div className="w-16 h-16 bg-white shadow-2xl shadow-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 flex-shrink-0">

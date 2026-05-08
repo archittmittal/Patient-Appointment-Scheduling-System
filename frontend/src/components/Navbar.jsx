@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, UserCircle, X, CheckCheck, Settings, LogOut, ChevronDown, Activity, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { useProfile } from '../hooks/useProfile';
+import { usePermissions } from '../hooks/usePermissions';
+import { apiClient } from '../services/apiClient';
 import QueueAlertModal from './QueueAlertModal';
 import ThemeToggle from './ThemeToggle';
 
@@ -19,10 +21,10 @@ const NOTIFICATION_ICONS = {
 };
 
 const Navbar = () => {
-    const { user, logout } = useAuth();
+    const { logout, user } = useAuth();
+    const { fullName, profile } = useProfile();
+    const { role, isAdmin, isDoctor } = usePermissions();
     const navigate = useNavigate();
-    const name = user ? `${user.first_name} ${user.last_name}`.trim() : '';
-    const roleLabel = user?.role ? user.role.charAt(0) + user.role.slice(1).toLowerCase() : '';
     
     const ROLE_PORTAL_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Medical Portal', ADMIN: 'System Control' };
     const ROLE_COLOR = { PATIENT: 'text-patient', DOCTOR: 'text-doctor', ADMIN: 'text-admin' };
@@ -39,20 +41,19 @@ const Navbar = () => {
     const userMenuRef = useRef(null);
 
     useEffect(() => {
-        if (!user) return;
+        if (!profile) return;
         
         const fetchNotifications = async () => {
             try {
-                const [notifRes, countRes] = await Promise.all([
-                    fetch(`${API}/api/notifications?limit=10`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/notifications/unread-count`, { headers: authedHeaders() })
+                const [notifData, countData] = await Promise.all([
+                    apiClient.get('/api/notifications?limit=10'),
+                    apiClient.get('/api/notifications/unread-count')
                 ]);
                 
-                if (notifRes.ok) {
-                    const data = await notifRes.json();
-                    setNotifications(data);
+                if (notifData && !notifData.error) {
+                    setNotifications(notifData);
                     
-                    const priorityAlerts = data.filter(n => 
+                    const priorityAlerts = notifData.filter(n => 
                         (n.type === 'YOUR_TURN' || n.type === 'TURN_APPROACHING' || n.type === 'MISSED') && 
                         !n.read_at &&
                         new Date(n.sent_at) > new Date(Date.now() - 5 * 60000)
@@ -70,9 +71,8 @@ const Navbar = () => {
                         }
                     }
                 }
-                if (countRes.ok) {
-                    const { count } = await countRes.json();
-                    setUnreadCount(count);
+                if (countData && !countData.error) {
+                    setUnreadCount(countData.count);
                 }
             } catch (err) {
                 console.error('Fetch notifications error:', err);
@@ -82,7 +82,7 @@ const Navbar = () => {
         fetchNotifications();
         const interval = setInterval(fetchNotifications, 15000);
         return () => clearInterval(interval);
-    }, [user]);
+    }, [user, profile]);
 
     const handleAlertAction = async () => {
         if (!activeAlert) return;
@@ -91,10 +91,7 @@ const Navbar = () => {
         localStorage.setItem('seen_queue_alerts', JSON.stringify(seenAlerts));
 
         try {
-            await fetch(`${API}/api/notifications/${activeAlert.id}/read`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
+            await apiClient.post(`/api/notifications/${activeAlert.id}/read`, {});
             if (activeAlert.type === 'YOUR_TURN' && activeAlert.data?.appointment_id) {
                 navigate(`/virtual-waiting/${activeAlert.data.appointment_id}`);
             }
@@ -124,7 +121,7 @@ const Navbar = () => {
 
     const markAllAsRead = async () => {
         try {
-            await fetch(`${API}/api/notifications/mark-all-read`, { method: 'POST', headers: authedHeaders() });
+            await apiClient.post('/api/notifications/mark-all-read', {});
             setUnreadCount(0);
             setNotifications(prev => prev.map(n => ({ ...n, read_at: new Date().toISOString() })));
         } catch (err) {
@@ -134,14 +131,14 @@ const Navbar = () => {
 
     return (
         <header className="glass-nav sticky top-0 z-50 px-8 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate(user ? (user.role === 'DOCTOR' ? '/doctor-dashboard' : (user.role === 'ADMIN' ? '/admin-dashboard' : '/patient-dashboard')) : '/doctors')}>
-                <div className={`w-10 h-10 ${ROLE_BG[user?.role] || 'bg-primary'} rounded-2xl flex items-center justify-center shadow-lg ${ROLE_SHADOW[user?.role] || 'shadow-primary/20'} group-hover:scale-105 transition-all duration-300`}>
+            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate(profile ? (role === 'DOCTOR' ? '/doctor-dashboard' : (role === 'ADMIN' ? '/admin-dashboard' : '/patient-dashboard')) : '/doctors')}>
+                <div className={`w-10 h-10 ${ROLE_BG[role] || 'bg-primary'} rounded-2xl flex items-center justify-center shadow-lg ${ROLE_SHADOW[role] || 'shadow-primary/20'} group-hover:scale-105 transition-all duration-300`}>
                     <Activity className="text-white" size={20} />
                 </div>
                 <div>
                     <h2 className="text-lg font-bold text-slate-900 tracking-tight leading-none">HealthSync</h2>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${ROLE_COLOR[user?.role] || 'text-primary/60'}`}>
-                        {user ? ROLE_PORTAL_LABEL[user.role] : 'Patient Care'}
+                    <p className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${ROLE_COLOR[role] || 'text-primary/60'}`}>
+                        {profile ? ROLE_PORTAL_LABEL[role] : 'Patient Care'}
                     </p>
                 </div>
             </div>
@@ -153,7 +150,7 @@ const Navbar = () => {
                 
                 <div className="h-6 w-px bg-slate-200 mx-1" />
 
-                {user ? (
+                {profile ? (
                     <>
                         <div className="relative" ref={dropdownRef}>
                             <button 
@@ -216,12 +213,12 @@ const Navbar = () => {
                         <div className="relative" ref={userMenuRef}>
                             <button onClick={() => setShowUserMenu(!showUserMenu)} className="flex items-center gap-3 pl-3 pr-1 hover:bg-slate-100 rounded-full p-1 transition-all border border-transparent hover:border-slate-200">
                                 <div className="text-right hidden sm:block">
-                                    <p className="text-[11px] font-bold text-slate-900 leading-none">{user?.first_name}</p>
-                                    <p className={`text-[9px] font-bold uppercase tracking-wider mt-1 ${ROLE_COLOR[user?.role] || 'text-slate-500'}`}>{ROLE_PORTAL_LABEL[user?.role] || roleLabel}</p>
+                                    <p className="text-[11px] font-bold text-slate-900 leading-none">{profile?.first_name}</p>
+                                    <p className={`text-[9px] font-bold uppercase tracking-wider mt-1 ${ROLE_COLOR[role] || 'text-slate-500'}`}>{ROLE_PORTAL_LABEL[role]}</p>
                                 </div>
-                                <div className={`w-9 h-9 ${ROLE_BG[user?.role] || 'bg-primary'}/10 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm`}>
+                                <div className={`w-9 h-9 ${ROLE_BG[role] || 'bg-primary'}/10 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm`}>
                                     <img 
-                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=${ROLE_AVATAR_COLOR[user?.role] || '0071e3'}&bold=true`} 
+                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ffffff&color=${ROLE_AVATAR_COLOR[role] || '0071e3'}&bold=true`} 
                                         alt="User" 
                                         className="w-full h-full object-cover"
                                     />
@@ -232,8 +229,8 @@ const Navbar = () => {
                             {showUserMenu && (
                                 <div className="absolute right-0 mt-4 w-60 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                     <div className="px-5 py-4 border-b border-slate-100 mb-2 bg-slate-50/50 rounded-2xl mx-1">
-                                        <p className="text-sm font-bold text-slate-900 truncate">{name}</p>
-                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{user?.email}</p>
+                                        <p className="text-sm font-bold text-slate-900 truncate">{fullName}</p>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{profile?.email}</p>
                                     </div>
                                     <div className="space-y-1">
                                         <button onClick={() => { setShowUserMenu(false); navigate('/profile'); }} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-2xl transition-colors font-medium group">

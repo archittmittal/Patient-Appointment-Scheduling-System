@@ -5,7 +5,19 @@
 
 const db = require('../config/db');
 
-const insuranceService = {
+class InsuranceService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.getProviders = this.getProviders.bind(this);
+        this.getPatientInsurance = this.getPatientInsurance.bind(this);
+        this.saveInsurance = this.saveInsurance.bind(this);
+        this.verifyEligibility = this.verifyEligibility.bind(this);
+        this._mockVerify = this._mockVerify.bind(this);
+        this._realVerify = this._realVerify.bind(this);
+        this.getAllPolicies = this.getAllPolicies.bind(this);
+        this.getAdminStats = this.getAdminStats.bind(this);
+    }
+
     /**
      * Get all active insurance providers
      */
@@ -14,7 +26,7 @@ const insuranceService = {
             'SELECT id, name, contact_email FROM insurance_providers WHERE is_active = TRUE ORDER BY name ASC'
         );
         return providers;
-    },
+    }
 
     /**
      * Get insurance details for a patient
@@ -28,7 +40,7 @@ const insuranceService = {
             [patientId]
         );
         return insurance;
-    },
+    }
 
     /**
      * Save or update patient insurance
@@ -75,7 +87,7 @@ const insuranceService = {
             );
             return { id: result.insertId, action: 'CREATED' };
         }
-    },
+    }
 
     /**
      * Verify insurance eligibility
@@ -119,7 +131,7 @@ const insuranceService = {
             provider: policy.provider_name,
             memberId: policy.member_id
         };
-    },
+    }
 
     /**
      * Mock verification logic for development
@@ -153,7 +165,7 @@ const insuranceService = {
                 isPrimary: true
             }
         };
-    },
+    }
 
     /**
      * Placeholder for real API integration (e.g., Change Healthcare)
@@ -162,7 +174,7 @@ const insuranceService = {
         // This would use axios to call policy.api_endpoint with policy.api_key_env_var
         // For now, it defaults to a message
         return { status: 'PENDING', message: 'Real API integration not configured', verified: false };
-    },
+    }
 
     /**
      * Get all insurance policies (Admin only)
@@ -177,7 +189,7 @@ const insuranceService = {
             ORDER BY pi.created_at DESC
         `);
         return policies;
-    },
+    }
 
     /**
      * Get insurance analytics/stats (Admin only)
@@ -214,6 +226,6 @@ const insuranceService = {
             recentVerifications
         };
     }
-};
+}
 
-module.exports = insuranceService;
+module.exports = new InsuranceService();

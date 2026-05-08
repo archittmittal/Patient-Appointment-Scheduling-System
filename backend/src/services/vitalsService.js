@@ -12,6 +12,16 @@ const VITALS_THRESHOLDS = {
 };
 
 class VitalsService {
+    constructor() {
+        this.VITALS_THRESHOLDS = VITALS_THRESHOLDS;
+        // Ensure methods are bound to this instance
+        this.getPatientVitals = this.getPatientVitals.bind(this);
+        this.logVitals = this.logVitals.bind(this);
+        this.checkAbnormalValues = this.checkAbnormalValues.bind(this);
+        this.getVitalsTrends = this.getVitalsTrends.bind(this);
+        this._calcDelta = this._calcDelta.bind(this);
+    }
+
     /**
      * Fetch vitals history for a specific patient
      */
@@ -76,44 +86,44 @@ class VitalsService {
         const alerts = [];
 
         if (vitalsData.heart_rate != null) {
-            if (vitalsData.heart_rate < VITALS_THRESHOLDS.heart_rate.low) {
-                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'critical', message: `Bradycardia: HR ${vitalsData.heart_rate} bpm (critical < ${VITALS_THRESHOLDS.heart_rate.low})` });
-            } else if (vitalsData.heart_rate > VITALS_THRESHOLDS.heart_rate.high) {
-                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'critical', message: `Tachycardia: HR ${vitalsData.heart_rate} bpm (critical > ${VITALS_THRESHOLDS.heart_rate.high})` });
-            } else if (vitalsData.heart_rate < VITALS_THRESHOLDS.heart_rate.normal_low || vitalsData.heart_rate > VITALS_THRESHOLDS.heart_rate.normal_high) {
-                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'warning', message: `Abnormal HR: ${vitalsData.heart_rate} bpm (normal: ${VITALS_THRESHOLDS.heart_rate.normal_low}-${VITALS_THRESHOLDS.heart_rate.normal_high})` });
+            if (vitalsData.heart_rate < this.VITALS_THRESHOLDS.heart_rate.low) {
+                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'critical', message: `Bradycardia: HR ${vitalsData.heart_rate} bpm (critical < ${this.VITALS_THRESHOLDS.heart_rate.low})` });
+            } else if (vitalsData.heart_rate > this.VITALS_THRESHOLDS.heart_rate.high) {
+                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'critical', message: `Tachycardia: HR ${vitalsData.heart_rate} bpm (critical > ${this.VITALS_THRESHOLDS.heart_rate.high})` });
+            } else if (vitalsData.heart_rate < this.VITALS_THRESHOLDS.heart_rate.normal_low || vitalsData.heart_rate > this.VITALS_THRESHOLDS.heart_rate.normal_high) {
+                alerts.push({ field: 'heart_rate', value: vitalsData.heart_rate, severity: 'warning', message: `Abnormal HR: ${vitalsData.heart_rate} bpm (normal: ${this.VITALS_THRESHOLDS.heart_rate.normal_low}-${this.VITALS_THRESHOLDS.heart_rate.normal_high})` });
             }
         }
 
         if (vitalsData.blood_pressure_sys != null) {
-            if (vitalsData.blood_pressure_sys > VITALS_THRESHOLDS.blood_pressure_sys.high) {
-                alerts.push({ field: 'blood_pressure_sys', value: vitalsData.blood_pressure_sys, severity: 'critical', message: `Hypertensive Crisis: SBP ${vitalsData.blood_pressure_sys} mmHg (critical > ${VITALS_THRESHOLDS.blood_pressure_sys.high})` });
-            } else if (vitalsData.blood_pressure_sys > VITALS_THRESHOLDS.blood_pressure_sys.normal_high) {
-                alerts.push({ field: 'blood_pressure_sys', value: vitalsData.blood_pressure_sys, severity: 'warning', message: `Elevated BP: SBP ${vitalsData.blood_pressure_sys} mmHg (normal < ${VITALS_THRESHOLDS.blood_pressure_sys.normal_high})` });
+            if (vitalsData.blood_pressure_sys > this.VITALS_THRESHOLDS.blood_pressure_sys.high) {
+                alerts.push({ field: 'blood_pressure_sys', value: vitalsData.blood_pressure_sys, severity: 'critical', message: `Hypertensive Crisis: SBP ${vitalsData.blood_pressure_sys} mmHg (critical > ${this.VITALS_THRESHOLDS.blood_pressure_sys.high})` });
+            } else if (vitalsData.blood_pressure_sys > this.VITALS_THRESHOLDS.blood_pressure_sys.normal_high) {
+                alerts.push({ field: 'blood_pressure_sys', value: vitalsData.blood_pressure_sys, severity: 'warning', message: `Elevated BP: SBP ${vitalsData.blood_pressure_sys} mmHg (normal < ${this.VITALS_THRESHOLDS.blood_pressure_sys.normal_high})` });
             }
         }
 
         if (vitalsData.blood_pressure_dia != null) {
-            if (vitalsData.blood_pressure_dia > VITALS_THRESHOLDS.blood_pressure_dia.high) {
-                alerts.push({ field: 'blood_pressure_dia', value: vitalsData.blood_pressure_dia, severity: 'critical', message: `Hypertensive Crisis: DBP ${vitalsData.blood_pressure_dia} mmHg (critical > ${VITALS_THRESHOLDS.blood_pressure_dia.high})` });
-            } else if (vitalsData.blood_pressure_dia > VITALS_THRESHOLDS.blood_pressure_dia.normal_high) {
-                alerts.push({ field: 'blood_pressure_dia', value: vitalsData.blood_pressure_dia, severity: 'warning', message: `Elevated BP: DBP ${vitalsData.blood_pressure_dia} mmHg (normal < ${VITALS_THRESHOLDS.blood_pressure_dia.normal_high})` });
+            if (vitalsData.blood_pressure_dia > this.VITALS_THRESHOLDS.blood_pressure_dia.high) {
+                alerts.push({ field: 'blood_pressure_dia', value: vitalsData.blood_pressure_dia, severity: 'critical', message: `Hypertensive Crisis: DBP ${vitalsData.blood_pressure_dia} mmHg (critical > ${this.VITALS_THRESHOLDS.blood_pressure_dia.high})` });
+            } else if (vitalsData.blood_pressure_dia > this.VITALS_THRESHOLDS.blood_pressure_dia.normal_high) {
+                alerts.push({ field: 'blood_pressure_dia', value: vitalsData.blood_pressure_dia, severity: 'warning', message: `Elevated BP: DBP ${vitalsData.blood_pressure_dia} mmHg (normal < ${this.VITALS_THRESHOLDS.blood_pressure_dia.normal_high})` });
             }
         }
 
         if (vitalsData.temperature_c != null) {
-            if (vitalsData.temperature_c > VITALS_THRESHOLDS.temperature_c.high) {
-                alerts.push({ field: 'temperature_c', value: vitalsData.temperature_c, severity: 'critical', message: `Fever: ${vitalsData.temperature_c}°C (critical > ${VITALS_THRESHOLDS.temperature_c.high})` });
-            } else if (vitalsData.temperature_c < VITALS_THRESHOLDS.temperature_c.normal_low || vitalsData.temperature_c > VITALS_THRESHOLDS.temperature_c.normal_high) {
-                alerts.push({ field: 'temperature_c', value: vitalsData.temperature_c, severity: 'warning', message: `Abnormal temp: ${vitalsData.temperature_c}°C (normal: ${VITALS_THRESHOLDS.temperature_c.normal_low}-${VITALS_THRESHOLDS.temperature_c.normal_high})` });
+            if (vitalsData.temperature_c > this.VITALS_THRESHOLDS.temperature_c.high) {
+                alerts.push({ field: 'temperature_c', value: vitalsData.temperature_c, severity: 'critical', message: `Fever: ${vitalsData.temperature_c}°C (critical > ${this.VITALS_THRESHOLDS.temperature_c.high})` });
+            } else if (vitalsData.temperature_c < this.VITALS_THRESHOLDS.temperature_c.normal_low || vitalsData.temperature_c > this.VITALS_THRESHOLDS.temperature_c.normal_high) {
+                alerts.push({ field: 'temperature_c', value: vitalsData.temperature_c, severity: 'warning', message: `Abnormal temp: ${vitalsData.temperature_c}°C (normal: ${this.VITALS_THRESHOLDS.temperature_c.normal_low}-${this.VITALS_THRESHOLDS.temperature_c.normal_high})` });
             }
         }
 
         if (vitalsData.spo2 != null) {
-            if (vitalsData.spo2 < VITALS_THRESHOLDS.spo2.low) {
-                alerts.push({ field: 'spo2', value: vitalsData.spo2, severity: 'critical', message: `Hypoxia: SpO2 ${vitalsData.spo2}% (critical < ${VITALS_THRESHOLDS.spo2.low})` });
-            } else if (vitalsData.spo2 < VITALS_THRESHOLDS.spo2.normal_low) {
-                alerts.push({ field: 'spo2', value: vitalsData.spo2, severity: 'warning', message: `Low oxygen: SpO2 ${vitalsData.spo2}% (normal > ${VITALS_THRESHOLDS.spo2.normal_low})` });
+            if (vitalsData.spo2 < this.VITALS_THRESHOLDS.spo2.low) {
+                alerts.push({ field: 'spo2', value: vitalsData.spo2, severity: 'critical', message: `Hypoxia: SpO2 ${vitalsData.spo2}% (critical < ${this.VITALS_THRESHOLDS.spo2.low})` });
+            } else if (vitalsData.spo2 < this.VITALS_THRESHOLDS.spo2.normal_low) {
+                alerts.push({ field: 'spo2', value: vitalsData.spo2, severity: 'warning', message: `Low oxygen: SpO2 ${vitalsData.spo2}% (normal > ${this.VITALS_THRESHOLDS.spo2.normal_low})` });
             }
         }
 
@@ -189,4 +199,3 @@ class VitalsService {
 }
 
 module.exports = new VitalsService();
-module.exports.VITALS_THRESHOLDS = VITALS_THRESHOLDS;
