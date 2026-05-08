@@ -66,8 +66,6 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
             setVerificationResult(verifyRes.data);
             setVerifying(false);
             setLoading(false);
-            
-            if (onSuccess) onSuccess(verifyRes.data);
         } catch (err) {
             console.error(err);
             setError(err.response?.data?.message || "Failed to save and verify insurance.");
@@ -203,7 +201,7 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
                 {loading || verifying ? (
                     <>
                         <Loader2 className="animate-spin" size={24} />
-                        {verifying ? 'DECRYPTING PROTOCOLS...' : 'SYNCHRONIZING...'}
+                        {verifying ? 'VERIFYING ELIGIBILITY...' : 'SYNCHRONIZING...'}
                     </>
                 ) : (
                     <>

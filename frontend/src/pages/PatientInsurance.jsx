@@ -6,20 +6,12 @@ import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const getAuthHeaders = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-});
-
 const PatientInsurance = () => {
     const [insuranceList, setInsuranceList] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showScanner, setShowScanner] = useState(false);
     const [scannedData, setScannedData] = useState(null);
     const [showForm, setShowForm] = useState(false);
-
-    useEffect(() => {
-        fetchInsurance();
-    }, []);
 
     const fetchInsurance = async () => {
         try {
@@ -33,6 +25,10 @@ const PatientInsurance = () => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        fetchInsurance();
+    }, []);
 
     const handleScanComplete = (data) => {
         setScannedData(data);
@@ -216,7 +212,7 @@ const PatientInsurance = () => {
                     <div>
                         <h4 className="text-xl font-black text-white mb-2 tracking-tight">HIPAA Compliant Protection</h4>
                         <p className="text-blue-100/60 font-medium leading-relaxed">
-                            Your health data is encrypted with 256-bit AES protection. Our Edge AI processing ensures your card images never leave your device, maintaining absolute privacy and security for your PHI.
+                            Your health data is handled securely to maintain privacy and security for your PHI.
                         </p>
                     </div>
                 </div>
