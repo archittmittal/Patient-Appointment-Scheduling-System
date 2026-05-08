@@ -21,6 +21,7 @@ const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
+const insuranceRoutes = require('./routes/insurance');
 const paymentRoutes = require('./routes/payments');
 const messageRoutes = require('./routes/messages');
 const errorHandler = require('./middleware/errorHandler');
@@ -152,6 +153,7 @@ app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/insurance', insuranceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 
