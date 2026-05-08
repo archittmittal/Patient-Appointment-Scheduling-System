@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Stethoscope, Users, X, Pencil } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, X, Pencil } from 'lucide-react';
 import { API, authedHeaders } from '../config/api';
 
 const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
+    const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 });
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(null); // 'doctor' | 'patient' | 'edit' | null
     const [formData, setFormData] = useState({});
@@ -14,23 +15,41 @@ const AdminUsers = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [filterRole, setFilterRole] = useState('ALL');
+    const [sortBy, setSortBy] = useState('id');
+    const [order, setOrder] = useState('ASC');
 
-    const fetchUsers = () => {
-        fetch(`${API}/api/admin/users`, { headers: authedHeaders() })
+    const fetchUsers = useCallback((page = 1) => {
+        setIsLoading(true);
+        const query = new URLSearchParams({
+            page,
+            limit: 10,
+            role: filterRole,
+            sort_by: sortBy,
+            order
+        });
+        fetch(`${API}/api/admin/users?${query.toString()}`, { headers: authedHeaders() })
             .then(res => res.json())
-            .then(data => setUsers(data))
+            .then(data => {
+                if (data.data) {
+                    setUsers(data.data);
+                    setMeta(data.meta);
+                } else {
+                    setUsers(data);
+                }
+            })
             .catch(err => console.error(err))
             .finally(() => setIsLoading(false));
-    };
+    }, [filterRole, sortBy, order]);
 
-    useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => { fetchUsers(1); }, [fetchUsers]);
 
     const handleDelete = async (id, role) => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
         const endpoint = role === 'DOCTOR' ? `/api/admin/doctors/${id}` : `/api/admin/patients/${id}`;
         try {
             await fetch(`${API}${endpoint}`, { method: 'DELETE', headers: authedHeaders() });
-            setUsers(prev => prev.filter(u => u.id !== id));
+            // Re-fetch from server to keep meta.total in sync instead of optimistic local removal
+            fetchUsers(meta.page);
         } catch (err) {
             console.error(err);
         }
@@ -39,7 +58,7 @@ const AdminUsers = () => {
     const handleEdit = async (id, role) => {
         setError('');
         const url = role === 'DOCTOR' ? `${API}/api/doctors/${id}` : `${API}/api/patients/${id}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authedHeaders() });
         const data = await res.json();
         setFormData({
             first_name: data.first_name || '',
@@ -74,7 +93,7 @@ const AdminUsers = () => {
             const data = await res.json();
             if (!res.ok) { setError(data.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
@@ -92,7 +111,7 @@ const AdminUsers = () => {
             const data = await res.json();
             if (!res.ok) { setError(data.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
@@ -107,17 +126,15 @@ const AdminUsers = () => {
                 : `${API}/api/patients/${editId}`;
             const res = await fetch(url, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authedHeaders(true),
                 body: JSON.stringify(formData)
             });
             if (!res.ok) { const d = await res.json(); setError(d.message); return; }
             closeModal();
-            fetchUsers();
+            fetchUsers(1);
         } catch { setError('Server error'); }
         finally { setSubmitting(false); }
     };
-
-    const filtered = filterRole === 'ALL' ? users : users.filter(u => u.role === filterRole);
 
     return (
         <div className="space-y-8 pb-10">
@@ -233,7 +250,7 @@ const AdminUsers = () => {
                 {['ALL', 'DOCTOR', 'PATIENT'].map(r => (
                     <button key={r} onClick={() => setFilterRole(r)}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterRole === r ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'}`}>
-                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : 'Patients'} ({r === 'ALL' ? users.length : users.filter(u => u.role === r).length})
+                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : 'Patients'}
                     </button>
                 ))}
             </div>
@@ -246,15 +263,15 @@ const AdminUsers = () => {
                     <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => { setSortBy('name'); setOrder(order === 'ASC' ? 'DESC' : 'ASC'); }}>Name {sortBy === 'name' ? (order === 'ASC' ? '↑' : '↓') : ''}</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => { setSortBy('role'); setOrder(order === 'ASC' ? 'DESC' : 'ASC'); }}>Role {sortBy === 'role' ? (order === 'ASC' ? '↑' : '↓') : ''}</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Details</th>
                                 <th className="px-6 py-4"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filtered.map(u => (
+                            {users.map(u => (
                                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -292,8 +309,31 @@ const AdminUsers = () => {
                             ))}
                         </tbody>
                     </table>
-                    {filtered.length === 0 && (
+                    {users.length === 0 && (
                         <div className="py-12 text-center text-gray-400">No users found.</div>
+                    )}
+                    {meta.total_pages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <span className="text-sm text-gray-500">
+                                Showing {((meta.page - 1) * meta.limit) + 1} to {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} entries
+                            </span>
+                            <div className="flex gap-2">
+                                <button 
+                                    disabled={meta.page <= 1} 
+                                    onClick={() => fetchUsers(meta.page - 1)}
+                                    className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <button 
+                                    disabled={meta.page >= meta.total_pages} 
+                                    onClick={() => fetchUsers(meta.page + 1)}
+                                    className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}

@@ -10,32 +10,110 @@ const BCRYPT_ROUNDS = 10;
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
 
+// GET /api/admin/patients/list — simple list of all patients
+router.get('/patients/list', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM patients ORDER BY first_name');
+        res.json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // GET /api/admin/users — all users with profile info
+// Allowed sort columns — explicit whitelist to prevent SQL injection on ORDER BY
+const ALLOWED_SORT = {
+    id: 'u.id',
+    name: "COALESCE(p.first_name, d.first_name, 'Admin')",
+    created_at: 'u.created_at',
+    role: 'u.role'
+};
+
 router.get('/users', async (req, res) => {
     try {
-        const [users] = await db.query('SELECT id, email, role, created_at FROM users ORDER BY role, id');
-        const result = [];
+        // Sanitise & clamp pagination inputs
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 100);
+        const offset = (page - 1) * limit;
 
-        for (const user of users) {
-            let name = 'Admin';
-            let extra = {};
-            if (user.role === 'PATIENT') {
-                const [rows] = await db.query('SELECT first_name, last_name, phone, blood_group FROM patients WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            } else if (user.role === 'DOCTOR') {
-                const [rows] = await db.query('SELECT first_name, last_name, specialty, location_room FROM doctors WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            }
-            result.push({ ...user, name, ...extra });
+        const role = req.query.role;
+        const sortColumn = ALLOWED_SORT[req.query.sort_by] || ALLOWED_SORT.id;
+        const order = req.query.order?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+        let whereClause = '';
+        const filterParams = [];
+
+        if (role && role !== 'ALL') {
+            whereClause = 'WHERE u.role = ?';
+            filterParams.push(role);
         }
 
-        res.json(result);
+        const orderByClause = sortColumn === ALLOWED_SORT.role
+            ? `ORDER BY ${sortColumn} ${order}, u.id ASC`
+            : `ORDER BY ${sortColumn} ${order}`;
+
+        // --- Count query (uses only filterParams) ---
+        const countQuery = `SELECT COUNT(*) AS total FROM users u ${whereClause}`;
+        const [countResult] = await db.query(countQuery, filterParams);
+        const total = countResult[0].total;
+
+        // --- Data query (clone filterParams + append limit/offset) ---
+        const dataQuery = `
+            SELECT 
+                u.id, u.email, u.role, u.created_at,
+                p.first_name AS p_first, p.last_name AS p_last, p.phone, p.blood_group,
+                d.first_name AS d_first, d.last_name AS d_last, d.specialty, d.location_room
+            FROM users u
+            LEFT JOIN patients p ON u.id = p.id
+            LEFT JOIN doctors d ON u.id = d.id
+            ${whereClause}
+            ${orderByClause}
+            LIMIT ? OFFSET ?
+        `;
+
+        const dataParams = [...filterParams, limit, offset];
+        const [rows] = await db.query(dataQuery, dataParams);
+
+        const users = rows.map(row => {
+            let name = 'Admin';
+            let extra = {};
+            if (row.role === 'PATIENT') {
+                name = `${row.p_first || ''} ${row.p_last || ''}`.trim();
+                extra = {
+                    first_name: row.p_first,
+                    last_name: row.p_last,
+                    phone: row.phone,
+                    blood_group: row.blood_group
+                };
+            } else if (row.role === 'DOCTOR') {
+                name = `${row.d_first || ''} ${row.d_last || ''}`.trim();
+                extra = {
+                    first_name: row.d_first,
+                    last_name: row.d_last,
+                    specialty: row.specialty,
+                    location_room: row.location_room
+                };
+            }
+            return {
+                id: row.id,
+                email: row.email,
+                role: row.role,
+                created_at: row.created_at,
+                name: name || 'Unknown',
+                ...extra
+            };
+        });
+
+        res.json({
+            data: users,
+            meta: {
+                total,
+                page,
+                limit,
+                total_pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

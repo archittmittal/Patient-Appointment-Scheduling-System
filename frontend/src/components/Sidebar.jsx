@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, User, Calendar, Activity, LogOut, 
     ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, 
     Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart,
-    ChevronRight, Sparkles, HeartPulse, FileText, Search
+    ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API, authedHeaders } from '../config/api';
@@ -15,9 +15,13 @@ const PATIENT_MENU = [
     { name: 'Medications', icon: Pill, path: '/prescriptions' },
     { name: 'Find Doctors', icon: Search, path: '/doctors' },
     { name: 'Book Visit', icon: Calendar, path: '/book' },
+    { name: 'Insurance', icon: Shield, path: '/insurance' },
+    { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
+    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
+    { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
+    { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
     { name: 'Live Queue', icon: HeartPulse, path: '/queue' },
     { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
-    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
     { name: 'Messages', icon: MessageSquare, path: '/messages' },
     { name: 'My Profile', icon: User, path: '/profile' },
@@ -36,6 +40,7 @@ const ADMIN_MENU = [
     { name: 'Admin Hub', icon: LayoutDashboard, path: '/admin-dashboard' },
     { name: 'Users Control', icon: Users, path: '/admin-users' },
     { name: 'Appointment Log', icon: ClipboardList, path: '/admin-appointments' },
+    { name: 'Insurance Portal', icon: Shield, path: '/admin/insurance' },
 ];
 
 const ROLE_MENU = { PATIENT: PATIENT_MENU, DOCTOR: DOCTOR_MENU, ADMIN: ADMIN_MENU };

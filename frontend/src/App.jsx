@@ -18,6 +18,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
+import InsurancePortal from './pages/InsurancePortal';
 import NotificationSettings from './pages/NotificationSettings';
 import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; 
 import WalkinRegistration from './pages/WalkinRegistration'; 
@@ -27,6 +28,7 @@ import PrepChecklist from './pages/PrepChecklist';
 import MultiDoctorJourney from './pages/MultiDoctorJourney';
 import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
+import PatientInsurance from './pages/PatientInsurance';
 import DoctorAnalytics from './pages/DoctorAnalytics';
 import VitalsHub from './pages/VitalsHub'; 
 import PatientPrescriptions from './pages/PatientPrescriptions'; 
@@ -79,6 +81,7 @@ function App() {
               <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
               <Route path="/late-arrival" element={<LateArrival />} />
               <Route path="/feedback" element={<FeedbackAnalytics />} />
+              <Route path="/insurance" element={<PatientInsurance />} />
               <Route path="/messages" element={<Messages />} />
             </Route>
 
@@ -98,6 +101,7 @@ function App() {
               <Route path="/admin-dashboard" element={<AdminDashboard />} />
               <Route path="/admin-users" element={<AdminUsers />} />
               <Route path="/admin-appointments" element={<AdminAppointments />} />
+              <Route path="/admin/insurance" element={<InsurancePortal />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
             </Route>
 
