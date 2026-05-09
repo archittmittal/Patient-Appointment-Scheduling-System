@@ -1,61 +1,76 @@
 import { apiClient } from './apiClient';
 
 export const authService = {
+    /**
+     * Authenticate user and store session
+     */
     async login(email, password) {
         const data = await apiClient.post('/api/auth/login', { email, password });
         
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
-            const user = {
+            // Store minimal session data
+            const session = {
                 id: data.id,
                 email: data.email,
-                role: data.role,
-                first_name: data.first_name,
-                last_name: data.last_name
+                role: data.role
             };
-            localStorage.setItem('hs_user', JSON.stringify(user));
+            localStorage.setItem('hs_user', JSON.stringify(session));
         }
         
         return data;
     },
 
+    /**
+     * Register new user and auto-login
+     */
     async register(userData) {
         const data = await apiClient.post('/api/auth/register', userData);
 
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
-            const user = {
+            const session = {
                 id: data.id,
                 email: data.email,
-                role: data.role,
-                first_name: data.first_name,
-                last_name: data.last_name
+                role: data.role
             };
-            localStorage.setItem('hs_user', JSON.stringify(user));
+            localStorage.setItem('hs_user', JSON.stringify(session));
         }
 
         return data;
     },
 
+    /**
+     * Clear all session data
+     */
     logout() {
         localStorage.removeItem('hs_token');
         localStorage.removeItem('hs_user');
-        localStorage.removeItem('pendingBooking');
-        // Clear all keys starting with hs_ to be safe
+        
+        // Comprehensive cleanup of all application-prefixed keys
         Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('hs_')) localStorage.removeItem(key);
+            if (key.startsWith('hs_') || key === 'pendingBooking') {
+                localStorage.removeItem(key);
+            }
         });
     },
 
+    /**
+     * Retrieve core session data
+     */
     getCurrentUser() {
         try {
             const stored = localStorage.getItem('hs_user');
             return stored ? JSON.parse(stored) : null;
-        } catch {
+        } catch (e) {
+            console.error('Failed to parse stored user:', e);
             return null;
         }
     },
 
+    /**
+     * Get active token
+     */
     getToken() {
         return localStorage.getItem('hs_token');
     }

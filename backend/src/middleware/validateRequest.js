@@ -1,10 +1,14 @@
 /**
  * Validation Middleware factory
- * Usage: router.post('/path', validateRequest(schema), handler)
+ * Usage: 
+ *   router.post('/path', validateRequest(schema), handler) // validates body
+ *   router.get('/path', validateRequest(schema, 'query'), handler) // validates query
  */
-function validateRequest(schema) {
+function validateRequest(schema, source = 'body') {
     return (req, res, next) => {
-        const { error } = schema.validate(req.body, {
+        const data = source === 'query' ? req.query : (source === 'params' ? req.params : req.body);
+        
+        const { error, value } = schema.validate(data, {
             abortEarly: false,
             allowUnknown: true,
             stripUnknown: true
@@ -14,7 +18,23 @@ function validateRequest(schema) {
             const errorMessage = error.details.map(detail => detail.message).join(', ');
             const err = new Error(errorMessage);
             err.statusCode = 400;
+            err.code = 'VALIDATION_ERROR';
             return next(err);
+        }
+
+        // Replace request data with validated/stripped values
+        if (source === 'query') {
+            Object.defineProperty(req, 'query', {
+                get() { return value; },
+                configurable: true
+            });
+        } else if (source === 'params') {
+            Object.defineProperty(req, 'params', {
+                get() { return value; },
+                configurable: true
+            });
+        } else {
+            req.body = value;
         }
 
         next();

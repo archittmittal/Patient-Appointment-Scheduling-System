@@ -1,24 +1,23 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { authService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider
+ * Responsible for Session Management ONLY (Tokens & Core Identifiers).
+ * Profile details are handled by useCurrentUser hook.
+ */
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(() => authService.getCurrentUser());
-    const [loading, setLoading] = useState(false);
 
     const login = useCallback((userData) => {
-        const stored = authService.getCurrentUser();
-        const userToSet = stored || userData.user || {
+        // We only store core identifiers in context state
+        // names/profile data should be fetched via useCurrentUser
+        const sessionUser = {
             id: userData.id,
             email: userData.email,
-            role: userData.role,
-        };
-        // Ensure we don't store name fields in the primary auth user object if they exist in userData
-        const sessionUser = {
-            id: userToSet.id,
-            email: userToSet.email,
-            role: userToSet.role
+            role: userData.role
         };
         setUser(sessionUser);
     }, []);
@@ -28,15 +27,13 @@ export function AuthProvider({ children }) {
         setUser(null);
     }, []);
 
-    const value = React.useMemo(() => ({
+    const value = useMemo(() => ({
         user,
-        loading,
-        setLoading,
-        login,
-        logout,
         isAuthenticated: !!user,
-        role: user?.role || null
-    }), [user, loading, login, logout]);
+        role: user?.role || null,
+        login,
+        logout
+    }), [user, login, logout]);
 
     return (
         <AuthContext.Provider value={value}>
