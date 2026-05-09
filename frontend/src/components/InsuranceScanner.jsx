@@ -130,7 +130,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden max-w-lg w-full relative border border-white/20"
             >
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
                 
                 <button 
                     onClick={handleClose}
@@ -141,7 +141,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
 
                 <div className="p-8">
                     <div className="flex items-center gap-4 mb-8">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl text-white shadow-lg shadow-blue-500/30">
+                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl text-white shadow-lg shadow-emerald-500/30">
                             <Camera size={24} />
                         </div>
                         <div>
@@ -176,10 +176,10 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="w-[85%] h-[80%] relative">
                                 {/* Corner Accents */}
-                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-2xl" />
-                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-2xl" />
-                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-2xl" />
-                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-2xl" />
+                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-500 rounded-tl-2xl" />
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-500 rounded-tr-2xl" />
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-500 rounded-bl-2xl" />
+                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-500 rounded-br-2xl" />
                             </div>
                         </div>
 
@@ -191,12 +191,12 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                                         initial={{ top: '0%' }}
                                         animate={{ top: '100%' }}
                                         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                                        className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_20px_#3b82f6] z-10"
+                                        className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_20px_#10b981] z-10"
                                     />
                                     <motion.div 
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 0.2 }}
-                                        className="absolute inset-0 bg-blue-500 mix-blend-overlay"
+                                        className="absolute inset-0 bg-emerald-500 mix-blend-overlay"
                                     />
                                 </>
                             )}
@@ -209,7 +209,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                                     transition={{ duration: 3, repeat: Infinity }}
                                     className="mb-4"
                                 >
-                                    <Loader2 size={48} className="text-blue-400" />
+                                    <Loader2 size={48} className="text-emerald-400" />
                                 </motion.div>
                                 <p className="font-bold tracking-widest text-xs uppercase">Analyzing Card... {progress}%</p>
                             </div>
@@ -231,7 +231,7 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                         <button
                             onClick={capture}
                             disabled={isScanning}
-                            className="flex-1 py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-400 disabled:to-indigo-400 text-white rounded-[1.25rem] font-black transition-all duration-300 shadow-[0_10px_25px_rgba(59,130,246,0.4)] hover:shadow-[0_15px_30px_rgba(59,130,246,0.6)] flex items-center justify-center gap-3 transform hover:-translate-y-1 active:scale-95"
+                            className="flex-1 py-4 px-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-emerald-400 disabled:to-teal-400 text-white rounded-[1.25rem] font-black transition-all duration-300 shadow-[0_10px_25px_rgba(16,185,129,0.4)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.6)] flex items-center justify-center gap-3 transform hover:-translate-y-1 active:scale-95"
                         >
                             {isScanning ? <RefreshCw className="animate-spin" size={20} /> : <Camera size={20} />}
                             {isScanning ? 'PROCESSING' : 'INITIATE SCAN'}

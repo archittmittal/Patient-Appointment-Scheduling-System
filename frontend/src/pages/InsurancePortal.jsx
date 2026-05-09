@@ -86,7 +86,7 @@ const InsurancePortal = () => {
             <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-2 h-8 bg-indigo-600 rounded-full" />
+                        <div className="w-2 h-8 bg-emerald-600 rounded-full" />
                         <h1 className="text-4xl font-black tracking-tight dark:text-white">Global Insurance Core</h1>
                     </div>
                     <p className="text-gray-500 font-medium">Enterprise-grade monitoring of policy verifications and network health.</p>
@@ -94,13 +94,13 @@ const InsurancePortal = () => {
                 <div className="flex gap-4">
                     <button 
                         onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black transition-all shadow-lg hover:shadow-indigo-500/25 transform hover:-translate-y-1 active:scale-95"
+                        className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-black transition-all shadow-lg hover:shadow-emerald-500/25 transform hover:-translate-y-1 active:scale-95"
                     >
                         <Plus size={20} />
                         Manual Enrollment
                     </button>
                     <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-md px-6 py-3 rounded-2xl border border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300 text-sm font-black flex items-center gap-3 shadow-sm">
-                        <Shield size={20} className="text-indigo-600" />
+                        <Shield size={20} className="text-emerald-600" />
                         PORTAL ACTIVE
                     </div>
                 </div>
@@ -109,17 +109,17 @@ const InsurancePortal = () => {
             {/* Premium Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    { label: 'Total Managed Policies', value: policies.length, icon: Database, color: 'blue', growth: '+12.5%' },
+                    { label: 'Total Managed Policies', value: policies.length, icon: Database, color: 'emerald', growth: '+12.5%' },
                     { label: 'Verified Integrity', value: stats?.byStatus.find(s => s.status === 'VERIFIED')?.count || 0, icon: CheckCircle, color: 'green', growth: '99.9%' },
                     { label: 'Pending Assessment', value: stats?.byStatus.find(s => s.status === 'PENDING')?.count || 0, icon: Clock, color: 'amber', growth: '-4%' },
-                    { label: 'Carrier Partnerships', value: stats?.byProvider.length, icon: BarChart3, color: 'purple', growth: 'Stable' }
+                    { label: 'Carrier Partnerships', value: stats?.byProvider.length, icon: BarChart3, color: 'teal', growth: 'Stable' }
                 ].map((stat, i) => (
                     <motion.div 
                         key={i}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-500 group relative overflow-hidden"
+                        className="bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 transition-all duration-500 group relative overflow-hidden"
                     >
                         <div className={`absolute -right-8 -top-8 w-32 h-32 bg-${stat.color}-500/5 rounded-full blur-3xl group-hover:bg-${stat.color}-500/10 transition-colors`} />
                         <div className="flex items-center justify-between mb-6 relative z-10">
@@ -148,7 +148,7 @@ const InsurancePortal = () => {
                             <h3 className="font-black text-2xl dark:text-white tracking-tight">Policy Inventory</h3>
                             <div className="flex flex-wrap gap-4">
                                 <div className="relative group">
-                                    <Search className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-indigo-600 transition-colors" size={20} />
+                                    <Search className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
                                     <input 
                                         type="text" 
                                         placeholder="Search by name or ID..." 
@@ -160,7 +160,7 @@ const InsurancePortal = () => {
                                 <select 
                                     value={filterStatus}
                                     onChange={(e) => setFilterStatus(e.target.value)}
-                                    className="px-6 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm font-bold outline-none dark:text-white focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none cursor-pointer"
+                                    className="px-6 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-sm font-bold outline-none dark:text-white focus:ring-4 focus:ring-emerald-500/10 transition-all appearance-none cursor-pointer"
                                 >
                                     <option value="ALL">Status: All</option>
                                     <option value="VERIFIED">Status: Verified</option>
@@ -184,12 +184,12 @@ const InsurancePortal = () => {
                                     {filteredPolicies.map((policy, i) => (
                                         <tr key={policy.id} className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-all duration-300">
                                             <td className="px-10 py-7">
-                                                <div className="font-black dark:text-white text-lg tracking-tight group-hover:text-indigo-600 transition-colors">{policy.patient_name}</div>
+                                                <div className="font-black dark:text-white text-lg tracking-tight group-hover:text-emerald-600 transition-colors">{policy.patient_name}</div>
                                                 <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">UID: {policy.patient_id}</div>
                                             </td>
                                             <td className="px-10 py-7">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
                                                     <span className="font-bold dark:text-gray-300">{policy.provider_name}</span>
                                                 </div>
                                             </td>
@@ -209,7 +209,7 @@ const InsurancePortal = () => {
                                                 <div className="flex justify-end gap-2">
                                                     <button 
                                                         onClick={() => handleVerify(policy.id)}
-                                                        className="h-10 w-10 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all duration-300"
+                                                        className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all duration-300"
                                                         title="Re-verify"
                                                     >
                                                         <RefreshCw size={18} />
@@ -251,7 +251,7 @@ const InsurancePortal = () => {
                                             initial={{ width: 0 }}
                                             animate={{ width: `${(p.count / policies.length) * 100}%` }}
                                             transition={{ duration: 1.5, ease: "easeOut" }}
-                                            className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full shadow-[0_0_10px_rgba(79,70,229,0.4)]"
+                                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"
                                         />
                                     </div>
                                 </div>
@@ -263,17 +263,17 @@ const InsurancePortal = () => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="bg-gradient-to-br from-gray-900 to-indigo-950 p-10 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden"
+                        className="bg-gradient-to-br from-gray-900 to-emerald-950 p-10 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden"
                     >
-                        <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl" />
+                        <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
                         <h3 className="font-black text-xl mb-8 text-white tracking-tight relative z-10">Live Signal Feed</h3>
                         <div className="space-y-6 relative z-10">
                             {stats?.recentVerifications.map((v, i) => (
                                 <div key={i} className="flex gap-4 group">
                                     <div className={`w-1.5 h-12 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.5)] ${v.status === 'VERIFIED' ? 'bg-green-500' : 'bg-red-500'}`} />
                                     <div className="flex-1">
-                                        <div className="text-sm font-black text-white group-hover:text-indigo-400 transition-colors">{v.patient_name}</div>
-                                        <div className="text-[10px] font-black text-indigo-300/50 uppercase tracking-widest mt-1">{v.provider_name} • {new Date(v.last_verified_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                                        <div className="text-sm font-black text-white group-hover:text-emerald-400 transition-colors">{v.patient_name}</div>
+                                        <div className="text-[10px] font-black text-emerald-300/50 uppercase tracking-widest mt-1">{v.provider_name} • {new Date(v.last_verified_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                                     </div>
                                 </div>
                             ))}
@@ -299,7 +299,7 @@ const InsurancePortal = () => {
                         >
                             <div className="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl">
+                                    <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-2xl">
                                         <Plus size={24} />
                                     </div>
                                     <h2 className="text-2xl font-black dark:text-white tracking-tight">Manual Policy Enrollment</h2>
@@ -315,7 +315,7 @@ const InsurancePortal = () => {
                                     <select 
                                         value={selectedPatientId}
                                         onChange={(e) => setSelectedPatientId(e.target.value)}
-                                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 outline-none dark:text-white font-bold transition-all appearance-none"
+                                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 outline-none dark:text-white font-bold transition-all appearance-none"
                                     >
                                         <option value="">Choose a Patient...</option>
                                         {patients.map(p => (

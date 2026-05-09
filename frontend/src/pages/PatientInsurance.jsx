@@ -46,7 +46,7 @@ const PatientInsurance = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                 >
-                    <h1 className="text-4xl font-black tracking-tight dark:text-white mb-3 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-black tracking-tight dark:text-white mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                         Insurance Vault
                     </h1>
                     <p className="text-gray-500 font-medium">Manage your digital health wallet and verify policies instantly.</p>
@@ -58,7 +58,7 @@ const PatientInsurance = () => {
                 >
                     <button 
                         onClick={() => setShowScanner(true)}
-                        className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black transition-all shadow-[0_10px_25px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_35px_rgba(59,130,246,0.5)] transform hover:-translate-y-1 active:scale-95"
+                        className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-black transition-all shadow-[0_10px_25px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_35px_rgba(16,185,129,0.5)] transform hover:-translate-y-1 active:scale-95"
                     >
                         <Camera size={20} />
                         Smart Scan
@@ -90,7 +90,7 @@ const PatientInsurance = () => {
                     >
                         <div className="flex items-center justify-between mb-8">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-blue-500/10 text-blue-500 rounded-2xl">
+                                <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl">
                                     <Shield size={28} />
                                 </div>
                                 <h2 className="text-2xl font-black dark:text-white tracking-tight">
@@ -111,13 +111,13 @@ const PatientInsurance = () => {
 
             <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+                    <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
                     <h3 className="text-xl font-black dark:text-white tracking-tight">Active Coverage</h3>
                 </div>
 
                 {loading ? (
                     <div className="flex justify-center py-20">
-                        <Loader2 className="animate-spin text-blue-500" size={48} />
+                        <Loader2 className="animate-spin text-emerald-500" size={48} />
                     </div>
                 ) : insuranceList.length === 0 ? (
                     <motion.div 
@@ -132,7 +132,7 @@ const PatientInsurance = () => {
                         <p className="text-gray-500 max-w-sm mx-auto mb-8 font-medium">Link your insurance card to unlock automated billing and priority check-ins.</p>
                         <button 
                             onClick={() => setShowScanner(true)}
-                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black transition-all shadow-lg shadow-blue-500/25 transform hover:-translate-y-1 active:scale-95"
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl font-black transition-all shadow-lg shadow-emerald-500/25 transform hover:-translate-y-1 active:scale-95"
                         >
                             <Camera size={20} />
                             Initiate Smart Scan
@@ -146,17 +146,17 @@ const PatientInsurance = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.1 }}
-                                className="relative bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-500 group overflow-hidden shadow-sm hover:shadow-xl hover:shadow-blue-500/5"
+                                className="relative bg-white dark:bg-gray-900 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-800 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all duration-500 group overflow-hidden shadow-sm hover:shadow-xl hover:shadow-emerald-500/5"
                             >
-                                <div className="absolute -right-12 -top-12 w-40 h-40 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-colors duration-500" />
+                                <div className="absolute -right-12 -top-12 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-colors duration-500" />
                                 
                                 <div className="flex items-start justify-between mb-8 relative z-10">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 text-emerald-600 rounded-2xl flex items-center justify-center shadow-inner">
                                             <Shield size={28} />
                                         </div>
                                         <div>
-                                            <h4 className="text-lg font-black dark:text-white tracking-tight group-hover:text-blue-600 transition-colors">{insurance.provider_name}</h4>
+                                            <h4 className="text-lg font-black dark:text-white tracking-tight group-hover:text-emerald-600 transition-colors">{insurance.provider_name}</h4>
                                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{insurance.plan_type || 'Premium Care Plan'}</p>
                                         </div>
                                     </div>
@@ -182,10 +182,10 @@ const PatientInsurance = () => {
 
                                 <div className="pt-6 border-t border-gray-50 dark:border-gray-800 flex items-center justify-between relative z-10">
                                     <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1.5">
-                                        <Clock size={12} className="text-blue-500" />
+                                        <Clock size={12} className="text-emerald-500" />
                                         Sync: {insurance.last_verified_at ? new Date(insurance.last_verified_at).toLocaleDateString() : 'Pending'}
                                     </span>
-                                    <button className="h-10 w-10 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
+                                    <button className="h-10 w-10 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-center text-gray-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 shadow-sm">
                                         <ChevronRight size={20} />
                                     </button>
                                 </div>
@@ -199,16 +199,16 @@ const PatientInsurance = () => {
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-16 p-8 bg-gradient-to-br from-gray-900 to-blue-950 rounded-[2.5rem] relative overflow-hidden shadow-2xl"
+                className="mt-16 p-8 bg-gradient-to-br from-gray-900 to-emerald-950 rounded-[2.5rem] relative overflow-hidden shadow-2xl"
             >
-                <div className="absolute right-0 top-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px]" />
+                <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-[100px]" />
                 <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                    <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center text-blue-400 shrink-0 border border-white/10">
+                    <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center text-emerald-400 shrink-0 border border-white/10">
                         <Shield size={36} />
                     </div>
                     <div>
                         <h4 className="text-xl font-black text-white mb-2 tracking-tight">HIPAA Compliant Protection</h4>
-                        <p className="text-blue-100/60 font-medium leading-relaxed">
+                        <p className="text-emerald-100/60 font-medium leading-relaxed">
                             Your health data is handled securely to maintain privacy and security for your PHI.
                         </p>
                     </div>
