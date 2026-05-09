@@ -18,15 +18,16 @@ const dbConfig = {
 
 const pool = mysql.createPool(dbConfig);
 
-// Test connection on startup
-pool.getConnection()
-    .then(conn => {
-        console.log('Successfully connected to the database.');
-        conn.release();
-    })
-    .catch(err => {
-        console.error('Database connection failed:', err.message);
-    });
+if (process.env.NODE_ENV !== 'test') {
+    pool.getConnection()
+        .then(conn => {
+            console.log('Successfully connected to the database.');
+            conn.release();
+        })
+        .catch(err => {
+            console.error('Database connection failed:', err.message);
+        });
+}
 
 // Connection pool monitoring
 pool.on('acquire', (connection) => {

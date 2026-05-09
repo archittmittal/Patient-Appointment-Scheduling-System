@@ -13,6 +13,23 @@ const validateRequest = require('../middleware/validateRequest');
  *   description: Patient profile and history
  */
 
+// Validation Schemas
+const patientProfileSchema = Joi.object({
+    first_name: Joi.string().max(50),
+    last_name: Joi.string().max(50),
+    phone: Joi.string().max(20),
+    address: Joi.string().max(255),
+    blood_group: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')
+});
+
+const appointmentsQuerySchema = Joi.object({
+    type: Joi.string().valid('upcoming', 'past', 'all').default('upcoming')
+});
+
+const trendsQuerySchema = Joi.object({
+    days: Joi.number().integer().min(1).max(365).default(90)
+});
+
 /**
  * @swagger
  * /api/patients/{id}:
@@ -77,7 +94,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // PATCH /api/patients/:id — update editable profile fields
-router.patch('/:id', authenticate, async (req, res) => {
+router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async (req, res) => {
     // Only the patient themselves can update their profile
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -103,13 +120,13 @@ router.patch('/:id', authenticate, async (req, res) => {
 });
 
 // Get a patient's appointments — supports ?type=upcoming|past (default: upcoming)
-router.get('/:id/appointments', authenticate, async (req, res) => {
+router.get('/:id/appointments', authenticate, validateRequest(appointmentsQuerySchema, 'query'), async (req, res) => {
     // Check authorization: doctors/admins or the patient themselves
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const type = req.query.type || 'upcoming';
+        const { type } = req.query;
 
         let whereClause;
         let orderClause;
@@ -202,12 +219,12 @@ router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (r
 });
 
 // Issue #144: Get vitals trends and analytics
-router.get('/:id/vitals/trends', authenticate, async (req, res) => {
+router.get('/:id/vitals/trends', authenticate, validateRequest(trendsQuerySchema, 'query'), async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const periodDays = parseInt(req.query.days) || 90;
+        const { days: periodDays } = req.query;
         const data = await vitalsService.getVitalsTrends(req.params.id, periodDays);
         res.json(data);
     } catch (error) {
