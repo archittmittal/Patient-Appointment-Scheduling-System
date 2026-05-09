@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 const {
     calculateCurrentDelay,
     propagateDelayToQueue,
@@ -11,6 +13,42 @@ const {
     getDelayAnalytics
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
+
+// Validation Schemas
+const doctorProfileSchema = Joi.object({
+    first_name: Joi.string().max(50),
+    last_name: Joi.string().max(50),
+    specialty: Joi.string().max(100),
+    degree: Joi.string().max(100),
+    experience_years: Joi.number().min(0).max(100),
+    about: Joi.string().max(2000),
+    location_room: Joi.string().max(20),
+    image_url: Joi.string().uri().allow('', null),
+    max_patients_per_slot: Joi.number().integer().min(1).max(100)
+});
+
+const availabilitySchema = Joi.object({
+    availability: Joi.object().required()
+});
+
+const blockedDateSchema = Joi.object({
+    date: Joi.string().isoDate().required(),
+    reason: Joi.string().max(255).allow('', null)
+});
+
+const manualDelaySchema = Joi.object({
+    delayMins: Joi.number().integer().min(0).max(480).required(),
+    reason: Joi.string().max(255).allow('', null),
+    date: Joi.string().isoDate().allow('', null)
+});
+
+const autofillSettingsSchema = Joi.object({
+    enabled: Joi.boolean(),
+    offerWindowMins: Joi.number().integer().min(1).max(60),
+    minNoticeHours: Joi.number().integer().min(1).max(72),
+    maxOffersPerSlot: Joi.number().integer().min(1).max(20),
+    priorityMode: Joi.string().valid('TIME', 'URGENCY', 'HYBRID')
+});
 
 /**
  * @swagger
@@ -70,7 +108,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctorProfileSchema), async (req, res) => {
     // Only the doctor themselves can update their profile
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -120,7 +158,7 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validateRequest(availabilitySchema), async (req, res) => {
     // Only the doctor themselves can update their availability
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -234,7 +272,7 @@ router.get('/:id/blocked-dates', async (req, res) => {
 });
 
 // POST /api/doctors/:id/blocked-dates — block a specific date
-router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateRequest(blockedDateSchema), async (req, res) => {
     // Only the doctor themselves can block dates
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -364,7 +402,7 @@ router.get('/:id/delay-status', async (req, res) => {
 });
 
 // POST /api/doctors/:id/delay — set manual delay
-router.post('/:id/delay', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.post('/:id/delay', authenticate, requireRole('DOCTOR'), validateRequest(manualDelaySchema), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const { delayMins, reason } = req.body;
@@ -446,7 +484,7 @@ router.get('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async 
 });
 
 // PUT /api/doctors/:id/autofill-settings - Update auto-fill settings
-router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), validateRequest(autofillSettingsSchema), async (req, res) => {
     try {
         const { enabled, offerWindowMins, minNoticeHours, maxOffersPerSlot, priorityMode } = req.body;
         
