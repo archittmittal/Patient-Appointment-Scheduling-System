@@ -24,8 +24,9 @@ const feedbackRoutes = require('./routes/feedback');
 const insuranceRoutes = require('./routes/insurance');
 const paymentRoutes = require('./routes/payments');
 const messageRoutes = require('./routes/messages');
+const exportRoutes = require('./routes/export');
 const errorHandler = require('./middleware/errorHandler');
-const reminderService = require('./services/reminderService');
+const { initCronJobs } = require('./jobs/reminderJobs');
 
 const app = express();
 
@@ -156,6 +157,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/insurance', insuranceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/export', exportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -169,6 +171,8 @@ const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
+        // Initialize Background Jobs
+        initCronJobs();
     });
 }
 

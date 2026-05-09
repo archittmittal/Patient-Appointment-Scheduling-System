@@ -25,6 +25,21 @@ const bookSchema = Joi.object({
     symptoms: Joi.string().allow('', null)
 });
 
+const predictDurationQuerySchema = Joi.object({
+    doctorId: Joi.number().required(),
+    patientId: Joi.number().allow(null),
+    symptoms: Joi.string().allow('', null),
+    timeSlot: Joi.string().allow('', null)
+});
+
+const joinWaitlistSchema = Joi.object({
+    doctorId: Joi.number().required(),
+    preferredDate: Joi.string().isoDate().required(),
+    timePreference: Joi.string().valid('MORNING', 'AFTERNOON', 'EVENING', 'ANY').default('ANY'),
+    maxNoticeHours: Joi.number().integer().min(1).max(72).default(24),
+    reason: Joi.string().max(255).allow('', null)
+});
+
 /**
  * @swagger
  * tags:
@@ -132,13 +147,9 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
 });
 
 // GET /api/appointments/predict-duration — predict duration for given parameters (without booking)
-router.get('/predict-duration', authenticate, async (req, res) => {
+router.get('/predict-duration', authenticate, validateRequest(predictDurationQuerySchema, 'query'), async (req, res) => {
     try {
         const { doctorId, patientId, symptoms, timeSlot } = req.query;
-        
-        if (!doctorId) {
-            return res.status(400).json({ message: 'doctorId is required' });
-        }
 
         const prediction = await predictConsultationDuration({
             doctorId: parseInt(doctorId),
@@ -240,6 +251,7 @@ router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
 
 const notificationService = require('../services/notificationService');
 
+
 const queueUpdateSchema = Joi.object({
     status: Joi.string().valid('WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED').required(),
     diagnosis: Joi.string().allow('', null),
@@ -268,8 +280,9 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         return res.status(400).json({ message: 'Invalid status value' });
     }
 
-    const conn = await db.getConnection();
+    let conn = null;
     try {
+        conn = await db.getConnection();
         await conn.beginTransaction();
 
         // Get appointment details for duration tracking and notifications
@@ -290,7 +303,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
 
         // SECURITY: Verify this doctor is the one assigned to the appointment
         if (req.user.id != queueRow.doctor_id) {
-            await conn.rollback();
+            if (conn) await conn.rollback();
             return res.status(403).json({ message: 'You are not authorized to manage this queue' });
         }
 
@@ -496,11 +509,11 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
 
         res.json({ message: 'Queue status updated' });
     } catch (error) {
-        await conn.rollback();
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        if (conn) await conn.rollback();
+        console.error('QUEUE_STATUS_ERROR:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     } finally {
-        conn.release();
+        if (conn) conn.release();
     }
 });
 
@@ -543,7 +556,7 @@ router.patch('/:id/cancel', async (req, res) => {
         
         res.json({ message: 'Appointment cancelled' });
     } catch (error) {
-        await conn.rollback();
+        if (conn) await conn.rollback();
         console.error(error);
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {
@@ -641,7 +654,7 @@ router.get('/analytics/symptoms', authenticate, async (req, res) => {
 // ==================== Issue #41: Waitlist Endpoints ====================
 
 // POST /api/appointments/waitlist/join - Join waitlist for a doctor
-router.post('/waitlist/join', authenticate, async (req, res) => {
+router.post('/waitlist/join', authenticate, validateRequest(joinWaitlistSchema), async (req, res) => {
     try {
         const { doctorId, preferredDate, timePreference, maxNoticeHours, reason } = req.body;
         

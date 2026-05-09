@@ -7,13 +7,19 @@ const pool = require('../config/db');
 const templateService = require('./templateService');
 const transportService = require('./transportService');
 const preferenceService = require('./preferenceService');
+const historyService = require('./notificationHistoryService');
 
 class NotificationService {
     constructor() {
-        // Expose preferences through this service for convenience/backward compatibility
+        // Expose preferences and history through this service for convenience
         this.getUserPreferences = preferenceService.getUserPreferences.bind(preferenceService);
         this.updatePreferences = preferenceService.updatePreferences.bind(preferenceService);
         this.savePushSubscription = preferenceService.savePushSubscription.bind(preferenceService);
+        
+        // Proxy history methods
+        this.getNotificationHistory = historyService.getHistory.bind(historyService);
+        this.markAsRead = historyService.markAsRead.bind(historyService);
+        this.getUnreadCount = historyService.getUnreadCount.bind(historyService);
 
         // Ensure methods are bound to this instance
         this.sendNotification = this.sendNotification.bind(this);
@@ -26,9 +32,6 @@ class NotificationService {
         this.notifyCancellation = this.notifyCancellation.bind(this);
         this.notifyMissed = this.notifyMissed.bind(this);
         this.notifyEmergency = this.notifyEmergency.bind(this);
-        this.getNotificationHistory = this.getNotificationHistory.bind(this);
-        this.markAsRead = this.markAsRead.bind(this);
-        this.getUnreadCount = this.getUnreadCount.bind(this);
     }
 
     /**
@@ -70,13 +73,10 @@ class NotificationService {
         );
         const user = userRows[0];
         
-        // 6. Create notification record
-        const [notifResult] = await pool.query(
-            `INSERT INTO notifications (user_id, type, title, message, data, priority, scheduled_for)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [userId, type, title, message, JSON.stringify(templateData), priority, scheduledFor]
-        );
-        const notificationId = notifResult.insertId;
+        // 6. Create notification record using history service
+        const notificationId = await historyService.createRecord({
+            userId, type, title, message, templateData, priority, scheduledFor
+        });
         
         // 7. Determine channels
         const channels = forceChannels || {
@@ -86,6 +86,7 @@ class NotificationService {
         };
         
         const results = { notificationId, push: false, sms: false, email: false };
+        const updates = {};
         
         // 8. Send via each enabled channel
         if (channels.push && prefs.push_subscription) {
@@ -95,34 +96,54 @@ class NotificationService {
                 pushBody,
                 { notificationId, type, ...templateData }
             );
-            await pool.query('UPDATE notifications SET push_sent = ? WHERE id = ?', [results.push, notificationId]);
+            updates.push_sent = results.push;
         }
         
         if (channels.sms && user?.phone && smsText) {
             results.sms = await transportService.sendSMS(user.phone, smsText);
-            await pool.query('UPDATE notifications SET sms_sent = ? WHERE id = ?', [results.sms, notificationId]);
+            updates.sms_sent = results.sms;
         }
         
         if (channels.email && user?.email) {
-            const htmlBody = `
-                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #2563eb;">${title}</h2>
-                    <p style="color: #374151; line-height: 1.6;">${message}</p>
-                    <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-                    <p style="color: #9ca3af; font-size: 12px;">
-                        This notification was sent by HealthSync. 
-                        <a href="${process.env.APP_URL || 'http://localhost:5173'}/settings/notifications">Manage preferences</a>
-                    </p>
-                </div>
-            `;
+            const htmlBody = this._generateEmailHtml(title, message);
             results.email = await transportService.sendEmail(user.email, title, htmlBody);
-            await pool.query('UPDATE notifications SET email_sent = ? WHERE id = ?', [results.email, notificationId]);
+            updates.email_sent = results.email;
         }
-        
-        // 9. Final update
-        await pool.query('UPDATE notifications SET sent_at = NOW() WHERE id = ?', [notificationId]);
+
+        // 9. Batch update transport status and finalize
+        await historyService.updateStatus(notificationId, updates);
+        await historyService.finalizeSentAt(notificationId);
         
         return { success: true, ...results };
+    }
+
+    /**
+     * Private helper for email HTML generation
+     */
+    _generateEmailHtml(title, message) {
+        return `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #f3f4f6; border-radius: 8px; overflow: hidden;">
+                <div style="background-color: #2563eb; padding: 20px; text-align: center;">
+                    <h1 style="color: white; margin: 0; font-size: 20px;">HealthSync</h1>
+                </div>
+                <div style="padding: 30px; background-color: white;">
+                    <h2 style="color: #1f2937; margin-top: 0;">${title}</h2>
+                    <p style="color: #4b5563; line-height: 1.6; font-size: 16px;">${message}</p>
+                    <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 6px;">
+                        <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                            You are receiving this because of your appointment settings.
+                        </p>
+                    </div>
+                </div>
+                <div style="padding: 20px; background-color: #f3f4f6; text-align: center;">
+                    <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                        © 2026 HealthSync Patient Portal. All rights reserved.
+                        <br>
+                        <a href="${process.env.APP_URL || 'http://localhost:5173'}/settings/notifications" style="color: #2563eb; text-decoration: none;">Notification Settings</a>
+                    </p>
+                </div>
+            </div>
+        `;
     }
 
     // ============ Convenience functions ============
@@ -161,25 +182,6 @@ class NotificationService {
 
     async notifyEmergency(doctorId, patientName, reason) {
         return this.sendNotification(doctorId, 'EMERGENCY_ALERT', { patient_name: patientName, reason: reason || 'Urgent attention required' }, { priority: 'URGENT' });
-    }
-
-    async getNotificationHistory(userId, limit = 50) {
-        const [notifications] = await pool.query(
-            'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
-            [userId, limit]
-        );
-        return notifications;
-    }
-
-    async markAsRead(notificationId, userId) {
-        await pool.query('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?', [notificationId, userId]);
-        return { success: true };
-    }
-
-    async getUnreadCount(userId) {
-        const [countRows] = await pool.query('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL', [userId]);
-        const result = countRows[0];
-        return result.count;
     }
 }
 
