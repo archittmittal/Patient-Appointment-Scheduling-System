@@ -517,7 +517,7 @@ const BookAppointment = () => {
                             <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 mt-1"><FileText size={20} /></div>
                             <div>
                                 <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Reason for Visit</p>
-                                <p className="text-sm italic text-slate-600">"{symptoms}"</p>
+                                <p className="text-sm text-slate-600">"{symptoms}"</p>
                             </div>
                         </div>
                     )}

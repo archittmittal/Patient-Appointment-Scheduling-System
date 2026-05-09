@@ -392,7 +392,7 @@ const DoctorDashboard = () => {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
                 <div>
                     <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight">
-                        Daily <span className="text-primary italic">Ops</span> Center
+                        Daily <span className="text-primary ">Ops</span> Center
                     </h1>
                     <p className="text-slate-500 font-bold mt-2 flex items-center gap-2">
                         <Activity size={16} className="text-primary" />
