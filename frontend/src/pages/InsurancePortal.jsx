@@ -87,7 +87,7 @@ const InsurancePortal = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-2 h-8 bg-emerald-600 rounded-full" />
-                        <h1 className="text-4xl font-black tracking-tight dark:text-white">Global Insurance Core</h1>
+                        <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">Global Insurance Core</h1>
                     </div>
                     <p className="text-gray-500 font-medium">Enterprise-grade monitoring of policy verifications and network health.</p>
                 </div>
@@ -145,7 +145,7 @@ const InsurancePortal = () => {
                         className="bg-white dark:bg-gray-900 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm overflow-hidden"
                     >
                         <div className="p-10 border-b border-gray-50 dark:border-gray-800 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                            <h3 className="font-black text-2xl dark:text-white tracking-tight">Policy Inventory</h3>
+                            <h3 className="font-black text-2xl text-gray-900 dark:text-white tracking-tight">Policy Inventory</h3>
                             <div className="flex flex-wrap gap-4">
                                 <div className="relative group">
                                     <Search className="absolute left-4 top-3.5 text-gray-400 group-focus-within:text-emerald-600 transition-colors" size={20} />
