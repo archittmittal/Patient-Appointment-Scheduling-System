@@ -121,7 +121,7 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
                             value={formData.providerId}
                             onChange={handleChange}
                             required
-                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none dark:text-white font-bold transition-all appearance-none"
+                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 outline-none dark:text-white font-bold transition-all appearance-none"
                         >
                             <option value="">Select Carrier</option>
                             {providers.map(p => (
@@ -143,7 +143,7 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
                             value={formData.policyHolderName}
                             onChange={handleChange}
                             placeholder="Full Legal Name"
-                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none dark:text-white font-bold transition-all"
+                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 outline-none dark:text-white font-bold transition-all"
                         />
                         <Edit3 className="absolute right-4 top-4 text-gray-400" size={18} />
                     </div>
@@ -159,9 +159,9 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
                             onChange={handleChange}
                             required
                             placeholder="Enter Member ID"
-                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none dark:text-white font-mono font-bold transition-all pl-12"
+                            className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 outline-none dark:text-white font-mono font-bold transition-all pl-12"
                         />
-                        <Shield className="absolute left-4 top-4 text-blue-500" size={20} />
+                        <Shield className="absolute left-4 top-4 text-emerald-500" size={20} />
                     </div>
                 </div>
 
@@ -173,7 +173,7 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
                         value={formData.groupId}
                         onChange={handleChange}
                         placeholder="Enter Group Number"
-                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none dark:text-white font-mono font-bold transition-all"
+                        className="w-full p-4 bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 outline-none dark:text-white font-mono font-bold transition-all"
                     />
                 </div>
             </div>
@@ -192,7 +192,7 @@ const InsuranceForm = ({ initialData, onSuccess, patientId: propPatientId }) => 
             <button
                 type="submit"
                 disabled={loading || verifying}
-                className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-blue-400 disabled:to-indigo-400 text-white rounded-2xl font-black transition-all shadow-[0_10px_30px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_40px_rgba(59,130,246,0.5)] flex items-center justify-center gap-3 transform hover:-translate-y-1 active:scale-95 mt-6"
+                className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-emerald-400 disabled:to-teal-400 text-white rounded-2xl font-black transition-all shadow-[0_10px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_40px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 transform hover:-translate-y-1 active:scale-95 mt-6"
             >
                 {loading || verifying ? (
                     <>

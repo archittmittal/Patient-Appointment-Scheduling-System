@@ -579,13 +579,13 @@ const BookAppointment = () => {
                 <div className="mt-8 pt-6 border-t border-gray-100">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="font-bold text-gray-900 flex items-center gap-2">
-                            <ShieldCheck size={20} className="text-blue-600" />
+                            <ShieldCheck size={20} className="text-emerald-600" />
                             Insurance Verification
                         </h4>
                         {!insurance && (
                             <button 
                                 onClick={() => setShowScanner(true)}
-                                className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1"
+                                className="text-sm font-bold text-emerald-600 hover:underline flex items-center gap-1"
                             >
                                 <Users size={14} />
                                 Smart Scan Card
@@ -595,11 +595,11 @@ const BookAppointment = () => {
 
                     {insurance ? (
                         <div className={`p-4 rounded-xl border flex items-center justify-between ${
-                            insurance.status === 'VERIFIED' ? 'bg-green-50 border-green-100' : 'bg-yellow-50 border-yellow-100'
+                            insurance.status === 'VERIFIED' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'
                         }`}>
                             <div className="flex items-center gap-3">
                                 <div className={`p-2 rounded-lg ${
-                                    insurance.status === 'VERIFIED' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                                    insurance.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                                 }`}>
                                     <CheckCircle2 size={20} />
                                 </div>
@@ -610,7 +610,7 @@ const BookAppointment = () => {
                             </div>
                             <button 
                                 onClick={() => setShowForm(true)}
-                                className="text-xs font-bold text-blue-600 hover:underline"
+                                className="text-xs font-bold text-emerald-600 hover:underline"
                             >
                                 Change
                             </button>
@@ -623,7 +623,7 @@ const BookAppointment = () => {
                                     onClick={() => setShowScanner(true)}
                                     className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-50 transition-colors"
                                 >
-                                    <Activity size={16} />
+                                    <Activity size={16} className="text-emerald-500" />
                                     Scan Card
                                 </button>
                                 <button 
