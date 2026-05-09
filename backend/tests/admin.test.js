@@ -168,28 +168,22 @@ describe('Admin Users Endpoint — GET /api/admin/users', () => {
             expect(params).toContain(5);  // offset = (2-1)*5
         });
 
-        it('should clamp limit to max 100', async () => {
-            db.query
-                .mockResolvedValueOnce([[{ total: 200 }]])
-                .mockResolvedValueOnce([[]]);
-
+        it('should reject limit > 100 with 400', async () => {
             const res = await request(app)
                 .get('/api/admin/users?limit=999')
                 .set('Authorization', `Bearer ${adminToken}`);
 
-            expect(res.body.meta.limit).toBe(100);
+            expect(res.statusCode).toBe(400);
+            expect(res.body.code).toBe('VALIDATION_ERROR');
         });
 
-        it('should floor page to 1 for negative values', async () => {
-            db.query
-                .mockResolvedValueOnce([[{ total: 10 }]])
-                .mockResolvedValueOnce([[]]);
-
+        it('should reject negative page with 400', async () => {
             const res = await request(app)
                 .get('/api/admin/users?page=-5')
                 .set('Authorization', `Bearer ${adminToken}`);
 
-            expect(res.body.meta.page).toBe(1);
+            expect(res.statusCode).toBe(400);
+            expect(res.body.code).toBe('VALIDATION_ERROR');
         });
 
         it('should default to page=1, limit=10 when no params given', async () => {
@@ -275,18 +269,13 @@ describe('Admin Users Endpoint — GET /api/admin/users', () => {
             expect(dataCall[0]).toContain('DESC');
         });
 
-        it('should ignore unknown sort_by values and default to u.id', async () => {
-            db.query
-                .mockResolvedValueOnce([[{ total: 3 }]])
-                .mockResolvedValueOnce([mockUserRows]);
-
-            await request(app)
+        it('should reject unknown sort_by values with 400', async () => {
+            const res = await request(app)
                 .get('/api/admin/users?sort_by=DROP_TABLE')
                 .set('Authorization', `Bearer ${adminToken}`);
 
-            const dataCall = db.query.mock.calls[1];
-            expect(dataCall[0]).toContain('ORDER BY u.id');
-            expect(dataCall[0]).not.toContain('DROP_TABLE');
+            expect(res.statusCode).toBe(400);
+            expect(res.body.code).toBe('VALIDATION_ERROR');
         });
     });
 

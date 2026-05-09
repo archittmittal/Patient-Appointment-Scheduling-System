@@ -23,9 +23,19 @@ function validateRequest(schema, source = 'body') {
         }
 
         // Replace request data with validated/stripped values
-        if (source === 'query') req.query = value;
-        else if (source === 'params') req.params = value;
-        else req.body = value;
+        if (source === 'query') {
+            Object.defineProperty(req, 'query', {
+                get() { return value; },
+                configurable: true
+            });
+        } else if (source === 'params') {
+            Object.defineProperty(req, 'params', {
+                get() { return value; },
+                configurable: true
+            });
+        } else {
+            req.body = value;
+        }
 
         next();
     };

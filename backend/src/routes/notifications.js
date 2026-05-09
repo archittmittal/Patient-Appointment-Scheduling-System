@@ -5,8 +5,25 @@
 
 const express = require('express');
 const router = express.Router();
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 const { authenticate } = require('../middleware/authenticate');
 const notificationService = require('../services/notificationService');
+
+// Validation Schemas
+const preferencesSchema = Joi.object({
+    email_enabled: Joi.boolean(),
+    push_enabled: Joi.boolean(),
+    sms_enabled: Joi.boolean(),
+    appointment_reminders: Joi.boolean(),
+    queue_updates: Joi.boolean(),
+    delay_alerts: Joi.boolean(),
+    health_tips: Joi.boolean()
+}).min(1);
+
+const pushSubscriptionSchema = Joi.object({
+    subscription: Joi.object().required()
+});
 
 // GET /api/notifications - Get user's notification history
 router.get('/', authenticate, async (req, res) => {
@@ -72,7 +89,7 @@ router.get('/preferences', authenticate, async (req, res) => {
 });
 
 // PUT /api/notifications/preferences - Update notification preferences
-router.put('/preferences', authenticate, async (req, res) => {
+router.put('/preferences', authenticate, validateRequest(preferencesSchema), async (req, res) => {
     try {
         const result = await notificationService.updatePreferences(req.user.id, req.body);
         if (result.success) {
@@ -87,7 +104,7 @@ router.put('/preferences', authenticate, async (req, res) => {
 });
 
 // POST /api/notifications/subscribe-push - Save push notification subscription
-router.post('/subscribe-push', authenticate, async (req, res) => {
+router.post('/subscribe-push', authenticate, validateRequest(pushSubscriptionSchema), async (req, res) => {
     try {
         const { subscription } = req.body;
         if (!subscription) {
