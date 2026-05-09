@@ -46,7 +46,7 @@ const PatientInsurance = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                 >
-                    <h1 className="text-4xl font-black tracking-tight dark:text-white mb-3 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-black tracking-tight text-emerald-900 dark:text-white mb-3 sm:bg-gradient-to-r sm:from-emerald-600 sm:to-teal-600 sm:bg-clip-text sm:text-transparent">
                         Insurance Vault
                     </h1>
                     <p className="text-gray-500 font-medium">Manage your digital health wallet and verify policies instantly.</p>
@@ -112,7 +112,7 @@ const PatientInsurance = () => {
             <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
-                    <h3 className="text-xl font-black dark:text-white tracking-tight">Active Coverage</h3>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Active Coverage</h3>
                 </div>
 
                 {loading ? (
