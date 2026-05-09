@@ -54,7 +54,7 @@ const JourneyStopCard = ({ stop, isActive, isLast, isNext }) => {
                     {stop.status === 'completed' ? (
                         <CheckCircle2 className="text-white" size={20} strokeWidth={3} />
                     ) : (
-                        <span className={`text-xs font-black italic ${stop.status === 'in_progress' ? 'text-white' : 'text-slate-500'}`}>
+                        <span className={`text-xs font-black ${stop.status === 'in_progress' ? 'text-white' : 'text-slate-500'}`}>
                             0{stop.stop_order}
                         </span>
                     )}
@@ -79,8 +79,8 @@ const JourneyStopCard = ({ stop, isActive, isLast, isNext }) => {
                                 <Stethoscope size={20} strokeWidth={2.5} />
                             </div>
                             <div>
-                                <h4 className="font-black text-[var(--text-base)] text-sm tracking-tight uppercase italic">Dr. {stop.doctor_name}</h4>
-                                <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mt-1 italic">{stop.specialty}</p>
+                                <h4 className="font-black text-[var(--text-base)] text-sm tracking-tight uppercase ">Dr. {stop.doctor_name}</h4>
+                                <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mt-1 ">{stop.specialty}</p>
                             </div>
                         </div>
                         <StopStatusBadge status={stop.status} />
@@ -98,7 +98,7 @@ const JourneyStopCard = ({ stop, isActive, isLast, isNext }) => {
                                 <Compass size={18} className="animate-spin-slow" />
                              </div>
                              <div className="flex-1">
-                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] italic mb-1">Navigation Active</p>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Navigation Active</p>
                                 <p className="text-[11px] font-bold text-slate-400">Proceed to Building {stop.building || 'A'}, Room {stop.location_room || 'G10'} for next check-in.</p>
                              </div>
                         </div>
@@ -136,8 +136,8 @@ const ActiveJourneyCard = ({ journey, onClick }) => {
                         <Route size={28} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h3 className="text-2xl font-black text-[var(--text-base)] tracking-tighter uppercase italic">Registry Cycle: {journey.total_stops} Nodes</h3>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 italic">
+                        <h3 className="text-2xl font-black text-[var(--text-base)] tracking-tighter uppercase ">Registry Cycle: {journey.total_stops} Nodes</h3>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 ">
                             Sync Progress: <span className="text-primary">{completedStops} / {journey.total_stops} verified</span>
                         </p>
                     </div>
@@ -167,8 +167,8 @@ const ActiveJourneyCard = ({ journey, onClick }) => {
                         <Navigation size={20} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] italic mb-1">Active Navigator</p>
-                        <p className="text-xs font-black text-[var(--text-base)] uppercase italic">Next: Dr. {nextStop.doctor_name}</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-1">Active Navigator</p>
+                        <p className="text-xs font-black text-[var(--text-base)] uppercase ">Next: Dr. {nextStop.doctor_name}</p>
                     </div>
                 </div>
             )}
@@ -287,7 +287,7 @@ const MultiDoctorJourney = () => {
             <div className="max-w-3xl mx-auto pb-20 animate-in fade-in duration-700">
                 <button
                     onClick={() => setSelectedJourney(null)}
-                    className="flex items-center gap-3 text-slate-500 hover:text-[var(--text-base)] mb-10 transition-all font-black text-[10px] uppercase tracking-[0.3em] italic group"
+                    className="flex items-center gap-3 text-slate-500 hover:text-[var(--text-base)] mb-10 transition-all font-black text-[10px] uppercase tracking-[0.3em] group"
                 >
                     <ArrowRight size={18} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
                     <span>Return to Registry Overview</span>
@@ -300,10 +300,10 @@ const MultiDoctorJourney = () => {
                             <Route size={32} strokeWidth={2.5} />
                         </div>
                         <div className="text-center md:text-left">
-                            <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-4">
+                            <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-4">
                                 Active Node Protocol
                             </h2>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ">
                                 Cycle Sync: <span className="text-primary">{completedStops} / {selectedJourney.total_stops} Verified Stations</span>
                             </p>
                         </div>
@@ -311,8 +311,8 @@ const MultiDoctorJourney = () => {
 
                     <div className="glass-card rounded-[2.5rem] p-8 bg-white/5 border-white/5 relative z-10">
                         <div className="flex justify-between items-center mb-6">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic">Telemetry Stream</span>
-                            <span className="text-xl font-black text-primary italic tabular-nums">{progress}%</span>
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ">Telemetry Stream</span>
+                            <span className="text-xl font-black text-primary tabular-nums">{progress}%</span>
                         </div>
                         <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/5 p-1 mb-4">
                             <div 
@@ -320,7 +320,7 @@ const MultiDoctorJourney = () => {
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
-                        <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest italic">
+                        <div className="flex items-center gap-2 text-[9px] font-black text-slate-600 uppercase tracking-widest ">
                             <Clock size={12} /> Predicted End-of-Cycle: {selectedJourney.totalEstimatedMins || 60}M Telemetry
                         </div>
                     </div>
@@ -329,7 +329,7 @@ const MultiDoctorJourney = () => {
                 <div className="px-6 relative">
                      <div className="flex items-center gap-4 mb-10">
                         <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5"><Map size={16} /></div>
-                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] italic">Clinical Route Matrix</h3>
+                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] ">Clinical Route Matrix</h3>
                      </div>
                     <div className="space-y-4">
                         {selectedJourney.stops?.map((stop, idx) => (
@@ -356,8 +356,8 @@ const MultiDoctorJourney = () => {
                         <Route size={32} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Route Optimizer</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic">Multi-specialist clinical coordinate sync</p>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none">Route Optimizer</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 ">Multi-specialist clinical coordinate sync</p>
                     </div>
                 </div>
 
@@ -371,7 +371,7 @@ const MultiDoctorJourney = () => {
                     </div>
                     <div className="pr-2">
                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 text-right">Available</p>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest text-right italic">Sync Ready</p>
+                        <p className="text-[10px] font-black text-primary uppercase tracking-widest text-right ">Sync Ready</p>
                     </div>
                 </div>
             </div>
@@ -384,7 +384,7 @@ const MultiDoctorJourney = () => {
                         <Navigation size={24} className="animate-pulse" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tight mb-2">Neural Path Calibration</h3>
+                        <h3 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight mb-2">Neural Path Calibration</h3>
                         <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed opacity-80 max-w-lg">
                             Advanced telemetry algorithms minimize dwell times and optimize spatial movement across the clinical facility.
                         </p>
@@ -397,7 +397,7 @@ const MultiDoctorJourney = () => {
                 <div className="mb-12">
                      <div className="flex items-center gap-4 mb-8">
                         <div className="w-8 h-8 bg-white/5 rounded-xl flex items-center justify-center text-slate-600 border border-white/5"><Layers size={16} /></div>
-                        <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] italic">Active Cycle Registry</h2>
+                        <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.5em] ">Active Cycle Registry</h2>
                      </div>
                     <div className="space-y-8">
                         {journeys.map(journey => (
@@ -420,7 +420,7 @@ const MultiDoctorJourney = () => {
                     <Plus size={32} strokeWidth={3} />
                 </div>
                 <div className="text-center">
-                    <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-2">Initialize New Cycle</h3>
+                    <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-2">Initialize New Cycle</h3>
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] opacity-60">Aggregate multiple practitioners into a single registry</p>
                 </div>
             </button>
@@ -438,8 +438,8 @@ const MultiDoctorJourney = () => {
                     <div className="glass-modal rounded-[3.5rem] max-w-2xl w-full max-h-[85vh] overflow-hidden border-none shadow-2xl animate-in zoom-in-95 duration-500 flex flex-col">
                         <div className="p-10 border-b border-white/10 flex items-center justify-between bg-white/5">
                             <div>
-                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-2 italic">Cycle Config: Step 0{creationStep}</p>
-                                <h2 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase italic">Registry Construction</h2>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-2 ">Cycle Config: Step 0{creationStep}</p>
+                                <h2 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase ">Registry Construction</h2>
                             </div>
                             <button
                                 onClick={() => { setShowCreateModal(false); resetCreationState(); }}
@@ -454,14 +454,14 @@ const MultiDoctorJourney = () => {
                                 <>
                                     {/* Symptom neural search */}
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic mb-4 block">Symptom Neural Feed (Optional)</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 block">Symptom Neural Feed (Optional)</label>
                                         <div className="relative group">
                                             <input
                                                 type="text"
                                                 placeholder="Enter symptoms for auto-calibration..."
                                                 value={searchTerm}
                                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner uppercase tracking-wider italic"
+                                                className="w-full bg-white/5 border border-white/10 p-5 pl-14 rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner uppercase tracking-wider "
                                             />
                                             <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" size={20} />
                                             <button
@@ -476,13 +476,13 @@ const MultiDoctorJourney = () => {
                                     {/* AI Suggestions */}
                                     {suggestions?.suggestedSpecialties?.length > 0 && (
                                         <div className="p-8 bg-amber-500/5 border border-amber-500/20 rounded-[2.5rem] animate-in slide-in-from-left duration-700">
-                                            <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-3 italic">
+                                            <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] mb-6 flex items-center gap-3 ">
                                                 <Sparkles size={16} className="animate-pulse" /> Neural Predictions
                                             </h4>
                                             <div className="flex items-center gap-4 flex-wrap">
                                                 {suggestions.suggestedSpecialties.map((spec, idx) => (
                                                     <React.Fragment key={spec}>
-                                                        <span className="px-4 py-2 bg-white/5 border border-amber-500/20 rounded-xl text-[10px] font-black text-amber-500 uppercase tracking-widest italic">
+                                                        <span className="px-4 py-2 bg-white/5 border border-amber-500/20 rounded-xl text-[10px] font-black text-amber-500 uppercase tracking-widest ">
                                                             {spec}
                                                         </span>
                                                         {idx < suggestions.suggestedSpecialties.length - 1 && (
@@ -497,8 +497,8 @@ const MultiDoctorJourney = () => {
                                     {/* Selection Matrix */}
                                     <div className="space-y-6">
                                         <div className="flex justify-between items-center px-2">
-                                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Practitioner Matrix</h4>
-                                            <span className="text-[10px] font-black text-primary uppercase italic">{selectedDoctors.length} Selected</span>
+                                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Practitioner Matrix</h4>
+                                            <span className="text-[10px] font-black text-primary uppercase ">{selectedDoctors.length} Selected</span>
                                         </div>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {filteredDoctors.map(doctor => (
@@ -517,11 +517,11 @@ const MultiDoctorJourney = () => {
                                                             <Stethoscope size={18} />
                                                         </div>
                                                         <div>
-                                                            <h5 className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-tight italic">Dr. {doctor.name}</h5>
-                                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">{doctor.specialty}</p>
+                                                            <h5 className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-tight ">Dr. {doctor.name}</h5>
+                                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest ">{doctor.specialty}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 pt-3 border-t border-white/5 text-[8px] font-black text-slate-600 uppercase tracking-widest italic">
+                                                    <div className="flex items-center gap-2 pt-3 border-t border-white/5 text-[8px] font-black text-slate-600 uppercase tracking-widest ">
                                                         <Building2 size={10} /> {doctor.building || 'A'} • F-{doctor.floor_number || 1}
                                                     </div>
                                                 </button>
@@ -533,20 +533,20 @@ const MultiDoctorJourney = () => {
                                 <div className="space-y-10 animate-in fade-in duration-700">
                                     {/* Date Config */}
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic mb-4 block">Cycle Baseline Date</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 block">Cycle Baseline Date</label>
                                         <input
                                             type="date"
                                             value={selectedDate}
                                             min={new Date().toISOString().split('T')[0]}
                                             onChange={(e) => setSelectedDate(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner uppercase tracking-wider italic"
+                                            className="w-full bg-white/5 border border-white/10 p-5 rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner uppercase tracking-wider "
                                         />
                                     </div>
 
                                     {/* Optimized Path Options */}
                                     <div className="space-y-6">
                                         <div className="flex items-center justify-between px-2">
-                                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic">Calculated Protocols</h4>
+                                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ">Calculated Protocols</h4>
                                             <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
                                                 {optimalPaths.length} Active Solutions
                                             </span>
@@ -556,7 +556,7 @@ const MultiDoctorJourney = () => {
                                             {optimalPaths.length === 0 ? (
                                                 <div className="p-12 text-center bg-white/5 rounded-[3rem] border-2 border-dashed border-white/10">
                                                     <AlertCircle className="mx-auto text-slate-700 mb-6 opacity-20" size={48} />
-                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Zero path solutions found for selected criteria.</p>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ">Zero path solutions found for selected criteria.</p>
                                                 </div>
                                             ) : (
                                                 optimalPaths.map((path, idx) => (
@@ -574,9 +574,9 @@ const MultiDoctorJourney = () => {
                                                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${selectedPathIndex === idx ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-white/5 text-slate-600'}`}>
                                                                     <Compass size={20} strokeWidth={2.5} className={selectedPathIndex === idx ? 'animate-spin-slow' : ''} />
                                                                 </div>
-                                                                <span className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tighter">Path Solution: Delta-{idx + 1}</span>
+                                                                <span className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter">Path Solution: Delta-{idx + 1}</span>
                                                             </div>
-                                                            <div className="text-[9px] font-black text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 uppercase tracking-[0.2em] italic">
+                                                            <div className="text-[9px] font-black text-primary bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/20 uppercase tracking-[0.2em] ">
                                                                 {path.totalDurationMins}M Telemetry
                                                             </div>
                                                         </div>
@@ -586,7 +586,7 @@ const MultiDoctorJourney = () => {
                                                                 <React.Fragment key={i}>
                                                                     <div className="flex flex-col gap-1">
                                                                         <span className="text-[9px] text-primary font-black uppercase tracking-widest tabular-nums leading-none mb-1">{item.slot}</span>
-                                                                        <span className="text-[11px] font-black text-slate-400 font-bold uppercase tracking-tight italic">{item.doctorName.split(' ').pop()}</span>
+                                                                        <span className="text-[11px] font-black text-slate-400 font-bold uppercase tracking-tight ">{item.doctorName.split(' ').pop()}</span>
                                                                     </div>
                                                                     {i < path.items.length - 1 && (
                                                                         <ArrowRight size={16} className="text-slate-700 opacity-40 mx-2" />
@@ -612,21 +612,21 @@ const MultiDoctorJourney = () => {
                                     className="w-full py-6 bg-primary text-white text-[11px] font-black uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed group/btn"
                                 >
                                     {isCreating ? 'Calibrating Path Vectors...' : (
-                                        <span className="flex items-center justify-center gap-3 italic">Initialize Schedule <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" /></span>
+                                        <span className="flex items-center justify-center gap-3 ">Initialize Schedule <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" /></span>
                                     )}
                                 </button>
                             ) : (
                                 <div className="flex gap-4">
                                     <button
                                         onClick={() => setCreationStep(1)}
-                                        className="flex-1 py-6 bg-white/5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-[0.3em] rounded-[2rem] hover:bg-white/10 transition-all italic"
+                                        className="flex-1 py-6 bg-white/5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-[0.3em] rounded-[2rem] hover:bg-white/10 transition-all "
                                     >
                                         Back to Matrix
                                     </button>
                                     <button
                                         onClick={handleCreateJourney}
                                         disabled={selectedPathIndex === null || isCreating}
-                                        className="flex-[2] py-6 bg-primary text-white text-[11px] font-black uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed italic"
+                                        className="flex-[2] py-6 bg-primary text-white text-[11px] font-black uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed "
                                     >
                                         {isCreating ? 'Finalizing Registry...' : `Lock & Synchronize Cycle`}
                                     </button>
@@ -645,8 +645,8 @@ const MetricCard = ({ icon: Icon, color, title, desc }) => (
         <div className={`p-4 bg-${color}-500/10 text-${color}-500 rounded-2xl w-fit mb-6 border border-${color}-500/10 group-hover:scale-110 transition-all duration-700 shadow-inner`}>
             <Icon size={24} strokeWidth={2.5} />
         </div>
-        <h3 className="text-lg font-black text-[var(--text-base)] mb-3 uppercase tracking-tight italic">{title}</h3>
-        <p className="text-[10px] font-bold text-slate-600 leading-relaxed uppercase tracking-widest opacity-80 group-hover:opacity-100 transition-opacity italic">{desc}</p>
+        <h3 className="text-lg font-black text-[var(--text-base)] mb-3 uppercase tracking-tight ">{title}</h3>
+        <p className="text-[10px] font-bold text-slate-600 leading-relaxed uppercase tracking-widest opacity-80 group-hover:opacity-100 transition-opacity ">{desc}</p>
     </div>
 );
 

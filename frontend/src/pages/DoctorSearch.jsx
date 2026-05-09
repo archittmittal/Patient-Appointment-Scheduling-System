@@ -57,7 +57,7 @@ const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nex
                             {nextAvailable ? (
                                 <span>Next available <span className="text-success font-medium">{nextAvailable}</span></span>
                             ) : (
-                                <span className="text-danger/70 italic">Fully booked this week</span>
+                                <span className="text-danger/70 ">Fully booked this week</span>
                             )}
                         </div>
                     </div>

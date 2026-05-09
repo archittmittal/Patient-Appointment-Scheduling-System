@@ -142,8 +142,8 @@ const SuccessModal = ({ booking, onClose }) => {
                 <div className="w-24 h-24 bg-primary text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-primary/30 border border-primary-light/20 rotate-12 transition-transform animate-bounce-slow">
                     <CheckCircle2 size={48} strokeWidth={2.5} />
                 </div>
-                <h3 className="text-3xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4">Registry Success</h3>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 italic max-w-xs mx-auto leading-relaxed">{booking.message}</p>
+                <h3 className="text-3xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-4">Registry Success</h3>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-10 max-w-xs mx-auto leading-relaxed">{booking.message}</p>
                 <div className="bg-primary/10 rounded-[2.5rem] p-10 mb-10 border border-primary/20 shadow-inner group transition-all duration-700 hover:bg-primary/20">
                     <p className="text-7xl font-black text-primary tracking-tight tabular-nums leading-none">#{booking.position}</p>
                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] mt-6">Batch Vector Position</p>

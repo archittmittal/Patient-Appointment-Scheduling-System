@@ -130,8 +130,8 @@ const FeedbackAnalytics = () => {
                     <div className="w-24 h-24 bg-emerald-500 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-emerald-500/30 animate-bounce">
                         <CheckCircle2 size={48} strokeWidth={2.5} />
                     </div>
-                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic mb-4">Packet Transmitted</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-10 italic">Your telemetry feed has been synchronized with the clinical registry.</p>
+                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase mb-4">Packet Transmitted</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-10 ">Your telemetry feed has been synchronized with the clinical registry.</p>
                     <div className="flex justify-center gap-4">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="w-2 h-2 rounded-full bg-emerald-500/40 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }}></div>
@@ -156,8 +156,8 @@ const FeedbackAnalytics = () => {
                             <BarChart3 size={32} strokeWidth={2.5} />
                         </div>
                         <div className="text-center md:text-left">
-                            <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-4">Sentiment Pulse</h1>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic">Real-time longitudinal patient satisfaction telemetry</p>
+                            <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-4">Sentiment Pulse</h1>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ">Real-time longitudinal patient satisfaction telemetry</p>
                         </div>
                     </div>
                 </div>
@@ -174,11 +174,11 @@ const FeedbackAnalytics = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     <div className="lg:col-span-2 glass-card rounded-[3.5rem] p-10 border-[var(--border-base)] relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={64} /></div>
-                        <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic">Category Dimensionality Matrix</h2>
+                        <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 ">Category Dimensionality Matrix</h2>
                         <div className="space-y-10">
                             {analytics?.categoryBreakdown?.map(cat => (
                                 <div key={cat.category} className="space-y-4">
-                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest italic leading-none">
+                                    <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest leading-none">
                                         <span className="text-slate-400">{cat.label}</span>
                                         <span className="text-primary">{cat.avgScore} / 5</span>
                                     </div>
@@ -201,18 +201,18 @@ const FeedbackAnalytics = () => {
                         {/* Optimization Suggestions */}
                         <div className="glass-card rounded-[3.5rem] p-10 border-[var(--border-base)] h-full relative overflow-hidden group">
                              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={48} /></div>
-                            <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic">Calibration Needs</h2>
+                            <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 ">Calibration Needs</h2>
                             <div className="space-y-4">
                                 {analytics?.topImprovements?.map((imp, idx) => (
                                     <div key={idx} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group/item hover:bg-white/10 transition-all">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic leading-none">{imp.item}</span>
-                                        <span className="text-[10px] font-black text-primary uppercase italic tabular-nums bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">+{imp.count} Logs</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{imp.item}</span>
+                                        <span className="text-[10px] font-black text-primary uppercase tabular-nums bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">+{imp.count} Logs</span>
                                     </div>
                                 ))}
                                 {(!analytics?.topImprovements || analytics.topImprovements.length === 0) && (
                                     <div className="py-10 text-center space-y-4">
                                          <ShieldCheck size={32} className="text-emerald-500/20 mx-auto" />
-                                         <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic leading-relaxed">System performance optimal.<br/>No critical calibration anomalies detected.</p>
+                                         <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest leading-relaxed">System performance optimal.<br/>No critical calibration anomalies detected.</p>
                                     </div>
                                 )}
                             </div>
@@ -234,8 +234,8 @@ const FeedbackAnalytics = () => {
                         <MessageSquare size={32} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-4">Service Calibration</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic">Collaborative clinical experience optimization</p>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-4">Service Calibration</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] ">Collaborative clinical experience optimization</p>
                     </div>
                 </div>
             </div>
@@ -276,8 +276,8 @@ const FeedbackAnalytics = () => {
                                                     <Stethoscope size={24} strokeWidth={2.5} />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tight">Cycle with Dr. {apt.doctor_name}</h3>
-                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 italic">
+                                                    <h3 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight">Cycle with Dr. {apt.doctor_name}</h3>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 ">
                                                         {apt.specialty || 'Clinical'} • {formatDate(apt.appointment_date)} at {formatTime(apt.appointment_time)}
                                                     </p>
                                                 </div>
@@ -291,7 +291,7 @@ const FeedbackAnalytics = () => {
                             ) : (
                                 <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none">
                                     <CheckCircle2 size={64} className="text-emerald-500/20 mx-auto mb-6" />
-                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic opacity-60">System Synchronized.<br/>All clinical cycles have been calibrated.</p>
+                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">System Synchronized.<br/>All clinical cycles have been calibrated.</p>
                                 </div>
                             )}
                         </div>
@@ -300,11 +300,11 @@ const FeedbackAnalytics = () => {
                         <div className="glass-modal rounded-[3.5rem] border-none shadow-2xl overflow-hidden animate-in zoom-in-95 duration-700">
                              <div className="bg-primary p-10 relative overflow-hidden">
                                  <div className="absolute top-0 right-0 p-10 opacity-10"><Zap size={80} /></div>
-                                 <button onClick={() => setSelectedAppointment(null)} className="text-white/60 hover:text-white transition-all text-[9px] font-black uppercase tracking-[0.3em] italic mb-6 flex items-center gap-2">
+                                 <button onClick={() => setSelectedAppointment(null)} className="text-white/60 hover:text-white transition-all text-[9px] font-black uppercase tracking-[0.3em] mb-6 flex items-center gap-2">
                                      <ArrowRight size={14} className="rotate-180" /> Abort Configuration
                                  </button>
-                                 <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-none">Cycle Calibration</h2>
-                                 <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] mt-3 italic">
+                                 <h2 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Cycle Calibration</h2>
+                                 <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] mt-3 ">
                                      Recipient: Dr. {selectedAppointment.doctor_name} • ID {selectedAppointment.id}
                                  </p>
                              </div>
@@ -312,11 +312,11 @@ const FeedbackAnalytics = () => {
                              <div className="p-10 space-y-12">
                                  {/* Ratings Cluster */}
                                  <div className="space-y-6">
-                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Primary Metrix</h3>
+                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Primary Metrix</h3>
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                          {categories.map(cat => (
                                              <div key={cat.id} className="p-6 bg-white/5 border border-white/5 rounded-[2rem] flex flex-col gap-4 items-center group/cat hover:bg-white/10 transition-all">
-                                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">{cat.label}</span>
+                                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest ">{cat.label}</span>
                                                  <StarGauge 
                                                      value={ratings[cat.id] || 0}
                                                      onChange={(val) => handleRatingChange(cat.id, val)}
@@ -328,7 +328,7 @@ const FeedbackAnalytics = () => {
 
                                  {/* Advocacy Index */}
                                  <div className="space-y-6">
-                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Advocacy Vectors</h3>
+                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Advocacy Vectors</h3>
                                      <div className="flex gap-4">
                                          <AdvocacyButton active={wouldRecommend} onClick={() => setWouldRecommend(true)} label="Positive Propagation" icon={ThumbsUp} color="emerald" />
                                          <AdvocacyButton active={!wouldRecommend} onClick={() => setWouldRecommend(false)} label="Negative Feed" icon={ThumbsDown} color="rose" />
@@ -337,13 +337,13 @@ const FeedbackAnalytics = () => {
 
                                  {/* Refinement Blocks */}
                                  <div className="space-y-6">
-                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Recommended Refinements</h3>
+                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Recommended Refinements</h3>
                                      <div className="flex flex-wrap gap-3">
                                          {improvementOptions.map(item => (
                                              <button
                                                  key={item}
                                                  onClick={() => toggleImprovement(item)}
-                                                 className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all italic border ${
+                                                 className={`px-5 py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all border ${
                                                      improvements.includes(item)
                                                          ? 'bg-primary text-white border-primary shadow-xl shadow-primary/20'
                                                          : 'bg-white/5 text-slate-500 border-white/10 hover:border-white/20'
@@ -357,12 +357,12 @@ const FeedbackAnalytics = () => {
 
                                  {/* Narrative Buffer */}
                                  <div className="space-y-6">
-                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Nuance Buffer (Optional)</h3>
+                                     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Nuance Buffer (Optional)</h3>
                                      <textarea
                                          value={comment}
                                          onChange={(e) => setComment(e.target.value)}
                                          placeholder="Enter descriptive observations for LLM analysis..."
-                                         className="w-full bg-white/5 border border-white/10 p-6 rounded-[2.5rem] text-sm font-bold text-[var(--text-base)] italic focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner h-32 resize-none uppercase tracking-wider"
+                                         className="w-full bg-white/5 border border-white/10 p-6 rounded-[2.5rem] text-sm font-bold text-[var(--text-base)] focus:outline-none focus:border-primary/40 focus:bg-white/10 transition-all shadow-inner h-32 resize-none uppercase tracking-wider"
                                      />
                                  </div>
                              </div>
@@ -371,7 +371,7 @@ const FeedbackAnalytics = () => {
                                  <button
                                      onClick={handleSubmit}
                                      disabled={submitting || Object.values(ratings).every(r => r === 0)}
-                                     className={`px-12 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] italic flex items-center justify-center gap-4 transition-all ${
+                                     className={`px-12 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] flex items-center justify-center gap-4 transition-all ${
                                          submitting || Object.values(ratings).every(r => r === 0)
                                              ? 'bg-white/5 border border-white/10 text-slate-700 cursor-not-allowed'
                                              : 'bg-primary text-white shadow-2xl shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-1'
@@ -394,14 +394,14 @@ const FeedbackAnalytics = () => {
                                 <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={64} /></div>
                                 <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-10 relative z-10">
                                     <div className="text-center md:text-left">
-                                        <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-2">Cycle Entry #{fb.id}</h3>
-                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic">
+                                        <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-2">Cycle Entry #{fb.id}</h3>
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ">
                                             Dr. {fb.doctor_name} • {fb.specialty} • {formatDate(fb.appointment_date)}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4 px-6 py-3 bg-amber-500/10 border border-amber-500/20 rounded-[2rem] shadow-inner">
                                         <Star className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" />
-                                        <span className="text-xl font-black text-amber-600 italic tabular-nums">{fb.weighted_score?.toFixed(1)}</span>
+                                        <span className="text-xl font-black text-amber-600 tabular-nums">{fb.weighted_score?.toFixed(1)}</span>
                                         <span className="text-[9px] font-black text-amber-600/40 uppercase tracking-widest">Precision Score</span>
                                     </div>
                                 </div>
@@ -410,7 +410,7 @@ const FeedbackAnalytics = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10 relative z-10 px-2">
                                     {Object.entries(fb.ratings || {}).map(([key, value]) => (
                                         <div key={key} className="p-5 bg-white/5 border border-white/5 rounded-[2.5rem] text-center border-b-4 border-b-primary/40 group/m hover:bg-white/10 transition-all">
-                                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic mb-3">
+                                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">
                                                 {categories.find(c => c.id === key)?.label || 'System Node'}
                                             </p>
                                             <div className="flex justify-center gap-1">
@@ -423,7 +423,7 @@ const FeedbackAnalytics = () => {
                                 </div>
 
                                 {fb.comment && (
-                                    <div className="relative p-6 bg-white/5 rounded-[2rem] border-l-4 border-l-primary/20 italic mb-8">
+                                    <div className="relative p-6 bg-white/5 rounded-[2rem] border-l-4 border-l-primary/20 mb-8">
                                          <MessageSquare className="absolute top-4 right-6 opacity-5" size={32} />
                                          <p className="text-[11px] font-bold text-slate-400 leading-relaxed uppercase tracking-widest opacity-80 decoration-primary/20 underline-offset-4 decoration-dotted">"{fb.comment}"</p>
                                     </div>
@@ -431,11 +431,11 @@ const FeedbackAnalytics = () => {
 
                                 <div className="flex items-center gap-4 pt-10 border-t border-white/10 opacity-60">
                                     {fb.would_recommend ? (
-                                        <div className="flex items-center gap-3 text-emerald-500 text-[9px] font-black uppercase tracking-[0.2em] italic">
+                                        <div className="flex items-center gap-3 text-emerald-500 text-[9px] font-black uppercase tracking-[0.2em] ">
                                             <div className="p-2 bg-emerald-500/10 rounded-lg"><ThumbsUp size={14} /></div> Propagation Flag: Set
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-3 text-rose-500 text-[9px] font-black uppercase tracking-[0.2em] italic">
+                                        <div className="flex items-center gap-3 text-rose-500 text-[9px] font-black uppercase tracking-[0.2em] ">
                                             <div className="p-2 bg-rose-500/10 rounded-lg"><ThumbsDown size={14} /></div> Propagation Flag: Reset
                                         </div>
                                     )}
@@ -445,7 +445,7 @@ const FeedbackAnalytics = () => {
                     ) : (
                         <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none">
                             <Clock size={64} className="text-slate-500/20 mx-auto mb-6" />
-                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic leading-relaxed">Historical registry empty.<br/>No longitudinal telemetry patterns detected.</p>
+                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-relaxed">Historical registry empty.<br/>No longitudinal telemetry patterns detected.</p>
                         </div>
                     )}
                 </div>
@@ -462,11 +462,11 @@ const StatusNode = ({ icon: Icon, label, value, sub, color }) => (
             <div className={`p-4 bg-${color}-500/10 text-${color}-500 rounded-2xl border border-${color}-500/20 shadow-inner group-hover:rotate-12 transition-transform duration-700`}>
                 <Icon size={24} strokeWidth={2.5} />
             </div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">{label}</span>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">{label}</span>
         </div>
         <div className="space-y-2">
-            <div className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic tabular-nums">{value}</div>
-            <p className={`text-[9px] font-black text-${color}-500 uppercase tracking-widest italic opacity-60`}>{sub}</p>
+            <div className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase tabular-nums">{value}</div>
+            <p className={`text-[9px] font-black text-${color}-500 uppercase tracking-widest opacity-60`}>{sub}</p>
         </div>
     </div>
 );
@@ -474,7 +474,7 @@ const StatusNode = ({ icon: Icon, label, value, sub, color }) => (
 const TabButton = ({ active, onClick, icon: Icon, label, badge }) => (
     <button
         onClick={onClick}
-        className={`flex-1 py-4 px-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] italic transition-all duration-700 flex items-center justify-center gap-3 relative overflow-hidden ${
+        className={`flex-1 py-4 px-6 rounded-[2rem] font-black text-[10px] uppercase tracking-[0.3em] transition-all duration-700 flex items-center justify-center gap-3 relative overflow-hidden ${
             active 
                 ? 'bg-primary text-white shadow-xl shadow-primary/20' 
                 : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
@@ -525,7 +525,7 @@ const AdvocacyButton = ({ active, onClick, label, icon: Icon, color }) => (
         <div className={`p-5 rounded-2xl transition-all duration-700 ${active ? `bg-${color}-500 text-white shadow-xl shadow-${color}-500/20` : 'bg-white/5 text-slate-700 group-hover:text-slate-500'}`}>
             <Icon size={28} strokeWidth={2.5} />
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic transition-colors ${active ? `text-${color}-500` : 'text-slate-600'}`}>
+        <span className={`text-[10px] font-black uppercase tracking-[0.3em] transition-colors ${active ? `text-${color}-500` : 'text-slate-600'}`}>
             {label}
         </span>
     </button>

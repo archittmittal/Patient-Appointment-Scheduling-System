@@ -39,24 +39,24 @@ const SmartArrivalCard = ({ arrivalData }) => {
                     <Sparkles size={28} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <h4 className="text-sm font-black text-emerald-600 uppercase tracking-[0.4em] leading-none italic">Smart Arrival</h4>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2 italic opacity-60">{confidence || 95}% Confidence Index</p>
+                    <h4 className="text-sm font-black text-emerald-600 uppercase tracking-[0.4em] leading-none ">Smart Arrival</h4>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] mt-2 opacity-60">{confidence || 95}% Confidence Index</p>
                 </div>
             </div>
 
             <div className="bg-white/5 border border-white/5 rounded-[2.5rem] p-10 mb-8 text-center shadow-inner group-hover:bg-white/10 transition-all duration-700">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4 opacity-60 italic">Clinical Entry Window</p>
-                <div className="text-6xl font-black text-emerald-500 tracking-tighter uppercase italic group-hover:scale-105 transition-transform duration-1000 tabular-nums">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.5em] mb-4 opacity-60 ">Clinical Entry Window</p>
+                <div className="text-6xl font-black text-emerald-500 tracking-tighter uppercase group-hover:scale-105 transition-transform duration-1000 tabular-nums">
                     {formatTo12Hour(optimalArrivalTime)}
                 </div>
-                <div className="flex items-center justify-center gap-6 text-[9px] font-black text-slate-600 uppercase tracking-widest mt-6 italic">
+                <div className="flex items-center justify-center gap-6 text-[9px] font-black text-slate-600 uppercase tracking-widest mt-6 ">
                     <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">EARLIEST {formatTo12Hour(earliestArrival)}</span>
                     <span className="w-1.5 h-1.5 bg-emerald-500/30 rounded-full"></span>
                     <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">LATEST {formatTo12Hour(latestArrival)}</span>
                 </div>
             </div>
 
-            <div className="bg-emerald-500/5 rounded-3xl p-6 mb-8 border border-emerald-500/10 italic relative group-hover:bg-emerald-500/10 transition-all duration-700">
+            <div className="bg-emerald-500/5 rounded-3xl p-6 mb-8 border border-emerald-500/10 relative group-hover:bg-emerald-500/10 transition-all duration-700">
                 <p className="text-[10px] font-bold text-emerald-600/80 leading-relaxed flex items-start gap-4 uppercase tracking-widest">
                     <Navigation size={18} className="flex-shrink-0 mt-0.5 animate-pulse" />
                     {message}
@@ -73,8 +73,8 @@ const SmartArrivalCard = ({ arrivalData }) => {
 
 const StatSimple = ({ value, label, color }) => (
     <div className="bg-white/5 border border-white/5 rounded-3xl p-6 text-center shadow-inner group-hover:border-emerald-500/20 transition-all duration-700">
-        <p className={`text-3xl font-black text-${color}-500 tracking-tighter italic tabular-nums leading-none mb-3`}>{value}</p>
-        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] italic opacity-60">{label}</p>
+        <p className={`text-3xl font-black text-${color}-500 tracking-tighter tabular-nums leading-none mb-3`}>{value}</p>
+        <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] opacity-60">{label}</p>
     </div>
 );
 
@@ -91,15 +91,15 @@ const QueueItem = ({ number, name, status, time, isCurrent }) => (
             {number}
         </div>
         <div className="ml-6 flex-1 space-y-2 relative z-10">
-            <h4 className={`text-sm font-black uppercase tracking-tight italic transition-colors ${isCurrent ? 'text-[var(--text-base)]' : 'text-slate-500 group-hover:text-slate-400'}`}>{name}</h4>
+            <h4 className={`text-sm font-black uppercase tracking-tight transition-colors ${isCurrent ? 'text-[var(--text-base)]' : 'text-slate-500 group-hover:text-slate-400'}`}>{name}</h4>
             <div className="flex items-center gap-2">
-                <span className={`text-[8px] font-black uppercase tracking-[0.3em] px-3 py-1 rounded-full border italic transition-all duration-700 ${isCurrent ? 'bg-primary/20 border-primary/20 text-primary shadow-inner' : status === 'COMPLETED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-white/5 border-white/10 text-slate-600'}`}>
+                <span className={`text-[8px] font-black uppercase tracking-[0.3em] px-3 py-1 rounded-full border transition-all duration-700 ${isCurrent ? 'bg-primary/20 border-primary/20 text-primary shadow-inner' : status === 'COMPLETED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' : 'bg-white/5 border-white/10 text-slate-600'}`}>
                     {status?.replace('_', ' ') || 'ACTIVE'}
                 </span>
             </div>
         </div>
         <div className="text-right space-y-2 relative z-10">
-            <p className={`text-[10px] font-black uppercase tracking-[0.3em] italic ${isCurrent ? 'text-primary' : 'text-slate-600'}`}>{time || '--:--'}</p>
+            <p className={`text-[10px] font-black uppercase tracking-[0.3em] ${isCurrent ? 'text-primary' : 'text-slate-600'}`}>{time || '--:--'}</p>
             {isCurrent && <Activity size={18} className="text-primary inline-block animate-pulse ml-auto" />}
             {status === 'COMPLETED' && <CheckCircle2 size={18} className="text-emerald-500 inline-block ml-auto" />}
         </div>
@@ -113,9 +113,9 @@ const DelayBanner = ({ delayMins, reason }) => delayMins >= 5 && (
             <AlertTriangle size={32} strokeWidth={2.5} />
         </div>
         <div className="flex-1 space-y-4">
-            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tight italic">Clinical Lag Detected (~{delayMins}M)</p>
-            {reason && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] italic opacity-60 leading-relaxed">{reason}</p>}
-            <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.4em] bg-rose-500/10 px-4 py-2 rounded-full w-fit border border-rose-500/20 italic animate-pulse">Automatic Synchronization in Progress</p>
+            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tight ">Clinical Lag Detected (~{delayMins}M)</p>
+            {reason && <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] opacity-60 leading-relaxed">{reason}</p>}
+            <p className="text-[9px] font-black text-rose-500 uppercase tracking-[0.4em] bg-rose-500/10 px-4 py-2 rounded-full w-fit border border-rose-500/20 animate-pulse">Automatic Synchronization in Progress</p>
         </div>
     </div>
 );
@@ -225,7 +225,7 @@ const LiveQueue = () => {
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center p-20 space-y-8 animate-in fade-in duration-1000">
              <div className="w-24 h-24 border-8 border-primary/10 border-t-primary rounded-full animate-spin"></div>
-             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic animate-pulse">Synchronizing Throughput Feed...</p>
+             <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] animate-pulse">Synchronizing Throughput Feed...</p>
         </div>
     );
 
@@ -233,12 +233,12 @@ const LiveQueue = () => {
         <div className="max-w-4xl mx-auto py-32 text-center glass-modal rounded-[4rem] border-none shadow-2xl space-y-10 group animate-in zoom-in-95 duration-700">
             <Compass size={64} className="text-slate-700/20 mx-auto group-hover:scale-110 transition-transform duration-700" />
             <div className="space-y-4">
-                <h3 className="text-2xl font-black text-slate-500 uppercase italic tracking-tighter">Registry Silent</h3>
-                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] italic opacity-60">No active queue nodes detected for the current session cycle.</p>
+                <h3 className="text-2xl font-black text-slate-500 uppercase tracking-tighter">Registry Silent</h3>
+                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] opacity-60">No active queue nodes detected for the current session cycle.</p>
             </div>
             <button 
                 onClick={() => window.location.reload()}
-                className="px-10 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white transition-all italic shadow-inner"
+                className="px-10 py-5 bg-white/5 border border-white/10 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white transition-all shadow-inner"
             >
                 Refresh Registry Sync
             </button>
@@ -253,18 +253,18 @@ const LiveQueue = () => {
                         <PulseIcon size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none flex items-center gap-6">
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none flex items-center gap-6">
                             Live Stream 
                             <div className="flex h-4 w-4 relative">
                                 <div className="animate-ping absolute h-full w-full rounded-full bg-rose-500 opacity-75"></div>
                                 <div className="relative h-4 w-4 rounded-full bg-rose-500 border border-rose-400/20"></div>
                             </div>
                         </h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">Real-time clinical throughput telemetry cluster</p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 leading-none opacity-60">Real-time clinical throughput telemetry cluster</p>
                     </div>
                 </div>
                 {lastUpdated && (
-                    <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 bg-white/5 px-8 py-3 rounded-full border border-white/5 uppercase tracking-[0.2em] italic shadow-inner">
+                    <div className="flex items-center gap-4 text-[10px] font-black text-slate-500 bg-white/5 px-8 py-3 rounded-full border border-white/5 uppercase tracking-[0.2em] shadow-inner">
                         <RefreshCw size={16} className="animate-spin-slow text-primary" /> SYNCED {lastUpdated.toLocaleTimeString()}
                     </div>
                 )}
@@ -278,37 +278,37 @@ const LiveQueue = () => {
                         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2"></div>
                         <div className="flex flex-col md:flex-row justify-between items-center md:items-start text-center md:text-left gap-10 relative z-10">
                             <div className="space-y-4">
-                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] italic opacity-80 leading-none">ACTIVE NODE</p>
-                                <h2 className="text-9xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums shadow-text">{queueInfo.currentToken || '—'}</h2>
-                                <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em] mt-8 flex items-center gap-3 justify-center md:justify-start italic leading-none">
+                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">ACTIVE NODE</p>
+                                <h2 className="text-9xl font-black text-white tracking-tighter uppercase leading-none tabular-nums shadow-text">{queueInfo.currentToken || '—'}</h2>
+                                <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em] mt-8 flex items-center gap-3 justify-center md:justify-start leading-none">
                                     <Activity size={14} className="animate-pulse" /> Clinical Throughput Active
                                 </p>
                             </div>
                             <div className="flex flex-col items-center md:items-end gap-3 pt-4">
-                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] italic opacity-80 leading-none">YOUR INDEX</p>
-                                <h2 className="text-7xl font-black text-white/90 tracking-tighter uppercase italic leading-none tabular-nums">{queueInfo.yourToken}</h2>
-                                <div className="mt-6 px-6 py-2 bg-white/10 rounded-full border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.3em] italic shadow-inner">Index Verified</div>
+                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">YOUR INDEX</p>
+                                <h2 className="text-7xl font-black text-white/90 tracking-tighter uppercase leading-none tabular-nums">{queueInfo.yourToken}</h2>
+                                <div className="mt-6 px-6 py-2 bg-white/10 rounded-full border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.3em] shadow-inner">Index Verified</div>
                             </div>
                         </div>
 
                         <div className="mt-16 pt-12 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
                             <div className="space-y-6 group/sub">
-                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] italic leading-none opacity-80">Estimated Sync Time</p>
+                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Estimated Sync Time</p>
                                 <div className="flex items-center gap-6">
                                     <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Timer size={28} /></div>
                                     <div>
-                                        <p className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums">~{queueInfo.estimatedWaitTime}M</p>
-                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 italic leading-none">Neural Prediction Core</p>
+                                        <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">~{queueInfo.estimatedWaitTime}M</p>
+                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Neural Prediction Core</p>
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-6 group/sub">
-                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] italic leading-none opacity-80">Registry Buffer</p>
+                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Registry Buffer</p>
                                 <div className="flex items-center gap-6">
                                     <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Users size={28} /></div>
                                     <div>
-                                        <p className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none tabular-nums">{queueInfo.patientsAhead ?? 0} PAX</p>
-                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 italic leading-none">Queue Separation Depth</p>
+                                        <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">{queueInfo.patientsAhead ?? 0} PAX</p>
+                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Queue Separation Depth</p>
                                     </div>
                                 </div>
                             </div>
@@ -318,17 +318,17 @@ const LiveQueue = () => {
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Target size={64} /></div>
                         <div className="flex items-center justify-between mb-12 relative z-10">
-                            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter flex items-center gap-6 italic">
+                            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter flex items-center gap-6 ">
                                 <span className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/20"><Users size={24} /></span>
                                 Clinical Sequence List
                             </h3>
-                            <span className="text-[10px] font-black text-slate-500 bg-white/5 border border-white/5 px-6 py-3 rounded-full uppercase tracking-[0.3em] italic shadow-inner">
+                            <span className="text-[10px] font-black text-slate-500 bg-white/5 border border-white/5 px-6 py-3 rounded-full uppercase tracking-[0.3em] shadow-inner">
                                 {queueData.length} ACTIVE NODES
                             </span>
                         </div>
                         <div className="space-y-4 custom-scrollbar max-h-[700px] overflow-y-auto pr-4 relative z-10">
                             {queueData.length > 0 ? queueData.map(item => <QueueItem key={item.queue_id || item.number || Math.random()} {...item} />) : (
-                                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] italic text-center py-20 opacity-40">Queue Buffer Empty</p>
+                                <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.3em] text-center py-20 opacity-40">Queue Buffer Empty</p>
                             )}
                         </div>
                     </div>
@@ -344,14 +344,14 @@ const LiveQueue = () => {
                                 <ShieldCheck size={32} strokeWidth={2.5} />
                             </div>
                             <div className="flex-1">
-                                <h4 className="text-xl font-black text-amber-600 uppercase tracking-tighter leading-none mb-8 italic">Registry Protocol</h4>
+                                <h4 className="text-xl font-black text-amber-600 uppercase tracking-tighter leading-none mb-8 ">Registry Protocol</h4>
                                 <ul className="space-y-6">
                                     {[
                                         'Arrive 15M before optimal sync.',
                                         'Valid ID biometric required.',
                                         'Automatic queue recalibration active.'
                                     ].map((text, i) => (
-                                        <li key={i} className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] flex items-center gap-4 italic leading-relaxed">
+                                        <li key={i} className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] flex items-center gap-4 leading-relaxed">
                                             <div className="w-1.5 h-1.5 bg-amber-500 rounded-full flex-shrink-0 animate-pulse"></div> {text}
                                         </li>
                                     ))}
@@ -365,10 +365,10 @@ const LiveQueue = () => {
                             <MapPin size={36} strokeWidth={2.5} />
                         </div>
                         <div className="space-y-2">
-                            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic opacity-60">Node Localization</h5>
-                            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter italic">Alpha Wing • Level 4 • Core Sync</p>
+                            <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] opacity-60">Node Localization</h5>
+                            <p className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter ">Alpha Wing • Level 4 • Core Sync</p>
                         </div>
-                        <button className="w-full py-5 bg-white/5 border border-white/5 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white hover:border-primary transition-all duration-700 shadow-inner italic">
+                        <button className="w-full py-5 bg-white/5 border border-white/5 rounded-[2rem] text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:bg-primary hover:text-white hover:border-primary transition-all duration-700 shadow-inner ">
                             Directions Cluster
                         </button>
                     </div>

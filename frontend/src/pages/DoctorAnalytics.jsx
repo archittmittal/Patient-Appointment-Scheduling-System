@@ -21,7 +21,7 @@ const DoctorAnalytics = () => {
                             <BarChart3 size={28} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic">Intelligence</h1>
+                            <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase ">Intelligence</h1>
                             <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Clinical performance engine • Activating</p>
                         </div>
                     </div>

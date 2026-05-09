@@ -101,7 +101,7 @@ const LateArrival = () => {
         }
     };
 
-    if (loading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse italic">Synchronizing Arrival Telemetry...</div>;
+    if (loading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse ">Synchronizing Arrival Telemetry...</div>;
 
     // Selection View
     if (!selectedAppointment) {
@@ -112,14 +112,14 @@ const LateArrival = () => {
                         <AlarmClock size={32} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-3">Delay Resolver</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Clinical synchronization assist for time-sensitive nodes</p>
+                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-3">Delay Resolver</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Clinical synchronization assist for time-sensitive nodes</p>
                     </div>
                 </div>
 
                 {appointments.length > 0 ? (
                     <div className="space-y-6">
-                        <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic px-2">Pending Meridian Cycles</h2>
+                        <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] px-2">Pending Meridian Cycles</h2>
                         {appointments.map(apt => (
                             <button
                                 key={apt.id}
@@ -133,13 +133,13 @@ const LateArrival = () => {
                                             <Clock size={24} strokeWidth={2.5} />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">
+                                            <h3 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tighter">
                                                 Dr. {apt.doctor_first_name} {apt.doctor_last_name}
                                             </h3>
                                             <div className="flex items-center gap-3 mt-1">
-                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{formatTo12Hour(apt.appointment_time)}</span>
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest ">{formatTo12Hour(apt.appointment_time)}</span>
                                                 <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
-                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest italic">{apt.appointment_type || 'Clinical Sync'}</span>
+                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest ">{apt.appointment_type || 'Clinical Sync'}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -151,9 +151,9 @@ const LateArrival = () => {
                 ) : (
                     <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none shadow-2xl space-y-8">
                         <Calendar size={64} className="text-slate-700/20 mx-auto" />
-                        <h3 className="text-xl font-black text-slate-500 uppercase italic tracking-tighter">Registry Silent</h3>
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] italic">No active cycles detected for the current meridian window.</p>
-                        <button onClick={() => navigate('/book')} className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all italic flex items-center gap-4 mx-auto">
+                        <h3 className="text-xl font-black text-slate-500 uppercase tracking-tighter">Registry Silent</h3>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] ">No active cycles detected for the current meridian window.</p>
+                        <button onClick={() => navigate('/book')} className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-4 mx-auto">
                             Book New Appointment <ArrowRight size={16} />
                         </button>
                     </div>
@@ -171,18 +171,18 @@ const LateArrival = () => {
                     <div className={`w-24 h-24 mx-auto mb-10 rounded-[2.5rem] flex items-center justify-center shadow-2xl border ${isSuccess ? 'bg-emerald-500 text-white border-emerald-400/20 shadow-emerald-500/30' : 'bg-rose-500 text-white border-rose-400/20 shadow-rose-500/30'} animate-bounce`}>
                         {isSuccess ? <CheckCircle2 size={48} strokeWidth={2.5} /> : <XCircle size={48} strokeWidth={2.5} />}
                     </div>
-                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic mb-4">{isSuccess ? 'Recalibration Complete' : 'Protocol Failure'}</h2>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12 italic leading-relaxed max-w-md mx-auto">{result.message}</p>
+                    <h2 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase mb-4">{isSuccess ? 'Recalibration Complete' : 'Protocol Failure'}</h2>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12 leading-relaxed max-w-md mx-auto">{result.message}</p>
 
                     {result.handling === 'fit_in' && (
                         <div className="grid grid-cols-2 gap-6 mb-12 max-w-lg mx-auto">
                             <div className="glass-card p-8 bg-white/5 border-white/5 rounded-[2.5rem] shadow-inner">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 italic">Registry Pos.</p>
-                                <p className="text-4xl font-black text-primary italic tracking-tighter tabular-nums">#{result.queuePosition}</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 ">Registry Pos.</p>
+                                <p className="text-4xl font-black text-primary tracking-tighter tabular-nums">#{result.queuePosition}</p>
                             </div>
                             <div className="glass-card p-8 bg-white/5 border-white/5 rounded-[2.5rem] shadow-inner">
-                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 italic">Est. Latency</p>
-                                <p className="text-4xl font-black text-amber-500 italic tracking-tighter tabular-nums">{result.estimatedWaitMins}M</p>
+                                <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mb-3 ">Est. Latency</p>
+                                <p className="text-4xl font-black text-amber-500 tracking-tighter tabular-nums">{result.estimatedWaitMins}M</p>
                             </div>
                         </div>
                     )}
@@ -190,21 +190,21 @@ const LateArrival = () => {
                     {result.handling === 'end_of_session' && (
                         <div className="glass-card p-10 bg-white/5 border-white/5 rounded-[3rem] mb-12 max-w-lg mx-auto relative group overflow-hidden">
                              <div className="absolute top-0 right-0 p-8 opacity-5"><Clock size={48} /></div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 italic">Calibrated Cycle Time</p>
-                            <p className="text-5xl font-black text-orange-500 italic tracking-tighter uppercase">{formatTo12Hour(result.estimatedTime)}</p>
-                            <p className="text-[9px] font-black text-slate-600 mt-6 uppercase tracking-widest italic">{result.note}</p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-4 ">Calibrated Cycle Time</p>
+                            <p className="text-5xl font-black text-orange-500 tracking-tighter uppercase">{formatTo12Hour(result.estimatedTime)}</p>
+                            <p className="text-[9px] font-black text-slate-600 mt-6 uppercase tracking-widest ">{result.note}</p>
                         </div>
                     )}
 
                     <div className="flex flex-col sm:flex-row gap-5 max-w-lg mx-auto relative z-10">
-                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 py-5 bg-white/5 border border-white/5 text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all italic">Registry Home</button>
+                        <button onClick={() => navigate('/patient-dashboard')} className="flex-1 py-5 bg-white/5 border border-white/5 text-slate-400 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all ">Registry Home</button>
                         {(result.handling === 'fit_in' || result.handling === 'end_of_session') && (
-                            <button onClick={() => navigate('/live-queue')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic flex items-center justify-center gap-3">
+                            <button onClick={() => navigate('/live-queue')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3">
                                 Live Stream <ArrowRight size={16} />
                             </button>
                         )}
                         {result.handling === 'reschedule' && (
-                            <button onClick={() => navigate('/book')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic">Book New Node</button>
+                            <button onClick={() => navigate('/book')} className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all ">Book New Node</button>
                         )}
                     </div>
                 </div>
@@ -232,16 +232,16 @@ const LateArrival = () => {
                     </div>
                     <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-4 mb-4">
-                            <h1 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">
+                            <h1 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none">
                                 {status?.isWithinGrace ? 'Grace Sync Active' : 
                                  status?.canStillBeAccommodated ? 'Latency Detected' :
                                  status?.shouldAutoReschedule ? 'Critical Protocol Breach' : 'System Stall'}
                             </h1>
-                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest italic border ${colorTheme.border} ${colorTheme.text} bg-white/5`}>
+                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${colorTheme.border} ${colorTheme.text} bg-white/5`}>
                                 {status?.minutesLate > 0 ? `${status.minutesLate}M Threshold` : 'Baseline Delta'}
                             </span>
                         </div>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic leading-relaxed">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-relaxed">
                             {status?.isWithinGrace ? 'Registry allows standard entry within current parameters.' :
                              status?.canStillBeAccommodated ? 'Clinical buffer available. Recalibrate arrival index below.' :
                              status?.shouldAutoReschedule ? 'Buffer exhausted. Mandatory node rescheduling recommended.' : 
@@ -260,7 +260,7 @@ const LateArrival = () => {
             {/* Protocol Override Selection */}
             <div className="glass-modal rounded-[3.5rem] p-12 border-none shadow-2xl relative overflow-hidden group">
                  <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={48} /></div>
-                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic px-2 flex items-center gap-3">
+                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 px-2 flex items-center gap-3">
                     <Sparkles size={16} className="text-primary" /> Available Overrides
                 </h2>
 
@@ -279,7 +279,7 @@ const LateArrival = () => {
                             } ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             {option.recommended && (
-                                <div className="absolute top-0 right-0 px-6 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-[0.4em] italic rounded-bl-[1.5rem] shadow-2xl">
+                                <div className="absolute top-0 right-0 px-6 py-2 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-[0.4em] rounded-bl-[1.5rem] shadow-2xl">
                                     Recommended
                                 </div>
                             )}
@@ -294,10 +294,10 @@ const LateArrival = () => {
                                     {getOptionIcon(option.id)}
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-1">{option.label}</h3>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60">{option.description}</p>
+                                    <h3 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-1">{option.label}</h3>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-60">{option.description}</p>
                                     {option.estimatedWaitMins && (
-                                        <p className="text-[10px] font-black text-amber-500 mt-3 uppercase tracking-widest italic flex items-center gap-2">
+                                        <p className="text-[10px] font-black text-amber-500 mt-3 uppercase tracking-widest flex items-center gap-2">
                                             <Timer size={14} className="animate-pulse" /> ~{option.estimatedWaitMins}M Potential Latency
                                         </p>
                                     )}
@@ -312,7 +312,7 @@ const LateArrival = () => {
             {/* Registry Policy Cluster */}
             <div className="glass-card rounded-[3rem] p-10 border-white/5 relative overflow-hidden group">
                  <div className="absolute top-0 right-0 p-8 opacity-5"><Shield size={48} /></div>
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic px-2">Clinical Policy Manual</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 px-2">Clinical Policy Manual</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                     <PolicyModule label="Grace Sync" value={`${status?.policy?.gracePeriodMins || 10}M`} />
                     <PolicyModule label="Max Tolerance" value={`${status?.policy?.maxLateMins || 30}M`} />
@@ -326,15 +326,15 @@ const LateArrival = () => {
 
 const MetricNode = ({ label, value }) => (
     <div className="bg-white/5 border border-white/5 rounded-[1.75rem] p-6 text-center shadow-inner group-hover:bg-white/10 transition-all">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] mb-3 italic">{label}</p>
-        <p className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">{value}</p>
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em] mb-3 ">{label}</p>
+        <p className="text-xl font-black text-[var(--text-base)] uppercase tracking-tighter">{value}</p>
     </div>
 );
 
 const PolicyModule = ({ label, value }) => (
     <div className="space-y-2">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic opacity-60 leading-none">{label}</p>
-        <p className="text-lg font-black text-slate-400 uppercase italic leading-none">{value}</p>
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest opacity-60 leading-none">{label}</p>
+        <p className="text-lg font-black text-slate-400 uppercase leading-none">{value}</p>
     </div>
 );
 

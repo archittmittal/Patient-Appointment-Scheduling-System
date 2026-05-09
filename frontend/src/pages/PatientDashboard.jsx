@@ -186,7 +186,7 @@ const PatientDashboard = () => {
                         ) : (
                             <div className="apple-card p-12 text-center border-dashed border-2">
                                 <CalendarIcon size={48} className="mx-auto text-slate-200 mb-4" />
-                                <p className="text-slate-500 font-semibold italic">No upcoming appointments scheduled.</p>
+                                <p className="text-slate-500 font-semibold ">No upcoming appointments scheduled.</p>
                                 <button onClick={() => navigate('/book')} className="mt-4 text-primary font-bold hover:underline">Book one now</button>
                             </div>
                         )}
@@ -216,7 +216,7 @@ const PatientDashboard = () => {
                                 ))
                             ) : (
                                 <div className="col-span-full p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center">
-                                    <p className="text-sm text-slate-400 italic">No active prescriptions on file.</p>
+                                    <p className="text-sm text-slate-400 ">No active prescriptions on file.</p>
                                 </div>
                             )}
                         </div>
@@ -294,7 +294,7 @@ const PatientDashboard = () => {
                         ) : (
                             <div className="py-8 text-center">
                                 <Activity size={32} className="mx-auto text-slate-200 mb-4" />
-                                <p className="text-sm text-slate-500 italic">No vitals data recorded yet.</p>
+                                <p className="text-sm text-slate-500 ">No vitals data recorded yet.</p>
                             </div>
                         )}
                     </div>
@@ -330,7 +330,7 @@ const PatientDashboard = () => {
                                 </div>
                             ))}
                             {stats.past.length === 0 && (
-                                <p className="text-xs text-slate-400 italic ml-1">No previous visits.</p>
+                                <p className="text-xs text-slate-400 ml-1">No previous visits.</p>
                             )}
                         </div>
                     </div>

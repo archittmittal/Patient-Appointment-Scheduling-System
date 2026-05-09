@@ -192,7 +192,7 @@ const Messages = () => {
                                                 isMe 
                                                     ? 'bg-primary text-white rounded-br-none' 
                                                     : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'
-                                            } ${msg.is_optimistic ? 'opacity-70 italic' : ''}`}>
+                                            } ${msg.is_optimistic ? 'opacity-70 ' : ''}`}>
                                                 {msg.content}
                                             </div>
                                             <div className={`flex items-center gap-2 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>

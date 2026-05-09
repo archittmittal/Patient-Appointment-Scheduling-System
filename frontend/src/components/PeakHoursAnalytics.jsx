@@ -172,7 +172,7 @@ const PeakHoursAnalytics = ({ doctorId }) => {
                     </div>
                     <div className="space-y-1">
                         <p className="text-[10px] font-black text-primary uppercase tracking-widest">Efficiency Recommendation</p>
-                        <p className="text-sm font-black text-[var(--text-base)] leading-relaxed italic">"{analysis.recommendation}"</p>
+                        <p className="text-sm font-black text-[var(--text-base)] leading-relaxed ">"{analysis.recommendation}"</p>
                     </div>
                 </div>
             </div>
