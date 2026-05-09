@@ -18,11 +18,7 @@ function validateEnv() {
         missing.forEach(m => console.error('\x1b[31m%s\x1b[0m', `  - ${m}`));
         console.error('\x1b[33m%s\x1b[0m', 'Please check your .env file or environment configuration.');
         
-        if (process.env.NODE_ENV === 'production') {
-            process.exit(1);
-        } else {
-            console.warn('\x1b[33m%s\x1b[0m', 'Warning: Continuing in development mode, but some features may fail.');
-        }
+        process.exit(1);
     } else {
         // Novel: Verify JWT Secret Strength
         const jwtSecret = process.env.JWT_SECRET;

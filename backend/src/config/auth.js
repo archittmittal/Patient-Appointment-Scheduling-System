@@ -10,11 +10,7 @@ const authConfig = {
 
 // Fail-safe for missing secret
 if (!authConfig.jwtSecret) {
-    if (process.env.NODE_ENV === 'production') {
-        throw new Error('FATAL: JWT_SECRET must be set in production environment.');
-    }
-    // In development, we can provide a persistent warning but allow local dev
-    // However, it's safer to just require it from .env as per validateEnv.
+    throw new Error('FATAL: JWT_SECRET environment variable is not defined. Authentication cannot initialize.');
 }
 
 module.exports = authConfig;
