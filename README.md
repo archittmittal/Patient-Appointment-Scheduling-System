@@ -187,6 +187,7 @@ cd frontend && npm run dev
 ## 👥 Contributors & Academic Context
 
 - **Project Lead**: Archit Mittal
+- **Project Members**: Aviral Mittal, Yash Kumar, Shiva
 - **Project Type**: Design & Analysis of Algorithms (DAA) - PBL
 - **Status**: Production Ready / Stabilization Complete
 
