@@ -185,11 +185,9 @@ router.get('/:id/reviews', async (req, res) => {
                 CONCAT(p.first_name, ' ', p.last_name) as name,
                 af.weighted_score as rating,
                 af.created_at as date,
-                af.comment,
-                u.email
+                af.comment
             FROM appointment_feedback af
             JOIN patients p ON af.patient_id = p.id
-            JOIN users u ON p.id = u.id
             WHERE af.doctor_id = ?
             ORDER BY af.created_at DESC
             LIMIT 10

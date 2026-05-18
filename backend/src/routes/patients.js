@@ -82,7 +82,7 @@ router.get('/:id', authenticate, async (req, res) => {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const [rows] = await db.query('SELECT * FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
+        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Patient not found' });
         }
@@ -111,7 +111,7 @@ router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async 
              WHERE id = ?`,
             [first_name ?? null, last_name ?? null, phone ?? null, address ?? null, blood_group ?? null, req.params.id]
         );
-        const [rows] = await db.query('SELECT * FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
+        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         res.json(rows[0]);
     } catch (error) {
         console.error(error);

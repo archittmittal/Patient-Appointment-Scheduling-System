@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const virtualCheckinService = require('../services/virtualCheckinService');
 const sseManager = require('../services/sseManager');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 
 /**
  * POST /api/virtual-checkin/:appointmentId/checkin
@@ -148,7 +148,7 @@ router.delete('/:appointmentId/checkin', authenticate, async (req, res) => {
  * GET /api/virtual-checkin/doctor/:doctorId/queue
  * Get virtual queue for doctor (clinic view)
  */
-router.get('/doctor/:doctorId/queue', authenticate, async (req, res) => {
+router.get('/doctor/:doctorId/queue', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const { doctorId } = req.params;
         const queue = await virtualCheckinService.getVirtualQueueForDoctor(doctorId);
@@ -163,7 +163,7 @@ router.get('/doctor/:doctorId/queue', authenticate, async (req, res) => {
  * GET /api/virtual-checkin/notifications
  * Get pending check-in notifications for clinic staff
  */
-router.get('/notifications', authenticate, async (req, res) => {
+router.get('/notifications', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const doctorId = req.query.doctorId || null;
         const notifications = await virtualCheckinService.getPendingNotifications(doctorId);

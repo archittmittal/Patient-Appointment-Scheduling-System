@@ -166,10 +166,10 @@ router.get('/predict-duration', authenticate, validateRequest(predictDurationQue
 });
 
 // GET /api/appointments/queue/:appointmentId
-router.get('/queue/:appointmentId', async (req, res) => {
+router.get('/queue/:appointmentId', authenticate, async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins
+            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins, a.patient_id
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE lq.appointment_id = ?
@@ -178,6 +178,11 @@ router.get('/queue/:appointmentId', async (req, res) => {
         if (rows.length === 0) return res.status(404).json({ message: 'Queue data not found' });
 
         const entry = rows[0];
+
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== entry.patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
 
         // Calculate actual wait time using AI predictions
         const waitInfo = await calculateQueueWaitTime(req.params.appointmentId);
@@ -207,10 +212,16 @@ router.get('/queue/:appointmentId', async (req, res) => {
             ORDER BY lq.queue_number ASC
         `, [req.params.appointmentId, entry.doctor_id, entry.appointment_date]);
 
+        // Obfuscate names for other patients
+        const processedSequence = sequence.map(r => ({
+            ...r,
+            name: (r.isCurrent || req.user.role === 'DOCTOR' || req.user.role === 'ADMIN') ? r.name : 'Patient'
+        }));
+
         res.json({
             ...entry,
             currentToken,
-            queueSequence: sequence,
+            queueSequence: processedSequence,
             estimatedWaitMins: waitInfo.estimatedWait,
             patientsAhead: waitInfo.patientsAhead,
             predictedDuration: entry.predicted_duration || entry.predicted_duration_mins || 15
@@ -518,16 +529,21 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
 });
 
 // PATCH /api/appointments/:id/cancel — cancel a CONFIRMED/PENDING appointment
-router.patch('/:id/cancel', async (req, res) => {
+router.patch('/:id/cancel', authenticate, async (req, res) => {
     const conn = await db.getConnection();
     try {
         const [apptRows] = await conn.query(
-            'SELECT status, appointment_date FROM appointments WHERE id = ?',
+            'SELECT status, appointment_date, patient_id FROM appointments WHERE id = ?',
             [req.params.id]
         );
         const appt = apptRows[0];
 
         if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== appt.patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
         if (!['CONFIRMED', 'PENDING'].includes(appt.status)) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }
