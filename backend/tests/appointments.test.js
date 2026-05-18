@@ -76,7 +76,7 @@ describe('Appointment & Queue Endpoints', () => {
     it('should cancel an appointment and release slot', async () => {
       const mockConn = {
         query: jest.fn()
-          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: new Date() }]]) // First query: select appt
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: new Date(), patient_id: 1 }]]) // First query: select appt
           .mockResolvedValueOnce([{ affectedRows: 1 }]) // Second: update status
           .mockResolvedValueOnce([{ affectedRows: 1 }]), // Third: update live_queue
         beginTransaction: jest.fn(),

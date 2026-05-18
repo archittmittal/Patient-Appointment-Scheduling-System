@@ -166,9 +166,18 @@ router.delete('/:walkinId', authenticate, async (req, res) => {
  * GET /api/walkin/:walkinId/wait-time
  * Get estimated wait time for a walk-in
  */
-router.get('/:walkinId/wait-time', async (req, res) => {
+router.get('/:walkinId/wait-time', authenticate, async (req, res) => {
     try {
         const { walkinId } = req.params;
+
+        // If patient, verify ownership
+        if (req.user.role === 'PATIENT') {
+            const [walkin] = await pool.query('SELECT patient_id FROM walkin_queue WHERE id = ?', [walkinId]);
+            if (!walkin || walkin.length === 0 || walkin[0].patient_id !== req.user.id) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+        }
+
         const waitTime = await walkinPriorityService.estimateWaitTime(walkinId);
         res.json({ estimatedMinutes: waitTime });
     } catch (error) {
