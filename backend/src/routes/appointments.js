@@ -98,10 +98,34 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             timeSlot
         });
 
-        const [result] = await db.query(
-            'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
-        );
+        const insertAppointmentSql = 'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        const insertAppointmentValues = [
+            patientId,
+            doctorId,
+            date,
+            timeSlot,
+            symptoms || null,
+            prediction.factors.isFollowUp ? 'confirmed' : 'CONFIRMED',
+            prediction.predictedDuration,
+            prediction.factors.isFollowUp || false
+        ];
+
+        let result;
+        try {
+            [result] = await db.query(insertAppointmentSql, insertAppointmentValues);
+        } catch (insertError) {
+            // Support both legacy uppercase and migrated lowercase appointment-status enums.
+            const fallbackStatus = insertAppointmentValues[5] === 'CONFIRMED' ? 'confirmed' : 'CONFIRMED';
+            try {
+                [result] = await db.query(insertAppointmentSql, [
+                    ...insertAppointmentValues.slice(0, 5),
+                    fallbackStatus,
+                    ...insertAppointmentValues.slice(6)
+                ]);
+            } catch (fallbackError) {
+                throw insertError;
+            }
+        }
 
         // Add to live queue only if appointment is today
         const [todayCheck] = await db.query(
