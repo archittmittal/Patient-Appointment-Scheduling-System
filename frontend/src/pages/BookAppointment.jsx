@@ -215,9 +215,13 @@ const BookAppointment = () => {
                 setBookingResult(data);
                 setIsBooked(true);
             } else {
-                alert(data.message || 'Unable to complete booking. Please try again.');
+                const errMsg = data.detail 
+                    ? `${data.message}: ${data.detail}` 
+                    : (data.message || 'Unable to complete booking. Please try again.');
+                alert(errMsg);
             }
         } catch (err) {
+            console.error('[Booking] Connection error:', err);
             alert('A connection error occurred. Please check your network.');
         } finally {
             setIsSubmitting(false);
