@@ -9,8 +9,53 @@ const feedbackService = require('../services/feedbackService');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
- * Submit feedback for an appointment
- * POST /api/feedback/submit
+ * @swagger
+ * tags:
+ *   name: Feedback
+ *   description: Patient feedback submission, categories, history, and analytical reporting
+ */
+
+/**
+ * @swagger
+ * /api/feedback/submit:
+ *   post:
+ *     summary: Submit feedback for an appointment
+ *     tags: [Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appointmentId
+ *               - ratings
+ *             properties:
+ *               appointmentId:
+ *                 type: integer
+ *               patientId:
+ *                 type: integer
+ *                 description: Explicit patient ID (Only used if user is not PATIENT)
+ *               ratings:
+ *                 type: object
+ *                 description: "Multi-category ratings (e.g. { doctor: 5, punctuality: 4 })"
+ *               comment:
+ *                 type: string
+ *               wouldRecommend:
+ *                 type: boolean
+ *               improvements:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Feedback submitted successfully
+ *       400:
+ *         description: Bad request (missing appointment ID or ratings)
+ *       500:
+ *         description: Server error
  */
 router.post('/submit', authenticate, async (req, res) => {
     try {
@@ -34,8 +79,20 @@ router.post('/submit', authenticate, async (req, res) => {
 });
 
 /**
- * Get pending feedback requests for the logged-in patient
- * GET /api/feedback/pending
+ * @swagger
+ * /api/feedback/pending:
+ *   get:
+ *     summary: Get pending feedback requests for the logged-in patient
+ *     tags: [Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of pending feedback requests retrieved successfully
+ *       403:
+ *         description: Forbidden (Only patients can view pending feedback)
+ *       500:
+ *         description: Server error
  */
 router.get('/pending', authenticate, async (req, res) => {
     try {
@@ -52,8 +109,16 @@ router.get('/pending', authenticate, async (req, res) => {
 });
 
 /**
- * Get feedback categories
- * GET /api/feedback/categories
+ * @swagger
+ * /api/feedback/categories:
+ *   get:
+ *     summary: Get feedback categories
+ *     tags: [Feedback]
+ *     responses:
+ *       200:
+ *         description: Feedback categories retrieved successfully
+ *       500:
+ *         description: Server error
  */
 router.get('/categories', async (req, res) => {
     try {
@@ -66,8 +131,20 @@ router.get('/categories', async (req, res) => {
 });
 
 /**
- * Get patient's feedback history
- * GET /api/feedback/history
+ * @swagger
+ * /api/feedback/history:
+ *   get:
+ *     summary: Get patient's feedback history
+ *     tags: [Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Feedback history retrieved successfully
+ *       403:
+ *         description: Forbidden (Only patients can view history)
+ *       500:
+ *         description: Server error
  */
 router.get('/history', authenticate, async (req, res) => {
     try {
@@ -84,8 +161,29 @@ router.get('/history', authenticate, async (req, res) => {
 });
 
 /**
- * Get doctor feedback analytics (doctors only)
- * GET /api/feedback/doctor-analytics
+ * @swagger
+ * /api/feedback/doctor-analytics:
+ *   get:
+ *     summary: Get doctor feedback analytics
+ *     tags: [Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Doctor analytics retrieved successfully
+ *       403:
+ *         description: Forbidden (Doctors only)
+ *       500:
+ *         description: Server error
  */
 router.get('/doctor-analytics', authenticate, async (req, res) => {
     try {
@@ -106,8 +204,29 @@ router.get('/doctor-analytics', authenticate, async (req, res) => {
 });
 
 /**
- * Get system-wide feedback analytics (admin only)
- * GET /api/feedback/system-analytics
+ * @swagger
+ * /api/feedback/system-analytics:
+ *   get:
+ *     summary: Get system-wide feedback analytics
+ *     tags: [Feedback]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: System-wide analytics retrieved successfully
+ *       403:
+ *         description: Forbidden (Admin only)
+ *       500:
+ *         description: Server error
  */
 router.get('/system-analytics', authenticate, async (req, res) => {
     try {

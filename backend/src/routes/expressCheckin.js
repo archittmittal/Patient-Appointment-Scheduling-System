@@ -9,8 +9,31 @@ const expressCheckinService = require('../services/expressCheckinService');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
- * GET /api/express-checkin/eligibility/:appointmentId
- * Check if patient is eligible for express check-in
+ * @swagger
+ * tags:
+ *   name: ExpressCheckin
+ *   description: Fast-track, QR code, and one-tap patient check-in management
+ */
+
+/**
+ * @swagger
+ * /api/express-checkin/eligibility/{appointmentId}:
+ *   get:
+ *     summary: Check if patient is eligible for express check-in
+ *     tags: [ExpressCheckin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Express check-in eligibility details retrieved successfully
+ *       500:
+ *         description: Failed to check eligibility
  */
 router.get('/eligibility/:appointmentId', authenticate, async (req, res) => {
     try {
@@ -26,8 +49,24 @@ router.get('/eligibility/:appointmentId', authenticate, async (req, res) => {
 });
 
 /**
- * POST /api/express-checkin/generate-token/:appointmentId
- * Generate QR code token for check-in
+ * @swagger
+ * /api/express-checkin/generate-token/{appointmentId}:
+ *   post:
+ *     summary: Generate QR code token for check-in
+ *     tags: [ExpressCheckin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: QR check-in token generated successfully
+ *       400:
+ *         description: Bad request
  */
 router.post('/generate-token/:appointmentId', authenticate, async (req, res) => {
     try {
@@ -43,8 +82,27 @@ router.post('/generate-token/:appointmentId', authenticate, async (req, res) => 
 });
 
 /**
- * POST /api/express-checkin/scan
- * Process QR code scan for check-in
+ * @swagger
+ * /api/express-checkin/scan:
+ *   post:
+ *     summary: Process QR code scan for check-in
+ *     tags: [ExpressCheckin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Express check-in completed successfully via QR scan
+ *       400:
+ *         description: Bad request (missing or invalid token)
  */
 router.post('/scan', async (req, res) => {
     try {
@@ -63,8 +121,24 @@ router.post('/scan', async (req, res) => {
 });
 
 /**
- * POST /api/express-checkin/one-tap/:appointmentId
- * One-tap check-in for eligible patients
+ * @swagger
+ * /api/express-checkin/one-tap/{appointmentId}:
+ *   post:
+ *     summary: One-tap check-in for eligible patients
+ *     tags: [ExpressCheckin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Checked in successfully with one-tap
+ *       400:
+ *         description: Bad request
  */
 router.post('/one-tap/:appointmentId', authenticate, async (req, res) => {
     try {
@@ -80,8 +154,18 @@ router.post('/one-tap/:appointmentId', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/express-checkin/prefilled-info
- * Get pre-filled patient information for check-in
+ * @swagger
+ * /api/express-checkin/prefilled-info:
+ *   get:
+ *     summary: Get pre-filled patient information for check-in
+ *     tags: [ExpressCheckin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Pre-filled patient information retrieved successfully
+ *       500:
+ *         description: Failed to get prefilled info
  */
 router.get('/prefilled-info', authenticate, async (req, res) => {
     try {
@@ -96,8 +180,18 @@ router.get('/prefilled-info', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/express-checkin/today
- * Get today's appointments eligible for express check-in
+ * @swagger
+ * /api/express-checkin/today:
+ *   get:
+ *     summary: Get today's appointments eligible for express check-in
+ *     tags: [ExpressCheckin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's eligible appointments retrieved successfully
+ *       500:
+ *         description: Failed to get today's appointments
  */
 router.get('/today', authenticate, async (req, res) => {
     try {

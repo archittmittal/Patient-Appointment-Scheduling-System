@@ -7,10 +7,17 @@ const cron = require('node-cron');
 const db = require('../config/db');
 const notificationService = require('../services/notificationService');
 
+const cronStatus = {
+    initialized: false,
+    lastMorningRun: null,
+    lastProximityRun: null
+};
+
 /**
  * Initializes all cron jobs
  */
 const initCronJobs = () => {
+    cronStatus.initialized = true;
     if (process.env.NODE_ENV === 'test') {
         console.log('[Cron] Skipping initialization in test environment.');
         return;
@@ -19,6 +26,7 @@ const initCronJobs = () => {
     // 1. Morning Reminder Service (24h-ish)
     // Runs every day at 8:00 AM
     cron.schedule('0 8 * * *', async () => {
+        cronStatus.lastMorningRun = new Date().toISOString();
         console.log('[Cron] Running Morning Appointment Reminders...');
         try {
             // Find appointments for today
@@ -48,6 +56,7 @@ const initCronJobs = () => {
     // 2. Proximity Reminder Service (1-hour before)
     // Runs every 30 minutes
     cron.schedule('*/30 * * * *', async () => {
+        cronStatus.lastProximityRun = new Date().toISOString();
         console.log('[Cron] Running 1-Hour Proximity Check...');
         try {
             const now = new Date();
@@ -107,4 +116,7 @@ const initCronJobs = () => {
     console.log('✓ Cron Scheduler Initialized');
 };
 
-module.exports = { initCronJobs };
+const getCronStatus = () => cronStatus;
+
+module.exports = { initCronJobs, getCronStatus };
+

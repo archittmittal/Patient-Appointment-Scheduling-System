@@ -43,7 +43,29 @@ const usersQuerySchema = Joi.object({
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
 
-// GET /api/admin/patients/list — simple list of all patients
+/**
+ * @swagger
+ * tags:
+ *   name: Admin
+ *   description: Administrative operations for managing doctors, patients, appointments, and overall system status
+ */
+
+/**
+ * @swagger
+ * /api/admin/patients/list:
+ *   get:
+ *     summary: Get a simple list of all patients
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Simple list of all patients retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/patients/list', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM patients ORDER BY first_name');
@@ -63,6 +85,51 @@ const ALLOWED_SORT = {
     role: 'u.role'
 };
 
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Retrieve a paginated, sorted list of all users with profile information
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [PATIENT, DOCTOR, ADMIN, ALL]
+ *           default: ALL
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           enum: [id, name, created_at, role]
+ *           default: id
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC, asc, desc]
+ *           default: ASC
+ *     responses:
+ *       200:
+ *         description: Paginated users retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/users', validateRequest(usersQuerySchema, 'query'), async (req, res) => {
     try {
         const { page, limit, role, sort_by, order: orderRaw } = req.query;
@@ -149,7 +216,55 @@ router.get('/users', validateRequest(usersQuerySchema, 'query'), async (req, res
     }
 });
 
-// POST /api/admin/doctors — add a new doctor
+/**
+ * @swagger
+ * /api/admin/doctors:
+ *   post:
+ *     summary: Add a new doctor to the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - first_name
+ *               - last_name
+ *               - specialty
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               specialty:
+ *                 type: string
+ *               degree:
+ *                 type: string
+ *               experience_years:
+ *                 type: integer
+ *               location_room:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Doctor added successfully
+ *       400:
+ *         description: Invalid request body
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       409:
+ *         description: Email already exists
+ */
 router.post('/doctors', validateRequest(addDoctorSchema), async (req, res) => {
     const conn = await db.getConnection();
     try {
@@ -183,7 +298,28 @@ router.post('/doctors', validateRequest(addDoctorSchema), async (req, res) => {
     }
 });
 
-// DELETE /api/admin/doctors/:id
+/**
+ * @swagger
+ * /api/admin/doctors/{id}:
+ *   delete:
+ *     summary: Remove a doctor by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.delete('/doctors/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'DOCTOR']);
@@ -194,7 +330,56 @@ router.delete('/doctors/:id', async (req, res) => {
     }
 });
 
-// POST /api/admin/patients — add a new patient
+/**
+ * @swagger
+ * /api/admin/patients:
+ *   post:
+ *     summary: Add a new patient to the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - first_name
+ *               - last_name
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *               phone:
+ *                 type: string
+ *               blood_group:
+ *                 type: string
+ *                 enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+ *               address:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Patient added successfully
+ *       400:
+ *         description: Invalid request body
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       409:
+ *         description: Email already exists
+ */
 router.post('/patients', validateRequest(addPatientSchema), async (req, res) => {
     const conn = await db.getConnection();
     try {
@@ -227,7 +412,28 @@ router.post('/patients', validateRequest(addPatientSchema), async (req, res) => 
     }
 });
 
-// DELETE /api/admin/patients/:id
+/**
+ * @swagger
+ * /api/admin/patients/{id}:
+ *   delete:
+ *     summary: Remove a patient by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Patient removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.delete('/patients/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'PATIENT']);
@@ -238,7 +444,29 @@ router.delete('/patients/:id', async (req, res) => {
     }
 });
 
-// GET /api/admin/patients/search?q=... — search patients by name or phone
+/**
+ * @swagger
+ * /api/admin/patients/search:
+ *   get:
+ *     summary: Search patients by name or phone number
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query (minimum 2 characters)
+ *     responses:
+ *       200:
+ *         description: List of matching patients retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/patients/search', async (req, res) => {
     try {
         const query = req.query.q || '';
@@ -259,7 +487,22 @@ router.get('/patients/search', async (req, res) => {
     }
 });
 
-// GET /api/admin/appointments — all appointments
+/**
+ * @swagger
+ * /api/admin/appointments:
+ *   get:
+ *     summary: Retrieve a list of all appointments in the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all appointments retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/appointments', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -279,7 +522,22 @@ router.get('/appointments', async (req, res) => {
     }
 });
 
-// GET /api/admin/stats — extended overview stats (Consolidated Query)
+/**
+ * @swagger
+ * /api/admin/stats:
+ *   get:
+ *     summary: Get administrative statistics overview and top doctors today
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Overall dashboard stats retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/stats', async (req, res) => {
     try {
         const [statsRows] = await db.query(`
@@ -319,7 +577,22 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// GET /api/admin/queue-overview — today's live queue (Optimized JOIN version)
+/**
+ * @swagger
+ * /api/admin/queue-overview:
+ *   get:
+ *     summary: Get live queue status overview for all doctors today
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Complete live queue overview retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/queue-overview', async (req, res) => {
     try {
         // Single query to get all data: Doctors and their Live Queue entries for today
