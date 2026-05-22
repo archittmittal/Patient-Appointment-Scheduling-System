@@ -1,5 +1,5 @@
 {
-  "buildCommand": "ROLLUP_NATIVE_ENABLED=0 vite build",
+  "buildCommand": "vite build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": "vite",
