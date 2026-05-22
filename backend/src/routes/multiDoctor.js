@@ -8,7 +8,57 @@ const router = express.Router();
 const { authenticate } = require('../middleware/authenticate');
 const multiDoctorService = require('../services/multiDoctorService');
 
-// Create a new multi-doctor journey
+/**
+ * @swagger
+ * tags:
+ *   name: MultiDoctor
+ *   description: Multi-doctor journey coordination, path optimization, and appointment scheduling
+ */
+
+/**
+ * @swagger
+ * /api/multi-doctor/journey:
+ *   post:
+ *     summary: Create a new multi-doctor journey
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appointments
+ *             properties:
+ *               appointments:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - doctorId
+ *                     - slotId
+ *                     - date
+ *                     - stopOrder
+ *                   properties:
+ *                     doctorId:
+ *                       type: integer
+ *                     slotId:
+ *                       type: integer
+ *                     date:
+ *                       type: string
+ *                     stopOrder:
+ *                       type: integer
+ *                       description: The sequence order of this stop in the journey
+ *     responses:
+ *       201:
+ *         description: Journey created successfully
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Forbidden (Only patients can create journeys)
+ */
 router.post('/journey', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'PATIENT') {
@@ -26,7 +76,22 @@ router.post('/journey', authenticate, async (req, res) => {
     }
 });
 
-// Get patient's active journeys
+/**
+ * @swagger
+ * /api/multi-doctor/journeys:
+ *   get:
+ *     summary: Get patient's active journeys
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Patient's journeys retrieved successfully
+ *       403:
+ *         description: Access denied (if user is not a PATIENT)
+ *       500:
+ *         description: Failed to get journeys
+ */
 router.get('/journeys', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'PATIENT') {
@@ -41,7 +106,26 @@ router.get('/journeys', authenticate, async (req, res) => {
     }
 });
 
-// Get journey details
+/**
+ * @swagger
+ * /api/multi-doctor/journey/{journeyId}:
+ *   get:
+ *     summary: Get journey details
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: journeyId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Journey details retrieved successfully
+ *       400:
+ *         description: Bad request
+ */
 router.get('/journey/:journeyId', authenticate, async (req, res) => {
     try {
         const journey = await multiDoctorService.getJourneyDetails(
@@ -55,7 +139,42 @@ router.get('/journey/:journeyId', authenticate, async (req, res) => {
     }
 });
 
-// Update stop status (doctor/admin)
+/**
+ * @swagger
+ * /api/multi-doctor/stop/{stopId}/status:
+ *   patch:
+ *     summary: Update stop status (doctor/admin)
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: stopId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [PENDING, COMPLETED, CANCELLED]
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Stop status updated successfully
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Access denied (if user is not a DOCTOR or ADMIN)
+ */
 router.patch('/stop/:stopId/status', authenticate, async (req, res) => {
     try {
         if (!['DOCTOR', 'ADMIN'].includes(req.user.role)) {
@@ -74,7 +193,33 @@ router.patch('/stop/:stopId/status', authenticate, async (req, res) => {
     }
 });
 
-// Get route optimization suggestion
+/**
+ * @swagger
+ * /api/multi-doctor/optimize:
+ *   post:
+ *     summary: Get route optimization suggestion
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorIds
+ *             properties:
+ *               doctorIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *     responses:
+ *       200:
+ *         description: Route optimization suggestions retrieved successfully
+ *       500:
+ *         description: Failed to optimize route
+ */
 router.post('/optimize', authenticate, async (req, res) => {
     try {
         const optimization = await multiDoctorService.getRouteOptimization(
@@ -87,7 +232,28 @@ router.post('/optimize', authenticate, async (req, res) => {
     }
 });
 
-// Get suggested doctor combinations for symptoms
+/**
+ * @swagger
+ * /api/multi-doctor/suggestions:
+ *   get:
+ *     summary: Get suggested doctor combinations for symptoms
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: symptom
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Suggested doctor combinations retrieved successfully
+ *       400:
+ *         description: Symptom is required
+ *       500:
+ *         description: Failed to get suggestions
+ */
 router.get('/suggestions', authenticate, async (req, res) => {
     try {
         const { symptom } = req.query;
@@ -104,9 +270,37 @@ router.get('/suggestions', authenticate, async (req, res) => {
 });
 
 /**
- * Issue #43: Coordination & Scheduling
+ * @swagger
+ * /api/multi-doctor/coordinate-slots:
+ *   post:
+ *     summary: Find optimal slot paths for multiple doctors on a date
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorIds
+ *               - date
+ *             properties:
+ *               doctorIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *               date:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Optimal slot paths retrieved successfully
+ *       400:
+ *         description: doctorIds (min 2) and date required
+ *       500:
+ *         description: Failed to coordinate slots
  */
-// GET /api/multi-doctor/coordinate-slots — find optimal slot paths
 router.post('/coordinate-slots', authenticate, async (req, res) => {
     try {
         const { doctorIds, date } = req.body;
@@ -122,7 +316,31 @@ router.post('/coordinate-slots', authenticate, async (req, res) => {
     }
 });
 
-// Get journey analytics (admin only)
+/**
+ * @swagger
+ * /api/multi-doctor/analytics:
+ *   get:
+ *     summary: Get journey analytics
+ *     tags: [MultiDoctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Journey analytics retrieved successfully
+ *       403:
+ *         description: Access denied (Requires ADMIN role)
+ *       500:
+ *         description: Failed to get analytics
+ */
 router.get('/analytics', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'ADMIN') {

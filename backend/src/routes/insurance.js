@@ -5,8 +5,40 @@ const { authenticate, requireRole } = require('../middleware/authenticate');
 const db = require('../config/db');
 
 /**
- * GET /api/insurance/providers
- * List all active insurance providers
+ * @swagger
+ * tags:
+ *   name: Insurance
+ *   description: Patient insurance management and verification
+ */
+
+/**
+ * @swagger
+ * /api/insurance/providers:
+ *   get:
+ *     summary: List all active insurance providers
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of insurance providers retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   name:
+ *                     type: string
+ *                   code:
+ *                     type: string
+ *                   is_active:
+ *                     type: boolean
+ *       500:
+ *         description: Error fetching providers
  */
 router.get('/providers', authenticate, async (req, res) => {
     try {
@@ -19,8 +51,35 @@ router.get('/providers', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/insurance/my
- * Get logged in patient's insurance details
+ * @swagger
+ * /api/insurance/my:
+ *   get:
+ *     summary: Get logged in patient's insurance details
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Patient's insurance details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 patient_id:
+ *                   type: integer
+ *                 provider_id:
+ *                   type: integer
+ *                 policy_number:
+ *                   type: string
+ *                 group_number:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *       500:
+ *         description: Error fetching your insurance
  */
 router.get('/my', authenticate, requireRole('PATIENT'), async (req, res) => {
     try {
@@ -33,8 +92,45 @@ router.get('/my', authenticate, requireRole('PATIENT'), async (req, res) => {
 });
 
 /**
- * POST /api/insurance/save
- * Save or update patient's insurance details
+ * @swagger
+ * /api/insurance/save:
+ *   post:
+ *     summary: Save or update patient's insurance details
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - providerId
+ *               - policyNumber
+ *             properties:
+ *               patientId:
+ *                 type: integer
+ *                 description: Required only if req.user.role is ADMIN
+ *               providerId:
+ *                 type: integer
+ *               policyNumber:
+ *                 type: string
+ *               groupNumber:
+ *                 type: string
+ *               coverageDetails:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Insurance details updated successfully
+ *       201:
+ *         description: Insurance details created successfully
+ *       400:
+ *         description: Bad request (e.g. missing patientId for admin)
+ *       403:
+ *         description: Forbidden (patientId specified without ADMIN role, or unauthorized)
+ *       500:
+ *         description: Error saving insurance
  */
 router.post('/save', authenticate, async (req, res) => {
     try {
@@ -59,8 +155,31 @@ router.post('/save', authenticate, async (req, res) => {
 });
 
 /**
- * POST /api/insurance/verify/:id
- * Verify eligibility for a specific insurance record
+ * @swagger
+ * /api/insurance/verify/{id}:
+ *   post:
+ *     summary: Verify eligibility for a specific insurance record
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the insurance record to verify
+ *     responses:
+ *       200:
+ *         description: Insurance eligibility verified successfully
+ *       400:
+ *         description: Invalid ID
+ *       403:
+ *         description: Forbidden (You can only verify your own insurance)
+ *       404:
+ *         description: Insurance record not found
+ *       500:
+ *         description: Error verifying eligibility
  */
 router.post('/verify/:id', authenticate, async (req, res) => {
     try {
@@ -87,8 +206,29 @@ router.post('/verify/:id', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/insurance/patient/:id
- * Get insurance details for a specific patient (Admin/Staff only)
+ * @swagger
+ * /api/insurance/patient/{id}:
+ *   get:
+ *     summary: Get insurance details for a specific patient
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the patient
+ *     responses:
+ *       200:
+ *         description: Insurance details retrieved successfully
+ *       400:
+ *         description: Invalid ID
+ *       403:
+ *         description: Access denied (if PATIENT and requests another patient's data)
+ *       500:
+ *         description: Error fetching patient insurance
  */
 router.get('/patient/:id', authenticate, async (req, res) => {
     try {
@@ -108,8 +248,22 @@ router.get('/patient/:id', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/insurance/all
- * Get all insurance policies (Admin only)
+ * @swagger
+ * /api/insurance/all:
+ *   get:
+ *     summary: Get all insurance policies
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All insurance policies retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       500:
+ *         description: Error fetching all policies
  */
 router.get('/all', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
@@ -122,8 +276,22 @@ router.get('/all', authenticate, requireRole('ADMIN'), async (req, res) => {
 });
 
 /**
- * GET /api/insurance/stats
- * Get insurance analytics (Admin only)
+ * @swagger
+ * /api/insurance/stats:
+ *   get:
+ *     summary: Get insurance analytics
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Insurance analytics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       500:
+ *         description: Error fetching insurance stats
  */
 router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
@@ -136,8 +304,33 @@ router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
 });
 
 /**
- * DELETE /api/insurance/:id
- * Delete an insurance record (Admin only)
+ * @swagger
+ * /api/insurance/{id}:
+ *   delete:
+ *     summary: Delete an insurance record
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the insurance record to delete
+ *     responses:
+ *       200:
+ *         description: Insurance record deleted successfully
+ *       400:
+ *         description: Invalid ID
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       404:
+ *         description: Insurance record not found
+ *       500:
+ *         description: Error deleting insurance record
  */
 router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
