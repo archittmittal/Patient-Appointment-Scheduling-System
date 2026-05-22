@@ -60,6 +60,20 @@ const swaggerOptions = {
                 url: 'http://localhost:7860',
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT'
+                }
+            }
+        },
+        security: [
+            {
+                bearerAuth: []
+            }
+        ]
     },
     apis: ['./src/routes/*.js'],
 };
@@ -160,9 +174,39 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/export', exportRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Hospital API is running' });
+app.get('/api/health', async (req, res) => {
+    let dbStatus = { healthy: false, error: null };
+    let dbStats = null;
+
+    try {
+        const db = require('./config/db');
+        // Simple query check
+        await db.query('SELECT 1');
+        dbStatus.healthy = true;
+        
+        if (typeof db.getPoolStats === 'function') {
+            dbStats = db.getPoolStats();
+        }
+    } catch (err) {
+        dbStatus.error = err.message;
+    }
+
+    const { getCronStatus } = require('./jobs/reminderJobs');
+    const schedulerStatus = typeof getCronStatus === 'function' ? getCronStatus() : null;
+
+    res.json({
+        status: dbStatus.healthy ? 'ok' : 'error',
+        message: 'Hospital API is running',
+        uptime: process.uptime(),
+        database: {
+            healthy: dbStatus.healthy,
+            error: dbStatus.error,
+            stats: dbStats
+        },
+        scheduler: schedulerStatus
+    });
 });
+
 
 // Global Error Handler (Must be last)
 app.use(errorHandler);

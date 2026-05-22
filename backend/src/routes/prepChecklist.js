@@ -8,7 +8,33 @@ const router = express.Router();
 const { authenticate } = require('../middleware/authenticate');
 const prepService = require('../services/prepChecklistService');
 
-// Get prep checklist for an appointment
+/**
+ * @swagger
+ * tags:
+ *   name: PrepChecklist
+ *   description: Patient appointment preparation instructions, checklist items, and completion tracking
+ */
+
+/**
+ * @swagger
+ * /api/prep/appointment/{appointmentId}:
+ *   get:
+ *     summary: Get prep checklist for an appointment
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Prep checklist retrieved successfully
+ *       400:
+ *         description: Bad request
+ */
 router.get('/appointment/:appointmentId', authenticate, async (req, res) => {
     try {
         const prep = await prepService.getAppointmentPrep(
@@ -22,7 +48,22 @@ router.get('/appointment/:appointmentId', authenticate, async (req, res) => {
     }
 });
 
-// Get patient's upcoming appointments with prep status
+/**
+ * @swagger
+ * /api/prep/overview:
+ *   get:
+ *     summary: Get patient's upcoming appointments with prep status
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Upcoming appointments with prep status retrieved successfully
+ *       403:
+ *         description: Access denied (if user is not a PATIENT)
+ *       500:
+ *         description: Failed to get prep overview
+ */
 router.get('/overview', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'PATIENT') {
@@ -37,7 +78,31 @@ router.get('/overview', authenticate, async (req, res) => {
     }
 });
 
-// Mark prep item as complete
+/**
+ * @swagger
+ * /api/prep/complete/{appointmentId}/{itemId}:
+ *   post:
+ *     summary: Mark a prep item as complete
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Prep item marked complete successfully
+ *       400:
+ *         description: Bad request
+ */
 router.post('/complete/:appointmentId/:itemId', authenticate, async (req, res) => {
     try {
         const result = await prepService.markPrepComplete(
@@ -52,7 +117,31 @@ router.post('/complete/:appointmentId/:itemId', authenticate, async (req, res) =
     }
 });
 
-// Mark prep item as incomplete
+/**
+ * @swagger
+ * /api/prep/complete/{appointmentId}/{itemId}:
+ *   delete:
+ *     summary: Mark a prep item as incomplete
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Prep item marked incomplete successfully
+ *       400:
+ *         description: Bad request
+ */
 router.delete('/complete/:appointmentId/:itemId', authenticate, async (req, res) => {
     try {
         const result = await prepService.markPrepIncomplete(
@@ -67,7 +156,41 @@ router.delete('/complete/:appointmentId/:itemId', authenticate, async (req, res)
     }
 });
 
-// Add custom prep item (doctor only)
+/**
+ * @swagger
+ * /api/prep/custom/{appointmentId}:
+ *   post:
+ *     summary: Add a custom prep item for an appointment
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Custom prep item added successfully
+ *       400:
+ *         description: Bad request
+ *       403:
+ *         description: Forbidden (Only doctors can add custom prep items)
+ */
 router.post('/custom/:appointmentId', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'DOCTOR') {
@@ -86,7 +209,20 @@ router.post('/custom/:appointmentId', authenticate, async (req, res) => {
     }
 });
 
-// Get default prep items (templates)
+/**
+ * @swagger
+ * /api/prep/defaults:
+ *   get:
+ *     summary: Get default prep items (templates)
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Default prep templates retrieved successfully
+ *       500:
+ *         description: Failed to get default prep items
+ */
 router.get('/defaults', authenticate, async (req, res) => {
     try {
         const defaults = prepService.getDefaultPrepItems();
@@ -97,7 +233,26 @@ router.get('/defaults', authenticate, async (req, res) => {
     }
 });
 
-// Get specialty template
+/**
+ * @swagger
+ * /api/prep/template/{specialty}:
+ *   get:
+ *     summary: Get specialty prep template
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: specialty
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Specialty template retrieved successfully
+ *       500:
+ *         description: Failed to get template
+ */
 router.get('/template/:specialty', authenticate, async (req, res) => {
     try {
         const template = prepService.getSpecialtyPrepTemplate(req.params.specialty);
@@ -108,7 +263,26 @@ router.get('/template/:specialty', authenticate, async (req, res) => {
     }
 });
 
-// Send prep reminder
+/**
+ * @swagger
+ * /api/prep/reminder/{appointmentId}:
+ *   post:
+ *     summary: Send prep reminder notification to the patient
+ *     tags: [PrepChecklist]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Prep reminder sent successfully
+ *       400:
+ *         description: Bad request
+ */
 router.post('/reminder/:appointmentId', authenticate, async (req, res) => {
     try {
         const result = await prepService.sendPrepReminder(
