@@ -8,7 +8,27 @@ const router = express.Router();
 const { authenticate } = require('../middleware/authenticate');
 const batchingService = require('../services/batchingService');
 
-// Get available batch types
+/**
+ * @swagger
+ * tags:
+ *   name: Batching
+ *   description: Appointment batching and grouped booking operations
+ */
+
+/**
+ * @swagger
+ * /api/batching/types:
+ *   get:
+ *     summary: Get available batch appointment types
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of batchable types retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/types', authenticate, async (req, res) => {
     try {
         const types = await batchingService.getBatchableTypes();
@@ -19,7 +39,32 @@ router.get('/types', authenticate, async (req, res) => {
     }
 });
 
-// Get available batch slots for a doctor
+/**
+ * @swagger
+ * /api/batching/slots/{doctorId}/{date}:
+ *   get:
+ *     summary: Get available batch slots for a specific doctor and date
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of batch slots retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/slots/:doctorId/:date', authenticate, async (req, res) => {
     try {
         const slots = await batchingService.getBatchSlots(
@@ -33,7 +78,46 @@ router.get('/slots/:doctorId/:date', authenticate, async (req, res) => {
     }
 });
 
-// Create a new batch slot (doctor only)
+/**
+ * @swagger
+ * /api/batching/slots:
+ *   post:
+ *     summary: Create a new batch slot
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - batch_type_id
+ *               - date
+ *               - start_time
+ *               - end_time
+ *               - max_patients
+ *             properties:
+ *               batch_type_id:
+ *                 type: integer
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               start_time:
+ *                 type: string
+ *               end_time:
+ *                 type: string
+ *               max_patients:
+ *                 type: integer
+ *     responses:
+ *       201:
+ *         description: Batch slot created successfully
+ *       403:
+ *         description: Forbidden (Requires DOCTOR role)
+ *       400:
+ *         description: Bad request
+ */
 router.post('/slots', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'DOCTOR') {
@@ -48,7 +132,36 @@ router.post('/slots', authenticate, async (req, res) => {
     }
 });
 
-// Book a batch appointment (patient)
+/**
+ * @swagger
+ * /api/batching/book/{slotId}:
+ *   post:
+ *     summary: Book a batch appointment in a slot
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: slotId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Batch appointment booked successfully
+ *       403:
+ *         description: Forbidden (Requires PATIENT role)
+ *       400:
+ *         description: Bad request
+ */
 router.post('/book/:slotId', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'PATIENT') {
@@ -67,7 +180,20 @@ router.post('/book/:slotId', authenticate, async (req, res) => {
     }
 });
 
-// Get patient's batch appointments
+/**
+ * @swagger
+ * /api/batching/my-appointments:
+ *   get:
+ *     summary: Retrieve patient's own batch appointments
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of patient's batch appointments retrieved successfully
+ *       403:
+ *         description: Forbidden (Requires PATIENT role)
+ */
 router.get('/my-appointments', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'PATIENT') {
@@ -82,7 +208,31 @@ router.get('/my-appointments', authenticate, async (req, res) => {
     }
 });
 
-// Get doctor's batch schedule
+/**
+ * @swagger
+ * /api/batching/doctor-schedule:
+ *   get:
+ *     summary: Retrieve doctor's own batch schedule
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Doctor's batch schedule retrieved successfully
+ *       403:
+ *         description: Forbidden (Requires DOCTOR role)
+ */
 router.get('/doctor-schedule', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'DOCTOR') {
@@ -101,7 +251,26 @@ router.get('/doctor-schedule', authenticate, async (req, res) => {
     }
 });
 
-// Get batch slot details
+/**
+ * @swagger
+ * /api/batching/slots/{slotId}/details:
+ *   get:
+ *     summary: Retrieve details of a specific batch slot
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: slotId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Batch slot details retrieved successfully
+ *       400:
+ *         description: Bad request
+ */
 router.get('/slots/:slotId/details', authenticate, async (req, res) => {
     try {
         const details = await batchingService.getBatchSlotDetails(req.params.slotId);
@@ -112,7 +281,31 @@ router.get('/slots/:slotId/details', authenticate, async (req, res) => {
     }
 });
 
-// Suggest batch slots for a patient
+/**
+ * @swagger
+ * /api/batching/suggest:
+ *   get:
+ *     summary: Suggest available batch slots for a patient based on preferences
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: appointmentType
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: preferredDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of suggested batch slots retrieved successfully
+ *       400:
+ *         description: Bad request (missing appointmentType)
+ */
 router.get('/suggest', authenticate, async (req, res) => {
     try {
         const { appointmentType, preferredDate } = req.query;
@@ -133,7 +326,36 @@ router.get('/suggest', authenticate, async (req, res) => {
     }
 });
 
-// Cancel batch slot (doctor only)
+/**
+ * @swagger
+ * /api/batching/slots/{slotId}:
+ *   delete:
+ *     summary: Cancel a batch slot
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: slotId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Batch slot cancelled successfully
+ *       403:
+ *         description: Forbidden (Requires DOCTOR role)
+ *       400:
+ *         description: Bad request
+ */
 router.delete('/slots/:slotId', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'DOCTOR') {
@@ -152,7 +374,31 @@ router.delete('/slots/:slotId', authenticate, async (req, res) => {
     }
 });
 
-// Get batch analytics (doctor)
+/**
+ * @swagger
+ * /api/batching/analytics:
+ *   get:
+ *     summary: Get batch scheduling analytics
+ *     tags: [Batching]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Batch analytics retrieved successfully
+ *       403:
+ *         description: Forbidden (Requires DOCTOR role)
+ */
 router.get('/analytics', authenticate, async (req, res) => {
     try {
         if (req.user.role !== 'DOCTOR') {

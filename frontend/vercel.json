@@ -1,7 +1,7 @@
 {
-  "buildCommand": "ROLLUP_NATIVE_ENABLED=0 vite build",
+  "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "installCommand": "npm install --no-package-lock",
   "framework": "vite",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }

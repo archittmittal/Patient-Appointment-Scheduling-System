@@ -10,8 +10,54 @@ const { authenticate, requireRole } = require('../middleware/authenticate');
 const pool = require('../config/db');
 
 /**
- * POST /api/walkin/register
- * Register a new walk-in patient
+ * @swagger
+ * tags:
+ *   name: WalkIn
+ *   description: Walk-in patient queue registration and prioritization operations
+ */
+
+/**
+ * @swagger
+ * /api/walkin/register:
+ *   post:
+ *     summary: Register a new walk-in patient
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctorId
+ *               - urgencyLevel
+ *               - reason
+ *             properties:
+ *               doctorId:
+ *                 type: integer
+ *               specialtyId:
+ *                 type: integer
+ *               urgencyLevel:
+ *                 type: integer
+ *                 description: Urgency score/tier for prioritization
+ *               reason:
+ *                 type: string
+ *               symptoms:
+ *                 type: string
+ *               vitalSigns:
+ *                 type: object
+ *               overridePatientId:
+ *                 type: integer
+ *                 description: Admin or doctor can specify patient ID to register
+ *     responses:
+ *       200:
+ *         description: Walk-in patient registered successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/register', authenticate, async (req, res) => {
     try {
@@ -40,8 +86,24 @@ router.post('/register', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/walkin/queue/:doctorId
- * Get walk-in queue for a doctor
+ * @swagger
+ * /api/walkin/queue/{doctorId}:
+ *   get:
+ *     summary: Get walk-in queue for a specific doctor
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Walk-in queue retrieved successfully
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/queue/:doctorId', authenticate, async (req, res) => {
     try {
@@ -55,8 +117,24 @@ router.get('/queue/:doctorId', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/walkin/next/:doctorId
- * Get next walk-in patient to call
+ * @swagger
+ * /api/walkin/next/{doctorId}:
+ *   get:
+ *     summary: Get the next walk-in patient in line for a specific doctor
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Next walk-in patient details retrieved successfully
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/next/:doctorId', authenticate, async (req, res) => {
     try {
@@ -70,8 +148,36 @@ router.get('/next/:doctorId', authenticate, async (req, res) => {
 });
 
 /**
- * POST /api/walkin/:walkinId/call
- * Call a walk-in patient
+ * @swagger
+ * /api/walkin/{walkinId}/call:
+ *   post:
+ *     summary: Call a walk-in patient from the waiting queue
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: walkinId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctorId:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Walk-in patient called successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires DOCTOR or ADMIN role)
  */
 router.post('/:walkinId/call', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
@@ -91,8 +197,28 @@ router.post('/:walkinId/call', authenticate, requireRole(['DOCTOR', 'ADMIN']), a
 });
 
 /**
- * POST /api/walkin/:walkinId/complete
- * Complete a walk-in consultation
+ * @swagger
+ * /api/walkin/{walkinId}/complete:
+ *   post:
+ *     summary: Complete a walk-in patient consultation
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: walkinId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Consultation marked complete successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires DOCTOR or ADMIN role)
  */
 router.post('/:walkinId/complete', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
@@ -106,8 +232,41 @@ router.post('/:walkinId/complete', authenticate, requireRole(['DOCTOR', 'ADMIN']
 });
 
 /**
- * PUT /api/walkin/:walkinId/urgency
- * Update urgency level
+ * @swagger
+ * /api/walkin/{walkinId}/urgency:
+ *   put:
+ *     summary: Update urgency level of a registered walk-in
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: walkinId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - urgencyLevel
+ *             properties:
+ *               urgencyLevel:
+ *                 type: integer
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Urgency level updated successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires DOCTOR or ADMIN role)
  */
 router.put('/:walkinId/urgency', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
@@ -123,8 +282,25 @@ router.put('/:walkinId/urgency', authenticate, requireRole(['DOCTOR', 'ADMIN']),
 });
 
 /**
- * GET /api/walkin/stats
- * Get walk-in statistics
+ * @swagger
+ * /api/walkin/stats:
+ *   get:
+ *     summary: Get walk-in scheduling statistics
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: doctorId
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Walk-in statistics retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires DOCTOR or ADMIN role)
  */
 router.get('/stats', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
@@ -138,8 +314,36 @@ router.get('/stats', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req,
 });
 
 /**
- * DELETE /api/walkin/:walkinId
- * Cancel/remove a walk-in from queue
+ * @swagger
+ * /api/walkin/{walkinId}:
+ *   delete:
+ *     summary: Cancel walk-in queue registration
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: walkinId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Walk-in registration cancelled successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Not authorized to cancel this registration)
  */
 router.delete('/:walkinId', authenticate, async (req, res) => {
     try {
@@ -163,8 +367,26 @@ router.delete('/:walkinId', authenticate, async (req, res) => {
 });
 
 /**
- * GET /api/walkin/:walkinId/wait-time
- * Get estimated wait time for a walk-in
+ * @swagger
+ * /api/walkin/{walkinId}/wait-time:
+ *   get:
+ *     summary: Get estimated wait time for a walk-in patient
+ *     tags: [WalkIn]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: walkinId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Estimated wait time retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
  */
 router.get('/:walkinId/wait-time', authenticate, async (req, res) => {
     try {

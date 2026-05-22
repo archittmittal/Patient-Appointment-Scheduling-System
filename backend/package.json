@@ -8,7 +8,10 @@
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles",
     "prepare": "husky",
-    "db:check": "node scripts/dbCheck.js"
+    "db:check": "node scripts/dbCheck.js",
+    "db:migrate": "node database/apply_migrations.js",
+    "db:seed": "node seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "keywords": [],
   "author": "",

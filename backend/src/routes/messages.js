@@ -4,7 +4,44 @@ const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
- * Send a message
+ * @swagger
+ * tags:
+ *   name: Messages
+ *   description: Peer-to-peer patient and provider secure messaging
+ */
+
+/**
+ * @swagger
+ * /api/messages:
+ *   post:
+ *     summary: Send a secure message
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - receiverId
+ *               - content
+ *             properties:
+ *               receiverId:
+ *                 type: integer
+ *               content:
+ *                 type: string
+ *               appointmentId:
+ *                 type: integer
+ *                 description: Optional reference to an appointment context
+ *     responses:
+ *       201:
+ *         description: Message sent successfully
+ *       400:
+ *         description: Receiver ID and content are required
+ *       500:
+ *         description: Server error
  */
 router.post('/', authenticate, async (req, res, next) => {
     try {
@@ -25,7 +62,25 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 
 /**
- * Get message history with a specific user
+ * @swagger
+ * /api/messages/history/{userId}:
+ *   get:
+ *     summary: Get message history with a specific user
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the other user in the conversation
+ *     responses:
+ *       200:
+ *         description: Message history retrieved and unread messages marked as read
+ *       500:
+ *         description: Server error
  */
 router.get('/history/:userId', authenticate, async (req, res, next) => {
     try {
@@ -51,7 +106,18 @@ router.get('/history/:userId', authenticate, async (req, res, next) => {
 });
 
 /**
- * Get list of conversations
+ * @swagger
+ * /api/messages/conversations:
+ *   get:
+ *     summary: Get list of active conversations for the authenticated user
+ *     tags: [Messages]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Active conversations list retrieved successfully
+ *       500:
+ *         description: Server error
  */
 router.get('/conversations', authenticate, async (req, res, next) => {
     try {
