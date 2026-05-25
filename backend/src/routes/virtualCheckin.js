@@ -64,6 +64,19 @@ router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
             { etaMinutes, latitude, longitude, device }
         );
 
+        // Broadcast real-time updates to patient waiting room and doctor dashboard
+        const activeStatus = await virtualCheckinService.getWaitingRoomStatus(appointmentId, patientId);
+        if (activeStatus) {
+            sseManager.broadcastQueueUpdate(appointmentId, activeStatus);
+            const doctorId = activeStatus.appointment.doctorId || activeStatus.appointment.doctor_id;
+            if (doctorId) {
+                sseManager.broadcastToDoctor(doctorId, 'doctor_queue_update', {
+                    refresh: true,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
         res.json(result);
     } catch (error) {
         console.error('Virtual check-in error:', error);
@@ -121,6 +134,19 @@ router.post('/:appointmentId/status', authenticate, async (req, res) => {
             status.toUpperCase(),
             { etaMinutes, message }
         );
+
+        // Broadcast real-time updates to patient waiting room and doctor dashboard
+        const activeStatus = await virtualCheckinService.getWaitingRoomStatus(appointmentId, patientId);
+        if (activeStatus) {
+            sseManager.broadcastQueueUpdate(appointmentId, activeStatus);
+            const doctorId = activeStatus.appointment.doctorId || activeStatus.appointment.doctor_id;
+            if (doctorId) {
+                sseManager.broadcastToDoctor(doctorId, 'doctor_queue_update', {
+                    refresh: true,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
 
         res.json(result);
     } catch (error) {
@@ -278,6 +304,20 @@ router.delete('/:appointmentId/checkin', authenticate, async (req, res) => {
         const patientId = req.user.id;
 
         const result = await virtualCheckinService.cancelCheckin(appointmentId, patientId);
+
+        // Broadcast real-time updates to patient waiting room and doctor dashboard
+        const activeStatus = await virtualCheckinService.getWaitingRoomStatus(appointmentId, patientId);
+        if (activeStatus) {
+            sseManager.broadcastQueueUpdate(appointmentId, activeStatus);
+            const doctorId = activeStatus.appointment.doctorId || activeStatus.appointment.doctor_id;
+            if (doctorId) {
+                sseManager.broadcastToDoctor(doctorId, 'doctor_queue_update', {
+                    refresh: true,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
         res.json(result);
     } catch (error) {
         console.error('Cancel check-in error:', error);

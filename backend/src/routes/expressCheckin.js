@@ -7,6 +7,9 @@ const express = require('express');
 const router = express.Router();
 const expressCheckinService = require('../services/expressCheckinService');
 const { authenticate } = require('../middleware/authenticate');
+const db = require('../config/db');
+const sseManager = require('../services/sseManager');
+const virtualCheckinService = require('../services/virtualCheckinService');
 
 /**
  * @swagger
@@ -113,6 +116,26 @@ router.post('/scan', async (req, res) => {
         }
 
         const result = await expressCheckinService.processExpressCheckin(token);
+
+        // Broadcast real-time updates to patient waiting room and doctor dashboard
+        if (result && result.appointmentId) {
+            const [apptRows] = await db.query(
+                'SELECT patient_id, doctor_id FROM appointments WHERE id = ?',
+                [result.appointmentId]
+            );
+            if (apptRows.length > 0) {
+                const { patient_id, doctor_id } = apptRows[0];
+                const activeStatus = await virtualCheckinService.getWaitingRoomStatus(result.appointmentId, patient_id);
+                if (activeStatus) {
+                    sseManager.broadcastQueueUpdate(result.appointmentId, activeStatus);
+                }
+                sseManager.broadcastToDoctor(doctor_id, 'doctor_queue_update', {
+                    refresh: true,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
         res.json(result);
     } catch (error) {
         console.error('QR scan error:', error);
@@ -146,6 +169,24 @@ router.post('/one-tap/:appointmentId', authenticate, async (req, res) => {
         const patientId = req.user.id;
 
         const result = await expressCheckinService.oneTapCheckin(appointmentId, patientId);
+
+        // Broadcast real-time updates to patient waiting room and doctor dashboard
+        const [apptRows] = await db.query(
+            'SELECT doctor_id FROM appointments WHERE id = ?',
+            [appointmentId]
+        );
+        if (apptRows.length > 0) {
+            const { doctor_id } = apptRows[0];
+            const activeStatus = await virtualCheckinService.getWaitingRoomStatus(appointmentId, patientId);
+            if (activeStatus) {
+                sseManager.broadcastQueueUpdate(appointmentId, activeStatus);
+            }
+            sseManager.broadcastToDoctor(doctor_id, 'doctor_queue_update', {
+                refresh: true,
+                timestamp: new Date().toISOString()
+            });
+        }
+
         res.json(result);
     } catch (error) {
         console.error('One-tap check-in error:', error);
