@@ -10,7 +10,7 @@ import {
     Navigation2, Car, Building2, Wifi, WifiOff, Bell, X, 
     Users, Timer, Sparkles, ArrowRight, Phone, Activity,
     Zap, ShieldCheck, Compass, Info, Target, Heart, Radio,
-    Calendar
+    Calendar, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/apiClient';
@@ -262,25 +262,79 @@ const VirtualWaitingRoom = () => {
             </div>
 
             {isCheckedIn && (
-                <div className="glass-modal rounded-[3.5rem] p-10 bg-gradient-to-br from-primary to-primary-hover border-none shadow-2xl relative overflow-hidden transition-all duration-700 hover:shadow-primary/20">
-                     <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 -z-10"></div>
-                    <div className="flex items-center gap-4 mb-10 relative z-10">
-                        <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-white shadow-inner"><Users size={20} /></div>
-                        <h4 className="text-[11px] font-black text-white/90 uppercase tracking-[0.5em] ">Queue Status Telemetry</h4>
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-6 relative z-10">
-                        <MetricNode label="Index Pos." value={queue?.position || '-'} light />
-                        <MetricNode label="Est. Wait" value={`${queue?.estimatedWaitMins || 0}M`} light />
-                        <MetricNode label="Call Time" value={queue?.estimatedCallTime ? new Date(queue.estimatedCallTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'} light />
-                    </div>
-
-                    {appointment.checkinTime && (
-                        <p className="text-[8px] font-black text-white/40 mt-10 text-center uppercase tracking-[0.3em] ">
-                            NODE INITIALIZED AT {new Date(appointment.checkinTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                appointment.status === 'completed' ? (
+                    <div className="glass-modal rounded-[3.5rem] p-10 bg-gradient-to-br from-emerald-600 to-teal-600 border-none shadow-2xl relative overflow-hidden text-white animate-in zoom-in-95 duration-500">
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 -z-10"></div>
+                        <div className="flex items-center gap-4 mb-6 relative z-10">
+                            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-white"><CheckCircle2 size={24} strokeWidth={2.5} /></div>
+                            <h4 className="text-[11px] font-black text-white/90 uppercase tracking-[0.5em] ">Consultation Complete</h4>
+                        </div>
+                        <h3 className="text-3xl font-black mb-2 relative z-10">Prescription Ready!</h3>
+                        <p className="text-xs text-emerald-100 font-medium mb-8 relative z-10 leading-relaxed">
+                            Dr. {appointment.doctor} has finalized your medical assessment and generated your prescription PDF.
                         </p>
-                    )}
-                </div>
+                        <div className="flex flex-col sm:flex-row gap-4 relative z-10">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const blob = await apiClient.getBlob(`/api/appointments/${appointment.id}/prescription/pdf`);
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `prescription_${appointment.id}.pdf`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                    } catch (err) {
+                                        console.error('Download error:', err);
+                                        alert('Could not download PDF. Please access via the Medications portal.');
+                                    }
+                                }}
+                                className="py-4 px-8 bg-white text-emerald-600 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-50 transition-all flex items-center justify-center gap-2"
+                            >
+                                <Download size={16} /> Download Prescription PDF
+                            </button>
+                            <button
+                                onClick={() => navigate('/dashboard')}
+                                className="py-4 px-6 bg-emerald-700/30 border border-white/10 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-emerald-700/50 transition-all"
+                            >
+                                Back to Hub
+                            </button>
+                        </div>
+                    </div>
+                ) : appointment.status === 'in_progress' ? (
+                    <div className="glass-modal rounded-[3.5rem] p-10 bg-gradient-to-br from-indigo-650 to-violet-600 border-none shadow-2xl relative overflow-hidden text-white animate-pulse duration-[2000ms]">
+                        <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 -z-10"></div>
+                        <div className="flex items-center gap-4 mb-6 relative z-10">
+                            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-white"><Activity size={24} strokeWidth={2.5} /></div>
+                            <h4 className="text-[11px] font-black text-white/90 uppercase tracking-[0.5em] ">Session Active</h4>
+                        </div>
+                        <h3 className="text-3xl font-black mb-2 relative z-10">You are being called!</h3>
+                        <p className="text-xs text-indigo-100 font-medium relative z-10 leading-relaxed">
+                            Please proceed immediately to the doctor's cabin for your consultation with {appointment.doctor}.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="glass-modal rounded-[3.5rem] p-10 bg-gradient-to-br from-primary to-primary-hover border-none shadow-2xl relative overflow-hidden transition-all duration-700 hover:shadow-primary/20">
+                         <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 -z-10"></div>
+                        <div className="flex items-center gap-4 mb-10 relative z-10">
+                            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-white shadow-inner"><Users size={20} /></div>
+                            <h4 className="text-[11px] font-black text-white/90 uppercase tracking-[0.5em] ">Queue Status Telemetry</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-3 gap-6 relative z-10">
+                            <MetricNode label="Index Pos." value={queue?.position || '-'} light />
+                            <MetricNode label="Est. Wait" value={`${queue?.estimatedWaitMins || 0}M`} light />
+                            <MetricNode label="Call Time" value={queue?.estimatedCallTime ? new Date(queue.estimatedCallTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--'} light />
+                        </div>
+
+                        {appointment.checkinTime && (
+                            <p className="text-[8px] font-black text-white/40 mt-10 text-center uppercase tracking-[0.3em] ">
+                                NODE INITIALIZED AT {new Date(appointment.checkinTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                            </p>
+                        )}
+                    </div>
+                )
             )}
 
             <div className="glass-modal rounded-[3.5rem] p-10 border-none shadow-2xl relative overflow-hidden group">
