@@ -539,13 +539,35 @@ const DoctorDashboard = () => {
                                         </div>
                                         <div>
                                             <h4 className="text-xl font-black text-[var(--text-base)] tracking-tight">{item.first_name} {item.last_name}</h4>
-                                            <div className="flex items-center gap-4 mt-1">
+                                            <div className="flex flex-wrap items-center gap-3 mt-1.5">
                                                 <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
                                                     <Clock size={14} className="text-primary" /> {item.time_slot}
                                                 </p>
                                                 <span className={`px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest ${STATUS_COLORS[item.queue_status]}`}>
                                                     {item.queue_status?.replace('_', ' ')}
                                                 </span>
+                                                
+                                                {/* Check-in Progress Badges */}
+                                                {item.virtual_checkin_status === 'CHECKED_IN' && (
+                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-indigo-500/10 text-indigo-500 border-indigo-500/25 shadow-sm shadow-indigo-500/5">
+                                                        📡 Remote Checked-In
+                                                    </span>
+                                                )}
+                                                {item.virtual_checkin_status === 'EN_ROUTE' && (
+                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-amber-500/10 text-amber-500 border-amber-500/25 shadow-sm shadow-amber-500/5">
+                                                        🚗 En Route • {item.patient_eta_minutes || 15}m ETA
+                                                    </span>
+                                                )}
+                                                {item.virtual_checkin_status === 'ARRIVED' && (
+                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border-emerald-500/25 shadow-sm shadow-emerald-500/5 animate-pulse">
+                                                        🏥 Arrived at Clinic
+                                                    </span>
+                                                )}
+                                                {(!item.virtual_checkin_status || item.virtual_checkin_status === 'NOT_CHECKED_IN') && (
+                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-slate-500/5 text-slate-400 border-slate-500/10">
+                                                        👤 Standard Check-In
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
