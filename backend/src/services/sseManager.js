@@ -28,7 +28,13 @@ class SSEManager {
      * @param {object} metadata { appointmentId, doctorId }
      */
     addClient(connectionId, res, metadata = {}) {
-        const { appointmentId, doctorId } = metadata;
+        let { appointmentId, doctorId } = metadata;
+        if (appointmentId !== undefined && appointmentId !== null) {
+            appointmentId = String(appointmentId);
+        }
+        if (doctorId !== undefined && doctorId !== null) {
+            doctorId = String(doctorId);
+        }
 
         // Set proper headers for SSE
         res.writeHead(200, {
@@ -70,7 +76,13 @@ class SSEManager {
      * Remove a client
      */
     removeClient(connectionId, metadata = {}) {
-        const { appointmentId, doctorId } = metadata;
+        let { appointmentId, doctorId } = metadata;
+        if (appointmentId !== undefined && appointmentId !== null) {
+            appointmentId = String(appointmentId);
+        }
+        if (doctorId !== undefined && doctorId !== null) {
+            doctorId = String(doctorId);
+        }
         this.connections.delete(connectionId);
         
         if (appointmentId && this.appointmentSubscriptions.has(appointmentId)) {
@@ -101,6 +113,9 @@ class SSEManager {
      * Broadcast generic event to all clients of an appointment
      */
     broadcastToAppointment(appointmentId, event, data) {
+        if (appointmentId !== undefined && appointmentId !== null) {
+            appointmentId = String(appointmentId);
+        }
         const subs = this.appointmentSubscriptions.get(appointmentId);
         if (subs) {
             subs.forEach(connectionId => {
@@ -113,6 +128,9 @@ class SSEManager {
      * Broadcast generic event to all clients of a doctor
      */
     broadcastToDoctor(doctorId, event, data) {
+        if (doctorId !== undefined && doctorId !== null) {
+            doctorId = String(doctorId);
+        }
         const subs = this.doctorSubscriptions.get(doctorId);
         if (subs) {
             subs.forEach(connectionId => {
