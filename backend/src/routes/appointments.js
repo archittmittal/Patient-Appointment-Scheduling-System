@@ -292,6 +292,28 @@ router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
     }
 });
 
+// GET /api/appointments/stream — establish SSE stream for doctor queue updates
+router.get('/stream', authenticate, requireRole('DOCTOR'), async (req, res) => {
+    try {
+        const doctorId = parseInt(req.query.doctorId);
+        if (!doctorId) {
+            return res.status(400).json({ message: 'doctorId query parameter is required' });
+        }
+
+        // SECURITY: Verify doctor matches authenticated user
+        if (req.user.role === 'DOCTOR' && req.user.id !== doctorId) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const connectionId = `doctor-${doctorId}-${Date.now()}`;
+        sseManager.addClient(connectionId, res, { doctorId });
+
+    } catch (error) {
+        console.error('Doctor SSE Error:', error);
+        if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
+    }
+});
+
 const notificationService = require('../services/notificationService');
 
 
@@ -534,7 +556,12 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         await conn.commit();
 
         // BROADCAST UPDATES
-        // 1. Update individual waiting rooms
+        // 1. Update individual waiting rooms (first broadcast to the active patient who was just updated, even if completed/missed)
+        const activeStatus = await virtualCheckinService.getWaitingRoomStatus(queueRow.appointment_id, queueRow.patient_id);
+        if (activeStatus) {
+            sseManager.broadcastQueueUpdate(queueRow.appointment_id, activeStatus);
+        }
+
         const [waitingPatients] = await db.query(`
             SELECT lq.appointment_id, a.patient_id 
             FROM live_queue lq

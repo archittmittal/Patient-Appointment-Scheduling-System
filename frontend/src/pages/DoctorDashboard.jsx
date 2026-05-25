@@ -3,6 +3,7 @@ import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, Refr
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
+import { sseService } from '../services/sseService';
 import EmergencyModal from '../components/EmergencyModal';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
@@ -301,6 +302,22 @@ const DoctorDashboard = () => {
     };
 
     useEffect(() => { fetchData(); }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+
+        // Establish real-time SSE stream for the doctor's queue
+        sseService.connectDoctor(
+            user.id,
+            (data) => {
+                console.log('[SSE] Doctor queue update received:', data);
+                fetchData(); // Trigger immediate refresh when updated
+            },
+            () => console.warn('[SSE] Doctor neural sync connection lost')
+        );
+
+        return () => sseService.disconnect();
+    }, [user?.id]);
 
     useEffect(() => {
         if (!user?.id) return;
