@@ -1,8 +1,3 @@
-/**
- * Issue #48: Notification Settings Page - PREMIUM OVERHAUL
- * Communication Control Center for high-fidelity clinical synchronicity.
- */
-
 import React, { useState, useEffect } from 'react';
 import { 
     Bell, BellOff, Clock, Mail, MessageSquare, Smartphone, Save, 
@@ -10,7 +5,7 @@ import {
     Volume2, VolumeX, Moon, Sun, Target, Activity
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const NotificationSettings = () => {
     const [preferences, setPreferences] = useState(null);
@@ -24,8 +19,8 @@ const NotificationSettings = () => {
 
     const fetchPreferences = async () => {
         try {
-            const res = await fetch(`${API}/api/notifications/preferences`, { headers: authedHeaders() });
-            if (res.ok) setPreferences(await res.json());
+            const data = await apiClient.get('/api/notifications/preferences');
+            if (data && !data.error) setPreferences(data);
         } catch (err) { console.error(err); } finally { setIsLoading(false); }
     };
 
@@ -37,14 +32,14 @@ const NotificationSettings = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const res = await fetch(`${API}/api/notifications/preferences`, { method: 'PUT', headers: authedHeaders(true), body: JSON.stringify(preferences) });
-            if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+            const data = await apiClient.put('/api/notifications/preferences', preferences);
+            if (data && !data.error) { setSaved(true); setTimeout(() => setSaved(false), 3000); }
         } catch (err) { console.error(err); } finally { setIsSaving(false); }
     };
 
-    if (isLoading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse italic">Synchronizing Comms Control...</div>;
+    if (isLoading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse ">Synchronizing Comms Control...</div>;
 
-    if (!preferences) return <div className="p-20 text-center text-rose-500 font-black uppercase tracking-[0.2em] italic">Comms Link Severed</div>;
+    if (!preferences) return <div className="p-20 text-center text-rose-500 font-black uppercase tracking-[0.2em] ">Comms Link Severed</div>;
 
     const Toggle = ({ enabled, onToggle, disabled = false }) => (
         <button
@@ -65,11 +60,11 @@ const NotificationSettings = () => {
     const Section = ({ title, description, icon: Icon, children }) => (
         <div className="glass-modal p-10 rounded-[3.5rem] border-none shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity"><Icon size={64} /></div>
-            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4 flex items-center gap-5">
+            <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-4 flex items-center gap-5">
                 <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Icon size={24} /></span>
                 {title}
             </h3>
-            {description && <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-10 italic opacity-60 ml-16">{description}</p>}
+            {description && <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-10 opacity-60 ml-16">{description}</p>}
             <div className="space-y-6 ml-16">{children}</div>
         </div>
     );
@@ -81,8 +76,8 @@ const NotificationSettings = () => {
                     <Icon size={20} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <p className="text-sm font-black text-[var(--text-base)] uppercase italic tracking-tighter transition-colors group-hover/row:text-primary">{label}</p>
-                    {description && <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 italic opacity-60 leading-none">{description}</p>}
+                    <p className="text-sm font-black text-[var(--text-base)] uppercase tracking-tighter transition-colors group-hover/row:text-primary">{label}</p>
+                    {description && <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 opacity-60 leading-none">{description}</p>}
                 </div>
             </div>
             <Toggle 
@@ -101,14 +96,14 @@ const NotificationSettings = () => {
                         <Radio size={36} strokeWidth={2.5} className="animate-pulse" />
                     </div>
                     <div>
-                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none">Comms Center</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 italic leading-none opacity-60">High-fidelity clinical synchronicity hub</p>
+                        <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none">Comms Center</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-3 leading-none opacity-60">High-fidelity clinical synchronicity hub</p>
                     </div>
                 </div>
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className={`flex items-center gap-4 px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] transition-all italic shadow-2xl ${
+                    className={`flex items-center gap-4 px-10 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] transition-all shadow-2xl ${
                         saved 
                             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' 
                             : 'bg-primary text-white hover:shadow-primary/40 hover:-translate-y-1'
@@ -156,8 +151,8 @@ const NotificationSettings = () => {
                             {preferences.quiet_hours_enabled ? <VolumeX size={24} /> : <Volume2 size={24} />}
                         </div>
                         <div>
-                            <p className="text-sm font-black text-[var(--text-base)] uppercase italic tracking-tighter">Initiate Quiet Mode</p>
-                            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 italic opacity-60">Suspend auxiliary broadcasts</p>
+                            <p className="text-sm font-black text-[var(--text-base)] uppercase tracking-tighter">Initiate Quiet Mode</p>
+                            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest mt-1 opacity-60">Suspend auxiliary broadcasts</p>
                         </div>
                     </div>
                     <Toggle enabled={preferences.quiet_hours_enabled} onToggle={() => handleToggle('quiet_hours_enabled')} />
@@ -166,26 +161,26 @@ const NotificationSettings = () => {
                 {preferences.quiet_hours_enabled && (
                     <div className="grid grid-cols-2 gap-8 animate-in slide-in-from-top-4 duration-700 max-w-sm mx-auto">
                         <div className="space-y-3">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 italic">Baseline Start</label>
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 ">Baseline Start</label>
                             <div className="relative group/time">
                                 <Sun className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover/time:text-primary transition-colors" size={16} />
                                 <input
                                     type="time"
                                     value={preferences.quiet_start?.slice(0, 5) || '22:00'}
                                     onChange={e => setPreferences(prev => ({ ...prev, quiet_start: e.target.value + ':00' }))}
-                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
+                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
                                 />
                             </div>
                         </div>
                         <div className="space-y-3">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 italic">Nominal Resume</label>
+                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4 ">Nominal Resume</label>
                             <div className="relative group/time">
                                 <Sun className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-hover/time:text-primary transition-colors" size={16} />
                                 <input
                                     type="time"
                                     value={preferences.quiet_end?.slice(0, 5) || '08:00'}
                                     onChange={e => setPreferences(prev => ({ ...prev, quiet_end: e.target.value + ':00' }))}
-                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black italic tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
+                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all font-mono"
                                 />
                             </div>
                         </div>
@@ -200,8 +195,8 @@ const NotificationSettings = () => {
                         <ShieldCheck size={40} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h4 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter mb-4">Comms Security Protocol</h4>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] italic leading-relaxed max-w-2xl opacity-80">
+                        <h4 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tighter mb-4">Comms Security Protocol</h4>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] leading-relaxed max-w-2xl opacity-80">
                             Broadcast signals are strictly end-to-end encrypted. Node preferences are stored in isolated clinical registry segments with 256-bit AES protection.
                         </p>
                     </div>
@@ -218,7 +213,7 @@ const ReminderNode = ({ label, enabled, onToggle }) => (
             enabled ? 'bg-primary border-primary shadow-primary/20 scale-[1.02]' : 'bg-white/5 border-white/5 hover:bg-white/10'
         }`}
     >
-        <p className={`text-[10px] font-black uppercase tracking-[0.4em] italic mb-3 transition-colors ${enabled ? 'text-white' : 'text-slate-500'}`}>{label}</p>
+        <p className={`text-[10px] font-black uppercase tracking-[0.4em] mb-3 transition-colors ${enabled ? 'text-white' : 'text-slate-500'}`}>{label}</p>
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto transition-all duration-700 ${enabled ? 'bg-white/20 text-white' : 'bg-white/10 text-slate-700 group-hover:rotate-12'}`}>
             <Clock size={20} strokeWidth={3} />
         </div>

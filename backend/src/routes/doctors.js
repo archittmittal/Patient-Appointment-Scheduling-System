@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 const {
     calculateCurrentDelay,
     propagateDelayToQueue,
@@ -11,6 +13,42 @@ const {
     getDelayAnalytics
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
+
+// Validation Schemas
+const doctorProfileSchema = Joi.object({
+    first_name: Joi.string().max(50),
+    last_name: Joi.string().max(50),
+    specialty: Joi.string().max(100),
+    degree: Joi.string().max(100),
+    experience_years: Joi.number().min(0).max(100),
+    about: Joi.string().max(2000),
+    location_room: Joi.string().max(20),
+    image_url: Joi.string().uri().allow('', null),
+    max_patients_per_slot: Joi.number().integer().min(1).max(100)
+});
+
+const availabilitySchema = Joi.object({
+    availability: Joi.object().required()
+});
+
+const blockedDateSchema = Joi.object({
+    date: Joi.string().isoDate().required(),
+    reason: Joi.string().max(255).allow('', null)
+});
+
+const manualDelaySchema = Joi.object({
+    delayMins: Joi.number().integer().min(0).max(480).required(),
+    reason: Joi.string().max(255).allow('', null),
+    date: Joi.string().isoDate().allow('', null)
+});
+
+const autofillSettingsSchema = Joi.object({
+    enabled: Joi.boolean(),
+    offerWindowMins: Joi.number().integer().min(1).max(60),
+    minNoticeHours: Joi.number().integer().min(1).max(72),
+    maxOffersPerSlot: Joi.number().integer().min(1).max(20),
+    priorityMode: Joi.string().valid('TIME', 'URGENCY', 'HYBRID')
+});
 
 /**
  * @swagger
@@ -70,7 +108,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctorProfileSchema), async (req, res) => {
     // Only the doctor themselves can update their profile
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -120,7 +158,7 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validateRequest(availabilitySchema), async (req, res) => {
     // Only the doctor themselves can update their availability
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -147,11 +185,9 @@ router.get('/:id/reviews', async (req, res) => {
                 CONCAT(p.first_name, ' ', p.last_name) as name,
                 af.weighted_score as rating,
                 af.created_at as date,
-                af.comment,
-                u.email
+                af.comment
             FROM appointment_feedback af
             JOIN patients p ON af.patient_id = p.id
-            JOIN users u ON p.id = u.id
             WHERE af.doctor_id = ?
             ORDER BY af.created_at DESC
             LIMIT 10
@@ -204,7 +240,7 @@ router.get('/:id/queue', authenticate, requireRole('DOCTOR'), async (req, res) =
     try {
         const [rows] = await db.query(`
             SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status, lq.estimated_time,
-                   a.id AS appointment_id, a.time_slot, a.symptoms,
+                   a.id AS appointment_id, a.patient_id, a.time_slot, a.symptoms,
                    p.first_name, p.last_name
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
@@ -234,7 +270,7 @@ router.get('/:id/blocked-dates', async (req, res) => {
 });
 
 // POST /api/doctors/:id/blocked-dates — block a specific date
-router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateRequest(blockedDateSchema), async (req, res) => {
     // Only the doctor themselves can block dates
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -312,10 +348,11 @@ router.get('/:id/weekly-schedule', async (req, res) => {
         );
 
         // Doctor availability + capacity
-        const [[doctor]] = await db.query(
+        const [doctorRows] = await db.query(
             'SELECT availability, max_patients_per_slot FROM doctors WHERE id = ?',
             [req.params.id]
         );
+        const doctor = doctorRows[0];
 
         // Blocked dates in this range
         const [blocked] = await db.query(
@@ -363,7 +400,7 @@ router.get('/:id/delay-status', async (req, res) => {
 });
 
 // POST /api/doctors/:id/delay — set manual delay
-router.post('/:id/delay', authenticate, async (req, res) => {
+router.post('/:id/delay', authenticate, requireRole('DOCTOR'), validateRequest(manualDelaySchema), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const { delayMins, reason } = req.body;
@@ -401,7 +438,7 @@ router.get('/:id/delay/check', async (req, res) => {
 });
 
 // GET /api/doctors/:id/delay/analytics — get delay analytics
-router.get('/:id/delay/analytics', authenticate, async (req, res) => {
+router.get('/:id/delay/analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = req.params.id;
         const days = parseInt(req.query.days) || 30;
@@ -422,7 +459,7 @@ router.get('/:id/delay/analytics', authenticate, async (req, res) => {
 // ==================== Issue #41: Waitlist Endpoints (Doctor Side) ====================
 
 // GET /api/doctors/:id/waitlist - Get waitlist for this doctor
-router.get('/:id/waitlist', authenticate, async (req, res) => {
+router.get('/:id/waitlist', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { date } = req.query;
         const entries = await waitlistService.getDoctorWaitlist(parseInt(req.params.id), date);
@@ -434,7 +471,7 @@ router.get('/:id/waitlist', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-settings - Get auto-fill settings
-router.get('/:id/autofill-settings', authenticate, async (req, res) => {
+router.get('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const settings = await waitlistService.getAutoFillSettings(parseInt(req.params.id));
         res.json(settings);
@@ -445,7 +482,7 @@ router.get('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // PUT /api/doctors/:id/autofill-settings - Update auto-fill settings
-router.put('/:id/autofill-settings', authenticate, async (req, res) => {
+router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), validateRequest(autofillSettingsSchema), async (req, res) => {
     try {
         const { enabled, offerWindowMins, minNoticeHours, maxOffersPerSlot, priorityMode } = req.body;
         
@@ -465,7 +502,7 @@ router.put('/:id/autofill-settings', authenticate, async (req, res) => {
 });
 
 // GET /api/doctors/:id/autofill-analytics - Get auto-fill analytics
-router.get('/:id/autofill-analytics', authenticate, async (req, res) => {
+router.get('/:id/autofill-analytics', authenticate, requireRole('DOCTOR'), async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];

@@ -7,8 +7,10 @@ import {
     Stethoscope, User, CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
-import { safeFetch } from '../utils/apiHelper';
+import { apiClient } from '../services/apiClient';
+import InsuranceScanner from '../components/InsuranceScanner';
+import InsuranceForm from '../components/InsuranceForm';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -73,6 +75,41 @@ const BookAppointment = () => {
     const [waitlistJoining, setWaitlistJoining] = useState(false);
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
+    
+    // Insurance integration
+    const [insurance, setInsurance] = useState(null);
+    const [showScanner, setShowScanner] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [scannedData, setScannedData] = useState(null);
+
+    useEffect(() => {
+        fetchInsurance();
+    }, []);
+
+    const fetchInsurance = async () => {
+        try {
+            const data = await apiClient.get('/api/insurance/my');
+            if (data && data.length > 0 && !data.error) {
+                // Get the most recently updated/verified insurance
+                const sorted = data.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                setInsurance(sorted[0]);
+            }
+        } catch (err) {
+            console.error('Error fetching insurance:', err);
+        }
+    };
+
+    const handleScanComplete = (data) => {
+        setScannedData(data);
+        setShowScanner(false);
+        setShowForm(true);
+    };
+
+    const handleInsuranceSuccess = () => {
+        setShowForm(false);
+        setScannedData(null);
+        fetchInsurance();
+    };
 
     // Persistence Logic
     useEffect(() => {
@@ -110,8 +147,8 @@ const BookAppointment = () => {
 
     useEffect(() => {
         const fetchDocs = async () => {
-            const data = await safeFetch(`${API}/api/doctors`);
-            if (Array.isArray(data)) {
+            const data = await apiClient.get('/api/doctors');
+            if (Array.isArray(data) && !data.error) {
                 const pruned = data.filter(d => d && typeof d === 'object' && d.id);
                 setDoctors(pruned);
                 
@@ -127,8 +164,8 @@ const BookAppointment = () => {
         if (!selectedDoctorId) return;
         
         const fetchBlocked = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/blocked-dates`);
-            if (Array.isArray(data)) {
+            const data = await apiClient.get(`/api/doctors/${selectedDoctorId}/blocked-dates`);
+            if (Array.isArray(data) && !data.error) {
                 setBlockedDates(new Set(data.map(d => d.blocked_date.slice(0, 10))));
             }
         };
@@ -139,8 +176,8 @@ const BookAppointment = () => {
         if (!selectedDoctorId || !selectedDate) return;
         
         const fetchSlots = async () => {
-            const data = await safeFetch(`${API}/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
-            setSlotCounts(data || {});
+            const data = await apiClient.get(`/api/doctors/${selectedDoctorId}/slot-counts?date=${selectedDate}`);
+            if (data && !data.error) setSlotCounts(data);
         };
         fetchSlots();
     }, [selectedDoctorId, selectedDate]);
@@ -149,18 +186,14 @@ const BookAppointment = () => {
         if (!selectedDoctorId || !selectedDate) return;
         setWaitlistJoining(true);
         try {
-            const res = await fetch(`${API}/api/appointments/waitlist/join`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({
-                    doctorId: selectedDoctorId,
-                    preferredDate: selectedDate,
-                    timePreference: waitlistTimePreference,
-                    maxNoticeHours: 24,
-                    reason: symptoms || 'Patient requested earlier availability'
-                })
+            const data = await apiClient.post('/api/appointments/waitlist/join', {
+                doctorId: selectedDoctorId,
+                preferredDate: selectedDate,
+                timePreference: waitlistTimePreference,
+                maxNoticeHours: 24,
+                reason: symptoms || 'Patient requested earlier availability'
             });
-            if (res.ok) setWaitlistJoined(true);
+            if (data && !data.error) setWaitlistJoined(true);
         } catch (err) {
             console.error('[Booking] Waitlist error:', err);
         } finally {
@@ -171,25 +204,24 @@ const BookAppointment = () => {
     const handleBook = async () => {
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${API}/api/appointments/book`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ 
-                    patientId: user.id, 
-                    doctorId: selectedDoctorId, 
-                    date: selectedDate, 
-                    timeSlot: selectedSlot, 
-                    symptoms: symptoms || null 
-                })
+            const data = await apiClient.post('/api/appointments/book', { 
+                patientId: user.id, 
+                doctorId: selectedDoctorId, 
+                date: selectedDate, 
+                timeSlot: selectedSlot, 
+                symptoms: symptoms || null 
             });
-            const result = await response.json();
-            if (response.ok) {
-                setBookingResult(result);
+            if (!data.error) {
+                setBookingResult(data);
                 setIsBooked(true);
             } else {
-                alert(result.message || 'Unable to complete booking. Please try again.');
+                const errMsg = data.detail 
+                    ? `${data.message}: ${data.detail}` 
+                    : (data.message || 'Unable to complete booking. Please try again.');
+                alert(errMsg);
             }
         } catch (err) {
+            console.error('[Booking] Connection error:', err);
             alert('A connection error occurred. Please check your network.');
         } finally {
             setIsSubmitting(false);
@@ -489,7 +521,7 @@ const BookAppointment = () => {
                             <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 mt-1"><FileText size={20} /></div>
                             <div>
                                 <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Reason for Visit</p>
-                                <p className="text-sm italic text-slate-600">"{symptoms}"</p>
+                                <p className="text-sm text-slate-600">"{symptoms}"</p>
                             </div>
                         </div>
                     )}
@@ -533,6 +565,106 @@ const BookAppointment = () => {
                                 : "Your selection will be saved during authentication."}
                         </p>
                     </div>
+                {waitlistJoined && (
+                    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="text-green-600" size={20} />
+                            <div>
+                                <h4 className="font-semibold text-green-800">Added to Waitlist!</h4>
+                                <p className="text-sm text-green-700">
+                                    We'll notify you if a slot becomes available for this date.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Insurance Verification Section */}
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                            <ShieldCheck size={20} className="text-emerald-600" />
+                            Insurance Verification
+                        </h4>
+                        {!insurance && (
+                            <button 
+                                onClick={() => setShowScanner(true)}
+                                className="text-sm font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                            >
+                                <Users size={14} />
+                                Smart Scan Card
+                            </button>
+                        )}
+                    </div>
+
+                    {insurance ? (
+                        <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                            insurance.status === 'VERIFIED' ? 'bg-emerald-50 border-emerald-100' : 'bg-amber-50 border-amber-100'
+                        }`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-lg ${
+                                    insurance.status === 'VERIFIED' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                                }`}>
+                                    <CheckCircle2 size={20} />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-900">{insurance.provider_name}</p>
+                                    <p className="text-xs text-gray-500">ID: {insurance.member_id} • Status: <span className="font-bold">{insurance.status}</span></p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setShowForm(true)}
+                                className="text-xs font-bold text-emerald-600 hover:underline"
+                            >
+                                Change
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl text-center">
+                            <p className="text-sm text-gray-500 mb-3">No insurance on file. Add one for faster check-in.</p>
+                            <div className="flex justify-center gap-4">
+                                <button 
+                                    onClick={() => setShowScanner(true)}
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                                >
+                                    <Activity size={16} className="text-emerald-500" />
+                                    Scan Card
+                                </button>
+                                <button 
+                                    onClick={() => setShowForm(true)}
+                                    className="px-4 py-2 text-sm font-bold text-gray-600 hover:underline"
+                                >
+                                    Manual Entry
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <AnimatePresence>
+                    {showScanner && (
+                        <InsuranceScanner 
+                            onScanComplete={handleScanComplete} 
+                            onClose={() => setShowScanner(false)} 
+                        />
+                    )}
+
+                    {showForm && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-xl w-full max-w-2xl"
+                            >
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-xl font-bold dark:text-white">Insurance Details</h2>
+                                    <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">Cancel</button>
+                                </div>
+                                <InsuranceForm initialData={scannedData} onSuccess={handleInsuranceSuccess} />
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
                 </div>
             </div>
         </div>

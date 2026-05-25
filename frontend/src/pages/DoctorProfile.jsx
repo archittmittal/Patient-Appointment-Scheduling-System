@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronRight } from 'lucide-react';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
@@ -21,7 +21,7 @@ const ReviewCard = ({ name, rating, date, comment, avatar }) => (
                 {rating}
             </div>
         </div>
-        <p className="text-sm font-bold text-slate-500 leading-relaxed italic border-l-4 border-primary/20 pl-4 py-1">
+        <p className="text-sm font-bold text-slate-500 leading-relaxed border-l-4 border-primary/20 pl-4 py-1">
             "{comment}"
         </p>
     </div>
@@ -36,20 +36,25 @@ const DoctorProfile = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const headers = authedHeaders();
-        Promise.all([
-            fetch(`${API}/api/doctors/${id}`, { headers }).then(res => res.json()),
-            fetch(`${API}/api/doctors/${id}/reviews`, { headers }).then(res => res.json())
-        ]).then(([docData, reviewData]) => {
-            setDoctor({
-                ...docData,
-                name: `Dr. ${docData.first_name} ${docData.last_name}`,
-                experience: `${docData.experience_years}+ Years`,
-                patients: "2.5K+",
-            });
-            setReviews(reviewData);
-        }).catch(err => console.error(err))
-          .finally(() => setIsLoading(false));
+        const fetchDoctorData = async () => {
+            try {
+                const [docData, reviewData] = await Promise.all([
+                    apiClient.get(`/api/doctors/${id}`),
+                    apiClient.get(`/api/doctors/${id}/reviews`)
+                ]);
+
+                if (docData && !docData.error) {
+                    setDoctor({
+                        ...docData,
+                        name: `Dr. ${docData.first_name} ${docData.last_name}`,
+                        experience: `${docData.experience_years}+ Years`,
+                        patients: "2.5K+",
+                    });
+                }
+                if (reviewData && !reviewData.error) setReviews(reviewData);
+            } catch (err) { console.error(err); } finally { setIsLoading(false); }
+        };
+        fetchDoctorData();
     }, [id]);
 
     if (isLoading || !doctor) return <div className="p-20 text-center text-slate-500 font-bold animate-pulse uppercase tracking-widest">Accessing Clinical Registry...</div>;
@@ -70,7 +75,7 @@ const DoctorProfile = () => {
                             <span className="px-4 py-1.5 bg-emerald-500/10 text-emerald-500 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shadow-sm flex items-center gap-2 w-fit">
                                 <ShieldCheck size={14} strokeWidth={2.5} /> Clinical Excellence Verified
                             </span>
-                            <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase italic">{doctor.name}</h1>
+                            <h1 className="text-5xl font-black text-[var(--text-base)] tracking-tighter uppercase ">{doctor.name}</h1>
                             <p className="text-2xl font-black text-primary uppercase tracking-widest opacity-80">{doctor.specialty}</p>
                             <p className="text-slate-500 font-bold text-sm tracking-wide bg-white/5 w-fit px-3 py-1 rounded-lg border border-[var(--border-base)]">{doctor.degree} • GMC Board Certified</p>
                         </div>
@@ -112,12 +117,12 @@ const DoctorProfile = () => {
                             <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Award size={20} /></span>
                             Professional Bio-Record
                         </h3>
-                        <p className="text-slate-500 font-bold leading-relaxed text-lg italic border-l-4 border-primary/20 pl-6">
+                        <p className="text-slate-500 font-bold leading-relaxed text-lg border-l-4 border-primary/20 pl-6">
                             {doctor.about}
                         </p>
 
                         <div className="mt-12">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-3 italic">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-3 ">
                                 <Clock size={16} className="text-primary" /> Operational Window Matrix
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -156,7 +161,7 @@ const DoctorProfile = () => {
                         </h3>
                         <div className="flex items-start gap-4 mb-10">
                             <div className="flex-1">
-                                <h5 className="text-sm font-black text-[var(--text-base)] uppercase tracking-wide italic leading-none">Global Medical Center</h5>
+                                <h5 className="text-sm font-black text-[var(--text-base)] uppercase tracking-wide leading-none">Global Medical Center</h5>
                                 <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-widest">{doctor.location_room || 'Unit Core B-102'}</p>
                             </div>
                         </div>
@@ -165,7 +170,7 @@ const DoctorProfile = () => {
                                 <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mb-4">
                                     <MapPin size={28} className="text-primary animate-bounce-slow" />
                                 </div>
-                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] italic mb-1">Clinical Localization</p>
+                                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em] mb-1">Clinical Localization</p>
                                 <p className="text-[10px] font-bold text-slate-500">Facility Level 4 • South Wing</p>
                             </div>
                         </div>
@@ -181,7 +186,7 @@ const StatBox = ({ label, value, subIcon }) => (
     <div className="glass-card bg-white/5 p-6 rounded-[2rem] hover:scale-105 transition-all border-[var(--border-base)] group hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5">
         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 group-hover:text-primary transition-colors">{label}</p>
         <div className="flex items-center gap-2 mt-1">
-            <p className="text-3xl font-black text-[var(--text-base)] tracking-tighter italic">{value}</p>
+            <p className="text-3xl font-black text-[var(--text-base)] tracking-tighter ">{value}</p>
             {subIcon}
         </div>
     </div>

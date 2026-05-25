@@ -1,12 +1,9 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET environment variable is not set');
-}
+const { jwtSecret } = require('../config/auth');
 
 /**
  * Middleware: verify Bearer JWT token.
+
  * On success attaches req.user = { id, email, role }.
  */
 function authenticate(req, res, next) {
@@ -23,7 +20,7 @@ function authenticate(req, res, next) {
     }
     
     try {
-        req.user = jwt.verify(token, JWT_SECRET);
+        req.user = jwt.verify(token, jwtSecret);
         next();
     } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
@@ -34,13 +31,14 @@ function authenticate(req, res, next) {
  * Middleware factory: require a specific role.
  * Usage: requireRole('ADMIN')
  */
-function requireRole(role) {
+function requireRole(roles) {
+    const authorizedRoles = Array.isArray(roles) ? roles : [roles];
     return (req, res, next) => {
-        if (!req.user || req.user.role !== role) {
+        if (!req.user || !authorizedRoles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Insufficient permissions' });
         }
         next();
     };
 }
 
-module.exports = { authenticate, requireRole, JWT_SECRET };
+module.exports = { authenticate, requireRole, jwtSecret };

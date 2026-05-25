@@ -5,7 +5,7 @@ import {
     CheckCircle2, Info, Share2, Printer, ChevronRight, ShieldCheck
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const PatientPrescriptions = () => {
     const [prescriptions, setPrescriptions] = useState([]);
@@ -23,27 +23,18 @@ const PatientPrescriptions = () => {
             const user = JSON.parse(userStr);
             if (!user?.id) return;
             
-            const response = await fetch(`${API}/api/patients/${user.id}/prescriptions`, {
-                headers: authedHeaders()
-            });
-            const data = await response.json();
+            const data = await apiClient.get(`/api/patients/${user.id}/prescriptions`);
             setPrescriptions(Array.isArray(data) ? data : []);
-            setLoading(false);
         } catch (error) {
             console.error('Error fetching prescriptions:', error);
+        } finally {
             setLoading(false);
         }
     };
 
     const downloadPDF = async (prescription) => {
         try {
-            const response = await fetch(`${API}/api/appointments/${prescription.appointment_id || prescription.id}/prescription/pdf`, {
-                headers: authedHeaders()
-            });
-            
-            if (!response.ok) throw new Error('Failed to download PDF');
-
-            const blob = await response.blob();
+            const blob = await apiClient.getBlob(`/api/appointments/${prescription.appointment_id || prescription.id}/prescription/pdf`);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -55,7 +46,6 @@ const PatientPrescriptions = () => {
             console.error('Error downloading PDF:', error);
             // Fallback to client-side generation if backend fails
             const doc = new jsPDF();
-            // ... existing fallback logic
             doc.text('Prescription Record (Client Generated)', 20, 30);
             doc.save(`Prescription_${prescription.id}_local.pdf`);
         }

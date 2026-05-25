@@ -21,10 +21,12 @@ const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
 const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
+const insuranceRoutes = require('./routes/insurance');
 const paymentRoutes = require('./routes/payments');
 const messageRoutes = require('./routes/messages');
+const exportRoutes = require('./routes/export');
 const errorHandler = require('./middleware/errorHandler');
-const reminderService = require('./services/reminderService');
+const { initCronJobs } = require('./jobs/reminderJobs');
 
 const app = express();
 
@@ -58,6 +60,20 @@ const swaggerOptions = {
                 url: 'http://localhost:7860',
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT'
+                }
+            }
+        },
+        security: [
+            {
+                bearerAuth: []
+            }
+        ]
     },
     apis: ['./src/routes/*.js'],
 };
@@ -69,14 +85,51 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use(helmet());
 
 // Strict CORS
-const whitelist = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'];
+function normalizeOrigin(value) {
+    if (!value) return null;
+
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    try {
+        return new URL(trimmed).origin;
+    } catch {
+        return trimmed;
+    }
+}
+
+const whitelist = new Set([
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+    process.env.APP_URL,
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+].map(normalizeOrigin).filter(Boolean));
+
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || whitelist.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+        
+        const normalizedOrigin = normalizeOrigin(origin);
+
+        // 1. Allow whitelisted origins
+        if (whitelist.has(normalizedOrigin)) return callback(null, true);
+        
+        // 2. Allow all localhost/127.0.0.1 variants for development
+        if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            return callback(null, true);
         }
+        
+        // 3. Allow all Vercel and Hugging Face deployments
+        if (/\.vercel\.app$/.test(origin) || /\.hf\.space$/.test(origin)) {
+            return callback(null, true);
+        }
+        
+        // 4. In development, be permissive if needed
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+
+        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 };
@@ -115,13 +168,45 @@ app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
 app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/insurance', insuranceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/export', exportRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Hospital API is running' });
+app.get('/api/health', async (req, res) => {
+    let dbStatus = { healthy: false, error: null };
+    let dbStats = null;
+
+    try {
+        const db = require('./config/db');
+        // Simple query check
+        await db.query('SELECT 1');
+        dbStatus.healthy = true;
+        
+        if (typeof db.getPoolStats === 'function') {
+            dbStats = db.getPoolStats();
+        }
+    } catch (err) {
+        dbStatus.error = err.message;
+    }
+
+    const { getCronStatus } = require('./jobs/reminderJobs');
+    const schedulerStatus = typeof getCronStatus === 'function' ? getCronStatus() : null;
+
+    res.json({
+        status: dbStatus.healthy ? 'ok' : 'error',
+        message: 'Hospital API is running',
+        uptime: process.uptime(),
+        database: {
+            healthy: dbStatus.healthy,
+            error: dbStatus.error,
+            stats: dbStats
+        },
+        scheduler: schedulerStatus
+    });
 });
+
 
 // Global Error Handler (Must be last)
 app.use(errorHandler);
@@ -130,6 +215,8 @@ const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
+        // Initialize Background Jobs
+        initCronJobs();
     });
 }
 

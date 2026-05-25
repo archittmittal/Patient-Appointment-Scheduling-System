@@ -13,10 +13,10 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const ExpressBadge = ({ eligible }) => (
-    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest italic transition-all ${
+    <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
         eligible 
             ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-inner'
             : 'bg-white/5 text-slate-600 border border-white/5'
@@ -53,8 +53,8 @@ const QRCodeDisplay = ({ qrData, onClose }) => {
                     <div className="w-16 h-16 bg-primary/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-6 border border-primary/20 shadow-inner">
                         <QrCode className="text-primary" size={28} />
                     </div>
-                    <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">Secure Credential</h3>
-                    <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-[0.3em] italic">Scan at Clinical Kiosk Station</p>
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Secure Credential</h3>
+                    <p className="text-[10px] font-black text-slate-500 mt-2 uppercase tracking-[0.3em]">Scan at Clinical Kiosk Station</p>
                 </div>
                 
                 <div className="bg-white rounded-[2.5rem] p-8 mb-8 border border-white/10 flex items-center justify-center shadow-inner relative group">
@@ -70,7 +70,7 @@ const QRCodeDisplay = ({ qrData, onClose }) => {
                 </div>
 
                 <div className="flex items-center justify-center mb-8 gap-3 relative z-10">
-                    <p className="text-[9px] text-slate-500 font-black bg-white/5 px-4 py-2 rounded-xl border border-white/10 uppercase tracking-widest italic">
+                    <p className="text-[9px] text-slate-500 font-black bg-white/5 px-4 py-2 rounded-xl border border-white/10 uppercase tracking-widest">
                         {qrData.token?.slice(0, 12)}...
                     </p>
                     <button 
@@ -82,7 +82,7 @@ const QRCodeDisplay = ({ qrData, onClose }) => {
                 </div>
 
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 mb-8 relative z-10">
-                    <p className="text-[9px] font-black text-amber-600 text-center uppercase tracking-widest italic flex items-center justify-center gap-2">
+                    <p className="text-[9px] font-black text-amber-600 text-center uppercase tracking-widest flex items-center justify-center gap-2">
                         <Timer size={14} className="animate-spin-slow" />
                         Credential TTL: 24H Calibration
                     </p>
@@ -90,7 +90,7 @@ const QRCodeDisplay = ({ qrData, onClose }) => {
 
                 <button
                     onClick={onClose}
-                    className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-white/10 hover:text-[var(--text-base)] transition-all italic"
+                    className="w-full py-5 bg-white/5 border border-white/10 rounded-2xl text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-all"
                 >
                     Secure Close
                 </button>
@@ -108,26 +108,26 @@ const SuccessScreen = ({ result, onViewQueue, onDashboard }) => (
             </div>
         </div>
         
-        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic mb-4">Identity Synchronized</h1>
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12 italic">{result.message}</p>
+        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight mb-4">Identity Synchronized</h1>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-12">{result.message}</p>
 
         <div className="glass-card rounded-[3.5rem] p-10 mb-12 border-none shadow-2xl relative overflow-hidden group">
              <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={64} /></div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
                 <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] shadow-inner">
-                    <p className="text-5xl font-black text-primary italic tracking-tighter tabular-nums">#{result.queuePosition}</p>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-4 italic">Registry Position</p>
+                    <p className="text-5xl font-black text-primary tracking-tight tabular-nums">#{result.queuePosition}</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-4">Registry Position</p>
                 </div>
                 <div className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] shadow-inner">
-                    <p className="text-5xl font-black text-primary italic tracking-tighter tabular-nums">
+                    <p className="text-5xl font-black text-primary tracking-tight tabular-nums">
                         {result.estimatedWaitMins || '15'}
-                        <span className="text-xl font-black text-slate-600 ml-1 italic">M</span>
+                        <span className="text-xl font-black text-slate-600 ml-1">M</span>
                     </p>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-4 italic">Estimated Latency</p>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-4">Estimated Latency</p>
                 </div>
             </div>
             
-            <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-center gap-3 text-[9px] font-black text-slate-600 uppercase tracking-widest italic">
+            <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-center gap-3 text-[9px] font-black text-slate-600 uppercase tracking-widest">
                 <Clock size={14} className="text-primary animate-pulse" />
                 Verified at {new Date(result.checkinTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} Telemetry
             </div>
@@ -136,13 +136,13 @@ const SuccessScreen = ({ result, onViewQueue, onDashboard }) => (
         <div className="flex flex-col sm:flex-row gap-5 max-w-lg mx-auto">
             <button
                 onClick={onViewQueue}
-                className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all italic flex items-center justify-center gap-3"
+                className="flex-1 py-5 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
             >
                 Live Queue Stream <ArrowRight size={16} className="animate-pulse" />
             </button>
             <button
                 onClick={onDashboard}
-                className="flex-1 py-5 bg-white/5 text-slate-400 border border-white/5 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all italic"
+                className="flex-1 py-5 bg-white/5 text-slate-400 border border-white/5 font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] hover:bg-white/10 transition-all"
             >
                 Registry Home
             </button>
@@ -160,14 +160,14 @@ const AppointmentCard = ({ appointment, onOneTap, onGenerateQR, isLoading }) => 
                         <User size={24} strokeWidth={2.5} />
                     </div>
                     <div className="text-center md:text-left">
-                        <h4 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter">Dr. {appointment.doctor}</h4>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 italic">{appointment.specialty} • Station B-12</p>
+                        <h4 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Dr. {appointment.doctor}</h4>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{appointment.specialty} • Station B-12</p>
                     </div>
                 </div>
                 <ExpressBadge eligible={appointment.isExpressEligible} />
             </div>
 
-            <div className="flex items-center justify-center md:justify-start gap-8 text-[10px] font-black text-slate-500 uppercase tracking-widest italic mb-8 px-2">
+            <div className="flex items-center justify-center md:justify-start gap-8 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-8 px-2">
                 <div className="flex items-center gap-3">
                     <Clock size={16} className="text-primary opacity-60" />
                     <span>Sync: {appointment.time}</span>
@@ -185,14 +185,14 @@ const AppointmentCard = ({ appointment, onOneTap, onGenerateQR, isLoading }) => 
                     <button
                         onClick={() => onOneTap(appointment.id)}
                         disabled={isLoading}
-                        className="flex-[2] py-5 bg-emerald-500 text-white rounded-[1.75rem] font-black text-[10px] uppercase tracking-[0.4em] italic flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all disabled:opacity-50"
+                        className="flex-[2] py-5 bg-emerald-500 text-white rounded-[1.75rem] font-black text-[10px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-1 transition-all disabled:opacity-50"
                     >
                         {isLoading ? <Activity size={16} className="animate-spin" /> : <><Zap size={18} /> Instant Sync</>}
                     </button>
                     <button
                         onClick={() => onGenerateQR(appointment.id)}
                         disabled={isLoading}
-                        className="flex-1 py-5 bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/40 rounded-[1.75rem] transition-all disabled:opacity-50 flex items-center justify-center italic"
+                        className="flex-1 py-5 bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/40 rounded-[1.75rem] transition-all disabled:opacity-50 flex items-center justify-center"
                     >
                         <QrCode size={20} />
                     </button>
@@ -201,7 +201,7 @@ const AppointmentCard = ({ appointment, onOneTap, onGenerateQR, isLoading }) => 
                 <button
                     onClick={() => onGenerateQR(appointment.id)}
                     disabled={isLoading}
-                    className="w-full py-5 bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/40 rounded-[1.75rem] font-black text-[10px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all disabled:opacity-50 italic"
+                    className="w-full py-5 bg-white/5 border border-white/5 text-slate-500 hover:text-primary hover:border-primary/40 rounded-[1.75rem] font-black text-[10px] uppercase tracking-[0.4em] flex items-center justify-center gap-3 transition-all disabled:opacity-50"
                 >
                     <QrCode size={18} />
                     Holographic Credential
@@ -226,14 +226,12 @@ const ExpressCheckin = () => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const [aptRes, infoRes] = await Promise.all([
-                    fetch(`${API}/api/express-checkin/today`, { headers: authedHeaders() }),
-                    fetch(`${API}/api/express-checkin/prefilled-info`, { headers: authedHeaders() })
+                const [aptData, infoData] = await Promise.all([
+                    apiClient.get('/api/express-checkin/today'),
+                    apiClient.get('/api/express-checkin/prefilled-info')
                 ]);
-                const aptData = await aptRes.json();
-                const infoData = await infoRes.json();
-                setAppointments(Array.isArray(aptData) ? aptData : []);
-                setPrefilledInfo(infoData);
+                if (aptData && !aptData.error) setAppointments(Array.isArray(aptData) ? aptData : []);
+                if (infoData && !infoData.error) setPrefilledInfo(infoData);
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
         };
         fetchData();
@@ -242,24 +240,18 @@ const ExpressCheckin = () => {
     const handleOneTap = async (appointmentId) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/express-checkin/one-tap/${appointmentId}`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            if (!res.ok) throw new Error((await res.json()).error || 'Sync failed');
-            setSuccess(await res.json());
+            const data = await apiClient.post(`/api/express-checkin/one-tap/${appointmentId}`, {});
+            if (data.error) throw new Error(data.error);
+            setSuccess(data);
         } catch (err) { alert(err.message); } finally { setActionLoading(false); }
     };
 
     const handleGenerateQR = async (appointmentId) => {
         setActionLoading(true);
         try {
-            const res = await fetch(`${API}/api/express-checkin/generate-token/${appointmentId}`, {
-                method: 'POST',
-                headers: authedHeaders()
-            });
-            if (!res.ok) throw new Error((await res.json()).error || 'Failed to generate credential');
-            setQrData(await res.json());
+            const data = await apiClient.post(`/api/express-checkin/generate-token/${appointmentId}`, {});
+            if (data.error) throw new Error(data.error);
+            setQrData(data);
         } catch (err) { alert(err.message); } finally { setActionLoading(false); }
     };
 
@@ -286,8 +278,8 @@ const ExpressCheckin = () => {
                         <Zap size={32} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-3">Entry Terminal</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Fast-track telemetry for verified practitioners</p>
+                        <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase leading-none mb-3 text-emerald-600">Entry Terminal</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Fast-track telemetry for verified practitioners</p>
                     </div>
                 </div>
             </div>
@@ -301,8 +293,8 @@ const ExpressCheckin = () => {
                             <Fingerprint size={32} strokeWidth={2.5} />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic mb-2">Authenticated Interface: {user?.first_name}</h3>
-                            <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em] italic leading-relaxed">
+                            <h3 className="text-2xl font-black text-white tracking-tight uppercase mb-2">Authenticated Interface: {user?.first_name}</h3>
+                            <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em] leading-relaxed">
                                 Registry Status: Legacy Patient • {prefilledInfo.totalVisits || 0} Successful Cycles
                             </p>
                         </div>
@@ -321,7 +313,7 @@ const ExpressCheckin = () => {
             <div className="mb-12">
                 <div className="flex items-center gap-4 mb-8 px-2">
                     <div className="w-8 h-8 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-slate-600"><Calendar size={16} /></div>
-                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic">Active Meridian Cycles</h2>
+                    <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em]">Active Meridian Cycles</h2>
                 </div>
 
                 {appointments.length > 0 ? (
@@ -339,11 +331,11 @@ const ExpressCheckin = () => {
                 ) : (
                     <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none shadow-2xl">
                         <Calendar size={64} className="text-slate-700/20 mx-auto mb-8" />
-                        <h3 className="text-xl font-black text-slate-500 uppercase italic tracking-tighter mb-4">Registry Clear</h3>
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-10 italic">No cycles detected for the current meridian window.</p>
+                        <h3 className="text-xl font-black text-slate-500 uppercase tracking-tight mb-4">Registry Clear</h3>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-10">No cycles detected for the current meridian window.</p>
                         <button
                             onClick={() => navigate('/book')}
-                            className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all italic flex items-center gap-4 mx-auto"
+                            className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-4 mx-auto"
                         >
                             Sync New Appointment <ArrowRight size={16} />
                         </button>
@@ -354,7 +346,7 @@ const ExpressCheckin = () => {
             {/* Protocol Manual */}
             <div className="glass-card rounded-[3.5rem] p-10 border-[var(--border-base)] relative overflow-hidden group">
                  <div className="absolute top-0 right-0 p-8 opacity-5"><Info size={48} /></div>
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-10 italic px-2">Protocol Specifications</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mb-10 px-2">Protocol Specifications</h3>
                 <div className="space-y-8">
                     <ProtocolStep num="1" title="Legacy Detection" desc="The system automatically identifies practitioners with established clinical signatures." />
                     <ProtocolStep num="2" title="Credential Extraction" desc="Generate a secure holographic QR token or bypass via one-tap telemetry." />
@@ -375,8 +367,8 @@ const FeatureMetric = ({ icon: Icon, color, title, desc }) => (
                 <Icon size={20} strokeWidth={2.5} />
             </div>
             <div>
-                <span className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-tight italic block mb-1">{title}</span>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic opacity-60">{desc}</p>
+                <span className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-tight block mb-1">{title}</span>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest opacity-60">{desc}</p>
             </div>
         </div>
     </div>
@@ -384,12 +376,12 @@ const FeatureMetric = ({ icon: Icon, color, title, desc }) => (
 
 const ProtocolStep = ({ num, title, desc }) => (
     <div className="flex items-start gap-8 group">
-        <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-[1.25rem] flex items-center justify-center text-primary font-black text-sm italic shadow-inner group-hover:bg-primary group-hover:text-white transition-all duration-700 flex-shrink-0">
+        <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-[1.25rem] flex items-center justify-center text-primary font-black text-sm shadow-inner group-hover:bg-primary group-hover:text-white transition-all duration-700 flex-shrink-0">
             {num}
         </div>
         <div>
-            <h4 className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-widest italic mb-2">{title}</h4>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic leading-relaxed opacity-60">{desc}</p>
+            <h4 className="text-[11px] font-black text-gray-900 dark:text-white uppercase tracking-widest mb-2">{title}</h4>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed opacity-60">{desc}</p>
         </div>
     </div>
 );

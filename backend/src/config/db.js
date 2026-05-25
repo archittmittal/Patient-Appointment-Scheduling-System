@@ -18,15 +18,16 @@ const dbConfig = {
 
 const pool = mysql.createPool(dbConfig);
 
-// Test connection on startup
-pool.getConnection()
-    .then(conn => {
-        console.log('Successfully connected to the database.');
-        conn.release();
-    })
-    .catch(err => {
-        console.error('Database connection failed:', err.message);
-    });
+if (process.env.NODE_ENV !== 'test') {
+    pool.getConnection()
+        .then(conn => {
+            console.log('Successfully connected to the database.');
+            conn.release();
+        })
+        .catch(err => {
+            console.error('Database connection failed:', err.message);
+        });
+}
 
 // Connection pool monitoring
 pool.on('acquire', (connection) => {
@@ -47,4 +48,19 @@ pool.on('enqueue', () => {
     }
 });
 
+pool.getPoolStats = function() {
+    const rawPool = pool.pool;
+    if (!rawPool) return null;
+    const all = rawPool._allConnections ? rawPool._allConnections.length : 0;
+    const free = rawPool._freeConnections ? rawPool._freeConnections.length : 0;
+    const queue = rawPool._connectionQueue ? rawPool._connectionQueue.length : 0;
+    return {
+        activeConnections: all - free,
+        idleConnections: free,
+        pendingQueries: queue,
+        connectionLimit: dbConfig.connectionLimit
+    };
+};
+
 module.exports = pool;
+

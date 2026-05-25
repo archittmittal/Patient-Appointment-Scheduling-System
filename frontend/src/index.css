@@ -7,6 +7,13 @@
   --color-primary: #0071e3;
   --color-primary-hover: #0077ed;
   --color-primary-light: #e8f2ff;
+
+  /* Role-Specific Primary Colors */
+  --color-patient: #0071e3;
+  --color-doctor: #0f766e;
+  --color-admin: #6d28d9;
+  --color-insurance: #059669;
+  --color-insurance-light: #ecfdf5;
   
   --color-bg-apple: #f5f5f7;
   --color-surface: #ffffff;
@@ -71,17 +78,25 @@
     @apply bg-[var(--surface)] rounded-[12px] shadow-sm transition-all duration-300;
   }
   
+  .glass-card {
+    @apply bg-[var(--glass-bg-val)] backdrop-blur-xl border border-[var(--glass-border-val)] shadow-[var(--glass-shadow-val)] transition-all duration-300;
+  }
+
+  .glass-modal {
+    @apply bg-[var(--surface)]/80 backdrop-blur-2xl border border-[var(--border-base)] shadow-2xl;
+  }
+
   .glass-nav {
     @apply sticky top-0 z-50 bg-[var(--glass-bg-val)] backdrop-blur-xl border-b border-[var(--glass-border-val)] transition-all duration-300;
   }
 
   /* Buttons */
   .btn-primary {
-    @apply px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2;
+    @apply px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-primary-hover transition-all duration-200 active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply px-6 py-2.5 bg-transparent border border-primary text-primary rounded-full font-medium hover:bg-primary/5 transition-all duration-200 active:scale-[0.98];
+    @apply px-6 py-2.5 bg-transparent border border-primary text-primary rounded-full font-medium hover:bg-primary/5 transition-all duration-200 active:scale-[0.98] disabled:opacity-50;
   }
 
   /* Forms */
@@ -96,6 +111,16 @@
   /* Container */
   .section-container {
     @apply max-w-5xl mx-auto px-6 py-12;
+  }
+
+  /* Special Utility Classes */
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 }
 

@@ -3,17 +3,24 @@ const pool = require('../config/db');
 /**
  * Handles notification templates and string processing
  */
-const templateService = {
+class TemplateService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.getTemplate = this.getTemplate.bind(this);
+        this.processTemplate = this.processTemplate.bind(this);
+    }
+
     /**
      * Get notification templates from database
      */
     async getTemplate(type) {
-        const [[template]] = await pool.query(
+        const [templateRows] = await pool.query(
             'SELECT * FROM notification_templates WHERE type = ?',
             [type]
         );
+        const template = templateRows[0];
         return template;
-    },
+    }
 
     /**
      * Replace template variables with actual values
@@ -26,6 +33,6 @@ const templateService = {
         }
         return result;
     }
-};
+}
 
-module.exports = templateService;
+module.exports = new TemplateService();

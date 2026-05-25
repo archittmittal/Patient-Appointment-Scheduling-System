@@ -2,11 +2,11 @@ const request = require('supertest');
 const app = require('../src/server');
 const db = require('../src/config/db');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../src/middleware/authenticate');
+const { jwtSecret } = require('../src/middleware/authenticate');
 
 // Mock the database
 jest.mock('../src/config/db', () => ({
-  query: jest.fn(),
+  query: jest.fn().mockResolvedValue([[]]),
   getConnection: jest.fn(),
   beginTransaction: jest.fn(),
   commit: jest.fn(),
@@ -16,7 +16,7 @@ jest.mock('../src/config/db', () => ({
 
 // Helper to create a test token
 const createToken = (id, role = 'PATIENT') => {
-  return jwt.sign({ id, role, email: 'test@example.com' }, JWT_SECRET);
+  return jwt.sign({ id, role, email: 'test@example.com' }, jwtSecret);
 };
 
 describe('Appointment & Queue Endpoints', () => {
@@ -76,7 +76,7 @@ describe('Appointment & Queue Endpoints', () => {
     it('should cancel an appointment and release slot', async () => {
       const mockConn = {
         query: jest.fn()
-          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: new Date() }]]) // First query: select appt
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: new Date(), patient_id: 1 }]]) // First query: select appt
           .mockResolvedValueOnce([{ affectedRows: 1 }]) // Second: update status
           .mockResolvedValueOnce([{ affectedRows: 1 }]), // Third: update live_queue
         beginTransaction: jest.fn(),

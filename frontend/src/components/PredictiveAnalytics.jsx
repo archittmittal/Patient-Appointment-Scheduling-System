@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import { AlertTriangle, UserMinus, TrendingDown, Info, ShieldAlert, Sparkles, RefreshCw } from 'lucide-react';
 
 const PredictiveAnalytics = ({ doctorId }) => {
@@ -10,11 +10,8 @@ const PredictiveAnalytics = ({ doctorId }) => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/analytics/doctor/${doctorId}/predictive`, {
-                headers: authedHeaders()
-            });
-            if (!res.ok) throw new Error('Sync failed');
-            const data = await res.json();
+            const data = await apiClient.get(`/api/analytics/doctor/${doctorId}/predictive`);
+            if (data.error) throw new Error(data.error);
             setData(data);
             setError(null);
         } catch (err) {
@@ -68,7 +65,7 @@ const PredictiveAnalytics = ({ doctorId }) => {
                         <div className="space-y-1">
                             <div className="flex items-center gap-3">
                                 <AlertTriangle className="text-amber-500" size={24} />
-                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tight">No-Show Vectors</h3>
+                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tight">No-Show Vectors</h3>
                             </div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Appointment Reliability Scan</p>
                         </div>
@@ -126,7 +123,7 @@ const PredictiveAnalytics = ({ doctorId }) => {
                         <div className="space-y-1">
                             <div className="flex items-center gap-3">
                                 <UserMinus className="text-rose-500" size={24} />
-                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase italic tracking-tight">Churn Analysis</h3>
+                                <h3 className="text-2xl font-black text-[var(--text-base)] uppercase tracking-tight">Churn Analysis</h3>
                             </div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Patient Retention Engine</p>
                         </div>
@@ -179,7 +176,7 @@ const PredictiveAnalytics = ({ doctorId }) => {
             <div className="glass-card p-10 bg-gradient-to-br from-primary/[0.03] to-indigo-500/[0.03] border-primary/10">
                 <div className="flex items-center gap-4 mb-6">
                     <Info className="text-primary" size={20} />
-                    <h4 className="text-lg font-black text-[var(--text-base)] uppercase italic tracking-tight">Intelligence Methodology</h4>
+                    <h4 className="text-lg font-black text-[var(--text-base)] uppercase tracking-tight">Intelligence Methodology</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <div className="space-y-2">

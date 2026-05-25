@@ -4,9 +4,21 @@
  */
 
 const db = require('../config/db');
-const { calculateQueueWaitTime } = require('./durationPrediction');
+const durationPrediction = require('./durationPrediction');
 
-const virtualCheckinService = {
+class VirtualCheckinService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.virtualCheckIn = this.virtualCheckIn.bind(this);
+        this.updateStatus = this.updateStatus.bind(this);
+        this.getWaitingRoomStatus = this.getWaitingRoomStatus.bind(this);
+        this.getVirtualQueueForDoctor = this.getVirtualQueueForDoctor.bind(this);
+        this.pingSession = this.pingSession.bind(this);
+        this.cancelCheckin = this.cancelCheckin.bind(this);
+        this.getPendingNotifications = this.getPendingNotifications.bind(this);
+        this.acknowledgeNotification = this.acknowledgeNotification.bind(this);
+    }
+
     /**
      * Virtual check-in for an appointment (patient joins queue from home)
      */
@@ -75,7 +87,7 @@ const virtualCheckinService = {
             checkinTime: new Date().toISOString(),
             estimatedCallTime: etaMinutes ? new Date(Date.now() + etaMinutes * 60000).toISOString() : null
         };
-    },
+    }
 
     /**
      * Update patient status (en route, arrived, running late)
@@ -139,7 +151,7 @@ const virtualCheckinService = {
             status: dbStatus,
             message: `Status updated to ${status.toLowerCase().replace('_', ' ')}`
         };
-    },
+    }
 
     /**
      * Get virtual waiting room status for a patient
@@ -185,7 +197,7 @@ const virtualCheckinService = {
         );
 
         // Calculate estimated wait using the centralized duration prediction service
-        const waitInfo = await calculateQueueWaitTime(appointmentId);
+        const waitInfo = await durationPrediction.calculateQueueWaitTime(appointmentId);
         const estimatedWaitMins = waitInfo.estimatedWait || 0;
 
         return {
@@ -200,14 +212,14 @@ const virtualCheckinService = {
                 checkinTime: appointment.virtual_checkin_time
             },
             queue: {
-                position,
+                position: queuePosition[0]?.position || 1,
                 estimatedWaitMins,
                 estimatedCallTime: new Date(Date.now() + estimatedWaitMins * 60000).toISOString()
             },
             session: sessions[0] || null,
             isCheckedIn: appointment.virtual_checkin_status !== 'NOT_CHECKED_IN'
         };
-    },
+    }
 
     /**
      * Get all virtually checked-in patients for a doctor (for clinic view)
@@ -238,7 +250,7 @@ const virtualCheckinService = {
                 ? Math.round((Date.now() - new Date(p.virtual_checkin_time).getTime()) / 60000)
                 : 0
         }));
-    },
+    }
 
     /**
      * Keep session alive (heartbeat from patient app)
@@ -252,7 +264,7 @@ const virtualCheckinService = {
         );
 
         return { success: true, timestamp: new Date().toISOString() };
-    },
+    }
 
     /**
      * Cancel virtual check-in
@@ -282,7 +294,7 @@ const virtualCheckinService = {
         );
 
         return { success: true, message: 'Virtual check-in cancelled' };
-    },
+    }
 
     /**
      * Get pending check-in notifications for staff
@@ -309,7 +321,7 @@ const virtualCheckinService = {
 
         const [notifications] = await db.query(query, params);
         return notifications;
-    },
+    }
 
     /**
      * Acknowledge a notification
@@ -324,6 +336,6 @@ const virtualCheckinService = {
 
         return { success: true };
     }
-};
+}
 
-module.exports = virtualCheckinService;
+module.exports = new VirtualCheckinService();

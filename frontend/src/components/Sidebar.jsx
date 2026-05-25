@@ -4,10 +4,10 @@ import {
     LayoutDashboard, Users, User, Calendar, Activity, LogOut, 
     ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, 
     Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart,
-    ChevronRight, Sparkles, HeartPulse, FileText, Search
+    ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const PATIENT_MENU = [
     { name: 'Overview', icon: LayoutDashboard, path: '/patient-dashboard' },
@@ -15,9 +15,13 @@ const PATIENT_MENU = [
     { name: 'Medications', icon: Pill, path: '/prescriptions' },
     { name: 'Find Doctors', icon: Search, path: '/doctors' },
     { name: 'Book Visit', icon: Calendar, path: '/book' },
+    { name: 'Insurance', icon: Shield, path: '/insurance' },
+    { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
+    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
+    { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
+    { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
     { name: 'Live Queue', icon: HeartPulse, path: '/queue' },
     { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
-    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
     { name: 'Messages', icon: MessageSquare, path: '/messages' },
     { name: 'My Profile', icon: User, path: '/profile' },
@@ -36,6 +40,7 @@ const ADMIN_MENU = [
     { name: 'Admin Hub', icon: LayoutDashboard, path: '/admin-dashboard' },
     { name: 'Users Control', icon: Users, path: '/admin-users' },
     { name: 'Appointment Log', icon: ClipboardList, path: '/admin-appointments' },
+    { name: 'Insurance Portal', icon: Shield, path: '/admin/insurance' },
 ];
 
 const ROLE_MENU = { PATIENT: PATIENT_MENU, DOCTOR: DOCTOR_MENU, ADMIN: ADMIN_MENU };
@@ -43,7 +48,12 @@ const GUEST_MENU = [
     { name: 'Find Doctors', icon: Search, path: '/doctors' },
     { name: 'Book Visit', icon: Calendar, path: '/book' },
 ];
-const ROLE_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Care Team', ADMIN: 'System Admin' };
+const ROLE_LABEL = { PATIENT: 'Patient Portal', DOCTOR: 'Medical Portal', ADMIN: 'System Control' };
+const ROLE_COLOR = { PATIENT: 'text-patient', DOCTOR: 'text-doctor', ADMIN: 'text-admin' };
+const ROLE_BG = { PATIENT: 'bg-patient', DOCTOR: 'bg-doctor', ADMIN: 'bg-admin' };
+const ROLE_BORDER = { PATIENT: 'border-patient/10', DOCTOR: 'border-doctor/10', ADMIN: 'border-admin/10' };
+const ROLE_SHADOW = { PATIENT: 'shadow-patient/20', DOCTOR: 'shadow-doctor/20', ADMIN: 'shadow-admin/20' };
+const ROLE_ACCENT_BG = { PATIENT: 'bg-patient/5', DOCTOR: 'bg-doctor/5', ADMIN: 'bg-admin/5' };
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
@@ -57,9 +67,8 @@ const Sidebar = () => {
 
         const checkFeedback = async () => {
             try {
-                const res = await fetch(`${API}/api/feedback/pending`, { headers: authedHeaders() });
-                if (res.ok) {
-                    const data = await res.json();
+                const data = await apiClient.get('/api/feedback/pending');
+                if (data && !data.error) {
                     setPendingFeedbackCount(Array.isArray(data) ? data.length : 0);
                 }
             } catch (err) {
@@ -82,26 +91,32 @@ const Sidebar = () => {
             {/* Header / Brand */}
             <div className="p-8 pb-4">
                 <div className="flex items-center gap-3 mb-10 group cursor-pointer" onClick={() => navigate('/')}>
-                    <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-all">
-                        <Activity className="text-white" size={18} />
+                    <div className={`w-10 h-10 ${ROLE_BG[user?.role] || 'bg-primary'} rounded-xl flex items-center justify-center shadow-lg ${ROLE_SHADOW[user?.role] || 'shadow-primary/20'} group-hover:scale-110 transition-all`}>
+                        <Activity className="text-white" size={20} />
                     </div>
-                    <span className="text-xl font-bold tracking-tight text-slate-900">HealthSync</span>
+                    <div className="flex flex-col">
+                        <span className="text-xl font-bold tracking-tight text-slate-900 leading-none">HealthSync</span>
+                        <span className={`text-[9px] font-black uppercase tracking-[0.2em] mt-1 ${ROLE_COLOR[user?.role] || 'text-primary'}`}>
+                            {ROLE_LABEL[user?.role] || 'Universal'}
+                        </span>
+                    </div>
                 </div>
-                
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-1">{ROLE_LABEL[user?.role] || 'Portal'}</p>
             </div>
 
             {/* Navigation */}
             <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
                 {menuItems.map((item) => {
                     const isActive = location.pathname === item.path;
+                    const roleColor = ROLE_COLOR[user?.role] || 'text-primary';
+                    const roleAccentBg = ROLE_ACCENT_BG[user?.role] || 'bg-primary/5';
+                    
                     return (
                         <NavLink
                             key={item.name}
                             to={item.path}
                             className={`flex items-center justify-between px-5 py-3.5 rounded-2xl transition-all duration-300 group relative ${
                                 isActive
-                                    ? 'bg-primary/5 text-primary font-bold shadow-sm'
+                                    ? `${roleAccentBg} ${roleColor} font-bold shadow-sm`
                                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                             }`}
                         >
@@ -109,22 +124,22 @@ const Sidebar = () => {
                                 <item.icon 
                                     size={18} 
                                     strokeWidth={isActive ? 2.5 : 1.5} 
-                                    className={`transition-all duration-300 ${isActive ? 'text-primary scale-110' : 'text-slate-400 group-hover:text-slate-600'}`} 
+                                    className={`transition-all duration-300 ${isActive ? roleColor + ' scale-110' : 'text-slate-400 group-hover:text-slate-600'}`} 
                                 />
                                 <span className={`text-[13px] tracking-tight transition-all ${isActive ? 'translate-x-1' : ''}`}>{item.name}</span>
                             </div>
                             
                             <div className="flex items-center gap-2">
                                 {item.name === 'Feedback' && pendingFeedbackCount > 0 && (
-                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full animate-bounce ${isActive ? 'bg-primary text-white' : 'bg-red-500 text-white shadow-md shadow-red-200'}`}>
+                                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full animate-bounce ${isActive ? (ROLE_BG[user?.role] || 'bg-primary') + ' text-white' : 'bg-red-500 text-white shadow-md shadow-red-200'}`}>
                                         {pendingFeedbackCount}
                                     </span>
                                 )}
-                                {isActive && <ChevronRight size={14} className="text-primary/40 animate-in slide-in-from-left-2 duration-300" />}
+                                {isActive && <ChevronRight size={14} className={`${roleColor} opacity-40 animate-in slide-in-from-left-2 duration-300`} />}
                             </div>
 
                             {isActive && (
-                                <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full animate-in slide-in-from-left-4 duration-500" />
+                                <div className={`absolute left-0 w-1 h-6 ${ROLE_BG[user?.role] || 'bg-primary'} rounded-r-full animate-in slide-in-from-left-4 duration-500`} />
                             )}
                         </NavLink>
                     );

@@ -5,10 +5,54 @@
 
 const express = require('express');
 const router = express.Router();
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 const { authenticate } = require('../middleware/authenticate');
 const notificationService = require('../services/notificationService');
 
-// GET /api/notifications - Get user's notification history
+// Validation Schemas
+const preferencesSchema = Joi.object({
+    email_enabled: Joi.boolean(),
+    push_enabled: Joi.boolean(),
+    sms_enabled: Joi.boolean(),
+    appointment_reminders: Joi.boolean(),
+    queue_updates: Joi.boolean(),
+    delay_alerts: Joi.boolean(),
+    health_tips: Joi.boolean()
+}).min(1);
+
+const pushSubscriptionSchema = Joi.object({
+    subscription: Joi.object().required()
+});
+
+/**
+ * @swagger
+ * tags:
+ *   name: Notifications
+ *   description: Notification management and user preferences
+ */
+
+/**
+ * @swagger
+ * /api/notifications:
+ *   get:
+ *     summary: Get notification history for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Maximum number of notifications to retrieve
+ *     responses:
+ *       200:
+ *         description: List of notifications retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/', authenticate, async (req, res) => {
     try {
         const { limit = 50 } = req.query;
@@ -23,7 +67,20 @@ router.get('/', authenticate, async (req, res) => {
     }
 });
 
-// GET /api/notifications/unread-count - Get unread notification count
+/**
+ * @swagger
+ * /api/notifications/unread-count:
+ *   get:
+ *     summary: Get unread notification count for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread notification count retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/unread-count', authenticate, async (req, res) => {
     try {
         const count = await notificationService.getUnreadCount(req.user.id);
@@ -34,7 +91,27 @@ router.get('/unread-count', authenticate, async (req, res) => {
     }
 });
 
-// POST /api/notifications/:id/read - Mark notification as read
+/**
+ * @swagger
+ * /api/notifications/{id}/read:
+ *   post:
+ *     summary: Mark a specific notification as read
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as read
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/:id/read', authenticate, async (req, res) => {
     try {
         await notificationService.markAsRead(parseInt(req.params.id), req.user.id);
@@ -45,7 +122,20 @@ router.post('/:id/read', authenticate, async (req, res) => {
     }
 });
 
-// POST /api/notifications/mark-all-read - Mark all notifications as read
+/**
+ * @swagger
+ * /api/notifications/mark-all-read:
+ *   post:
+ *     summary: Mark all notifications as read for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/mark-all-read', authenticate, async (req, res) => {
     try {
         const db = require('../config/db');
@@ -60,7 +150,20 @@ router.post('/mark-all-read', authenticate, async (req, res) => {
     }
 });
 
-// GET /api/notifications/preferences - Get notification preferences
+/**
+ * @swagger
+ * /api/notifications/preferences:
+ *   get:
+ *     summary: Get notification preferences for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notification preferences retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.get('/preferences', authenticate, async (req, res) => {
     try {
         const preferences = await notificationService.getUserPreferences(req.user.id);
@@ -71,8 +174,44 @@ router.get('/preferences', authenticate, async (req, res) => {
     }
 });
 
-// PUT /api/notifications/preferences - Update notification preferences
-router.put('/preferences', authenticate, async (req, res) => {
+/**
+ * @swagger
+ * /api/notifications/preferences:
+ *   put:
+ *     summary: Update notification preferences for the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email_enabled:
+ *                 type: boolean
+ *               push_enabled:
+ *                 type: boolean
+ *               sms_enabled:
+ *                 type: boolean
+ *               appointment_reminders:
+ *                 type: boolean
+ *               queue_updates:
+ *                 type: boolean
+ *               delay_alerts:
+ *                 type: boolean
+ *               health_tips:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Preferences updated successfully
+ *       400:
+ *         description: Invalid body or no valid preferences provided
+ *       401:
+ *         description: Unauthorized
+ */
+router.put('/preferences', authenticate, validateRequest(preferencesSchema), async (req, res) => {
     try {
         const result = await notificationService.updatePreferences(req.user.id, req.body);
         if (result.success) {
@@ -86,8 +225,35 @@ router.put('/preferences', authenticate, async (req, res) => {
     }
 });
 
-// POST /api/notifications/subscribe-push - Save push notification subscription
-router.post('/subscribe-push', authenticate, async (req, res) => {
+/**
+ * @swagger
+ * /api/notifications/subscribe-push:
+ *   post:
+ *     summary: Subscribe to push notifications
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - subscription
+ *             properties:
+ *               subscription:
+ *                 type: object
+ *                 description: Web Push subscription object
+ *     responses:
+ *       200:
+ *         description: Push subscription saved successfully
+ *       400:
+ *         description: Invalid subscription data
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/subscribe-push', authenticate, validateRequest(pushSubscriptionSchema), async (req, res) => {
     try {
         const { subscription } = req.body;
         if (!subscription) {
@@ -102,7 +268,30 @@ router.post('/subscribe-push', authenticate, async (req, res) => {
     }
 });
 
-// POST /api/notifications/test - Send a test notification (for debugging)
+/**
+ * @swagger
+ * /api/notifications/test:
+ *   post:
+ *     summary: Send a test notification to the authenticated user
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 default: QUEUE_UPDATE
+ *                 description: Notification type
+ *     responses:
+ *       200:
+ *         description: Test notification sent successfully
+ *       401:
+ *         description: Unauthorized
+ */
 router.post('/test', authenticate, async (req, res) => {
     try {
         const { type = 'QUEUE_UPDATE' } = req.body;

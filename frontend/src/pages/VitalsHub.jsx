@@ -8,8 +8,7 @@ import {
     Calendar, Clock, Info, ArrowRight, X, FlaskConical, Pill, RefreshCw, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
-import { safeFetch } from '../utils/apiHelper';
+import { apiClient } from '../services/apiClient';
 
 const VitalsHub = () => {
     const { user } = useAuth();
@@ -27,9 +26,7 @@ const VitalsHub = () => {
     const fetchVitals = async () => {
         if (!user?.id) return;
         try {
-            const data = await safeFetch(`${API}/api/patients/${user.id}/vitals`, {
-                headers: authedHeaders()
-            });
+            const data = await apiClient.get(`/api/patients/${user.id}/vitals`);
             
             if (Array.isArray(data)) {
                 const formatted = data.map(v => ({
@@ -52,22 +49,14 @@ const VitalsHub = () => {
     const handleLog = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch(`${API}/api/patients/${user.id}/vitals`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    ...authedHeaders()
-                },
-                body: JSON.stringify(formData)
-            });
+            const data = await apiClient.post(`/api/patients/${user.id}/vitals`, formData);
             
-            if (res.ok) {
+            if (data && !data.error) {
                 setShowLogModal(false);
                 fetchVitals();
                 setFormData({ weight_kg: '', blood_pressure_sys: '', blood_pressure_dia: '', heart_rate: '', temperature_c: '' });
             } else {
-                const err = await res.json();
-                alert(err.message || 'Failed to save vitals');
+                alert(data?.message || 'Failed to save vitals');
             }
         } catch (error) {
             console.error('[Vitals] Log error:', error);
@@ -76,12 +65,7 @@ const VitalsHub = () => {
 
     const handleExport = async () => {
         try {
-            const response = await fetch(`${API}/api/patients/${user.id}/vitals/export`, {
-                headers: authedHeaders()
-            });
-            if (!response.ok) throw new Error('Export failed');
-            
-            const blob = await response.blob();
+            const blob = await apiClient.getBlob(`/api/patients/${user.id}/vitals/export`);
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;

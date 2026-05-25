@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, MessageSquare, Search, ArrowLeft, MoreVertical, Paperclip, Smile, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
 
 const Messages = () => {
     const { user } = useAuth();
@@ -34,8 +34,7 @@ const Messages = () => {
 
     const fetchConversations = async () => {
         try {
-            const res = await fetch(`${API}/api/messages/conversations`, { headers: authedHeaders() });
-            const data = await res.json();
+            const data = await apiClient.get('/api/messages/conversations');
             setConversations(data);
             setLoading(false);
         } catch (error) {
@@ -46,8 +45,7 @@ const Messages = () => {
 
     const fetchHistory = async (otherId) => {
         try {
-            const res = await fetch(`${API}/api/messages/history/${otherId}`, { headers: authedHeaders() });
-            const data = await res.json();
+            const data = await apiClient.get(`/api/messages/history/${otherId}`);
             setMessages(data);
         } catch (error) {
             console.error('Error fetching history:', error);
@@ -69,18 +67,12 @@ const Messages = () => {
         setNewMessage('');
 
         try {
-            const res = await fetch(`${API}/api/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', ...authedHeaders() },
-                body: JSON.stringify({
-                    receiverId: selectedUser.other_user_id,
-                    content: newMessage
-                })
+            await apiClient.post('/api/messages', {
+                receiverId: selectedUser.other_user_id,
+                content: newMessage
             });
-            if (res.ok) {
-                fetchHistory(selectedUser.other_user_id);
-                fetchConversations();
-            }
+            fetchHistory(selectedUser.other_user_id);
+            fetchConversations();
         } catch (error) {
             console.error('Error sending message:', error);
         }
@@ -94,9 +86,9 @@ const Messages = () => {
     );
 
     return (
-        <div className="section-container h-[calc(100vh-140px)] flex flex-col md:flex-row gap-0 overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-2xl shadow-slate-200/50 animate-in fade-in zoom-in-95 duration-700">
+        <div className="section-container h-[calc(100vh-140px)] flex flex-col md:flex-row gap-0 overflow-hidden rounded-[2rem] glass-card shadow-2xl shadow-slate-200/50 animate-in fade-in zoom-in-95 duration-700">
             {/* Sidebar / Conversations List */}
-            <div className={`w-full md:w-96 flex flex-col bg-slate-50/50 border-r border-slate-100 ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`w-full md:w-96 flex flex-col bg-white/40 border-r border-slate-100/50 ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
                 <div className="p-8 pb-4">
                     <h1 className="text-3xl font-bold tracking-tight mb-6">Messages</h1>
                     <div className="relative group">
@@ -200,7 +192,7 @@ const Messages = () => {
                                                 isMe 
                                                     ? 'bg-primary text-white rounded-br-none' 
                                                     : 'bg-white border border-slate-100 text-slate-800 rounded-bl-none'
-                                            } ${msg.is_optimistic ? 'opacity-70 italic' : ''}`}>
+                                            } ${msg.is_optimistic ? 'opacity-70 ' : ''}`}>
                                                 {msg.content}
                                             </div>
                                             <div className={`flex items-center gap-2 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>

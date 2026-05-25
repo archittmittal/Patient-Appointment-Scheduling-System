@@ -2,48 +2,270 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
+const Joi = require('joi');
+const validateRequest = require('../middleware/validateRequest');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 
 const BCRYPT_ROUNDS = 10;
+
+// Validation Schemas
+const addDoctorSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+    first_name: Joi.string().max(50).required(),
+    last_name: Joi.string().max(50).required(),
+    specialty: Joi.string().max(100).required(),
+    degree: Joi.string().max(100),
+    experience_years: Joi.number().min(0).max(100),
+    location_room: Joi.string().max(20)
+});
+
+const addPatientSchema = Joi.object({
+    email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+    first_name: Joi.string().max(50).required(),
+    last_name: Joi.string().max(50).required(),
+    dob: Joi.string().isoDate(),
+    phone: Joi.string().max(20),
+    blood_group: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
+    address: Joi.string().max(255)
+});
+
+const usersQuerySchema = Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(10),
+    role: Joi.string().valid('PATIENT', 'DOCTOR', 'ADMIN', 'ALL').default('ALL'),
+    sort_by: Joi.string().valid('id', 'name', 'created_at', 'role').default('id'),
+    order: Joi.string().valid('ASC', 'DESC', 'asc', 'desc').default('ASC')
+});
 
 // All admin routes require authentication + ADMIN role
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
 
-// GET /api/admin/users — all users with profile info
-router.get('/users', async (req, res) => {
+/**
+ * @swagger
+ * tags:
+ *   name: Admin
+ *   description: Administrative operations for managing doctors, patients, appointments, and overall system status
+ */
+
+/**
+ * @swagger
+ * /api/admin/patients/list:
+ *   get:
+ *     summary: Get a simple list of all patients
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Simple list of all patients retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
+router.get('/patients/list', async (req, res) => {
     try {
-        const [users] = await db.query('SELECT id, email, role, created_at FROM users ORDER BY role, id');
-        const result = [];
-
-        for (const user of users) {
-            let name = 'Admin';
-            let extra = {};
-            if (user.role === 'PATIENT') {
-                const [rows] = await db.query('SELECT first_name, last_name, phone, blood_group FROM patients WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            } else if (user.role === 'DOCTOR') {
-                const [rows] = await db.query('SELECT first_name, last_name, specialty, location_room FROM doctors WHERE id = ?', [user.id]);
-                if (rows.length > 0) {
-                    name = `${rows[0].first_name} ${rows[0].last_name}`;
-                    extra = rows[0];
-                }
-            }
-            result.push({ ...user, name, ...extra });
-        }
-
-        res.json(result);
+        const [rows] = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM patients ORDER BY first_name');
+        res.json(rows);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
 
-// POST /api/admin/doctors — add a new doctor
-router.post('/doctors', async (req, res) => {
+// GET /api/admin/users — all users with profile info
+// Allowed sort columns — explicit whitelist to prevent SQL injection on ORDER BY
+const ALLOWED_SORT = {
+    id: 'u.id',
+    name: "COALESCE(p.first_name, d.first_name, 'Admin')",
+    created_at: 'u.created_at',
+    role: 'u.role'
+};
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Retrieve a paginated, sorted list of all users with profile information
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [PATIENT, DOCTOR, ADMIN, ALL]
+ *           default: ALL
+ *       - in: query
+ *         name: sort_by
+ *         schema:
+ *           type: string
+ *           enum: [id, name, created_at, role]
+ *           default: id
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC, asc, desc]
+ *           default: ASC
+ *     responses:
+ *       200:
+ *         description: Paginated users retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
+router.get('/users', validateRequest(usersQuerySchema, 'query'), async (req, res) => {
+    try {
+        const { page, limit, role, sort_by, order: orderRaw } = req.query;
+        const offset = (page - 1) * limit;
+
+        const sortColumn = ALLOWED_SORT[sort_by] || ALLOWED_SORT.id;
+        const order = orderRaw.toUpperCase();
+
+        let whereClause = '';
+        const filterParams = [];
+
+        if (role && role !== 'ALL') {
+            whereClause = 'WHERE u.role = ?';
+            filterParams.push(role);
+        }
+
+        const orderByClause = sortColumn === ALLOWED_SORT.role
+            ? `ORDER BY ${sortColumn} ${order}, u.id ASC`
+            : `ORDER BY ${sortColumn} ${order}`;
+
+        // --- Count query (uses only filterParams) ---
+        const countQuery = `SELECT COUNT(*) AS total FROM users u ${whereClause}`;
+        const [countResult] = await db.query(countQuery, filterParams);
+        const total = countResult[0].total;
+
+        // --- Data query (clone filterParams + append limit/offset) ---
+        const dataQuery = `
+            SELECT 
+                u.id, u.email, u.role, u.created_at,
+                p.first_name AS p_first, p.last_name AS p_last, p.phone, p.blood_group,
+                d.first_name AS d_first, d.last_name AS d_last, d.specialty, d.location_room
+            FROM users u
+            LEFT JOIN patients p ON u.id = p.id
+            LEFT JOIN doctors d ON u.id = d.id
+            ${whereClause}
+            ${orderByClause}
+            LIMIT ? OFFSET ?
+        `;
+
+        const dataParams = [...filterParams, limit, offset];
+        const [rows] = await db.query(dataQuery, dataParams);
+
+        const users = rows.map(row => {
+            let name = 'Admin';
+            let extra = {};
+            if (row.role === 'PATIENT') {
+                name = `${row.p_first || ''} ${row.p_last || ''}`.trim();
+                extra = {
+                    first_name: row.p_first,
+                    last_name: row.p_last,
+                    phone: row.phone,
+                    blood_group: row.blood_group
+                };
+            } else if (row.role === 'DOCTOR') {
+                name = `${row.d_first || ''} ${row.d_last || ''}`.trim();
+                extra = {
+                    first_name: row.d_first,
+                    last_name: row.d_last,
+                    specialty: row.specialty,
+                    location_room: row.location_room
+                };
+            }
+            return {
+                id: row.id,
+                email: row.email,
+                role: row.role,
+                created_at: row.created_at,
+                name: name || 'Unknown',
+                ...extra
+            };
+        });
+
+        res.json({
+            data: users,
+            meta: {
+                total,
+                page,
+                limit,
+                total_pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/doctors:
+ *   post:
+ *     summary: Add a new doctor to the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - first_name
+ *               - last_name
+ *               - specialty
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               specialty:
+ *                 type: string
+ *               degree:
+ *                 type: string
+ *               experience_years:
+ *                 type: integer
+ *               location_room:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Doctor added successfully
+ *       400:
+ *         description: Invalid request body
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       409:
+ *         description: Email already exists
+ */
+router.post('/doctors', validateRequest(addDoctorSchema), async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, specialty, degree, experience_years, location_room } = req.body;
@@ -76,7 +298,28 @@ router.post('/doctors', async (req, res) => {
     }
 });
 
-// DELETE /api/admin/doctors/:id
+/**
+ * @swagger
+ * /api/admin/doctors/{id}:
+ *   delete:
+ *     summary: Remove a doctor by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.delete('/doctors/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'DOCTOR']);
@@ -87,8 +330,57 @@ router.delete('/doctors/:id', async (req, res) => {
     }
 });
 
-// POST /api/admin/patients — add a new patient
-router.post('/patients', async (req, res) => {
+/**
+ * @swagger
+ * /api/admin/patients:
+ *   post:
+ *     summary: Add a new patient to the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - first_name
+ *               - last_name
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               first_name:
+ *                 type: string
+ *               last_name:
+ *                 type: string
+ *               dob:
+ *                 type: string
+ *                 format: date
+ *               phone:
+ *                 type: string
+ *               blood_group:
+ *                 type: string
+ *                 enum: [A+, A-, B+, B-, AB+, AB-, O+, O-]
+ *               address:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Patient added successfully
+ *       400:
+ *         description: Invalid request body
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ *       409:
+ *         description: Email already exists
+ */
+router.post('/patients', validateRequest(addPatientSchema), async (req, res) => {
     const conn = await db.getConnection();
     try {
         const { email, password, first_name, last_name, dob, phone, blood_group, address } = req.body;
@@ -120,7 +412,28 @@ router.post('/patients', async (req, res) => {
     }
 });
 
-// DELETE /api/admin/patients/:id
+/**
+ * @swagger
+ * /api/admin/patients/{id}:
+ *   delete:
+ *     summary: Remove a patient by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Patient removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.delete('/patients/:id', async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'PATIENT']);
@@ -131,7 +444,29 @@ router.delete('/patients/:id', async (req, res) => {
     }
 });
 
-// GET /api/admin/patients/search?q=... — search patients by name or phone
+/**
+ * @swagger
+ * /api/admin/patients/search:
+ *   get:
+ *     summary: Search patients by name or phone number
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query (minimum 2 characters)
+ *     responses:
+ *       200:
+ *         description: List of matching patients retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/patients/search', async (req, res) => {
     try {
         const query = req.query.q || '';
@@ -152,7 +487,22 @@ router.get('/patients/search', async (req, res) => {
     }
 });
 
-// GET /api/admin/appointments — all appointments
+/**
+ * @swagger
+ * /api/admin/appointments:
+ *   get:
+ *     summary: Retrieve a list of all appointments in the system
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all appointments retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/appointments', async (req, res) => {
     try {
         const [rows] = await db.query(`
@@ -172,27 +522,38 @@ router.get('/appointments', async (req, res) => {
     }
 });
 
-// GET /api/admin/stats — extended overview stats
+/**
+ * @swagger
+ * /api/admin/stats:
+ *   get:
+ *     summary: Get administrative statistics overview and top doctors today
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Overall dashboard stats retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/stats', async (req, res) => {
     try {
-        const [[{ total_doctors }]] = await db.query('SELECT COUNT(*) AS total_doctors FROM doctors');
-        const [[{ total_patients }]] = await db.query('SELECT COUNT(*) AS total_patients FROM patients');
-        const [[{ total_appointments }]] = await db.query('SELECT COUNT(*) AS total_appointments FROM appointments');
-        const [[{ today_total }]] = await db.query(
-            "SELECT COUNT(*) AS today_total FROM appointments WHERE appointment_date = CURDATE()"
-        );
-        const [[{ today_confirmed }]] = await db.query(
-            "SELECT COUNT(*) AS today_confirmed FROM appointments WHERE appointment_date = CURDATE() AND status = 'CONFIRMED'"
-        );
-        const [[{ today_completed }]] = await db.query(
-            "SELECT COUNT(*) AS today_completed FROM appointments WHERE appointment_date = CURDATE() AND status = 'COMPLETED'"
-        );
-        const [[{ today_pending }]] = await db.query(
-            "SELECT COUNT(*) AS today_pending FROM appointments WHERE appointment_date = CURDATE() AND status = 'PENDING'"
-        );
-        const [[{ today_cancelled }]] = await db.query(
-            "SELECT COUNT(*) AS today_cancelled FROM appointments WHERE appointment_date = CURDATE() AND status = 'CANCELLED'"
-        );
+        const [statsRows] = await db.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM doctors) AS total_doctors,
+                (SELECT COUNT(*) FROM patients) AS total_patients,
+                (SELECT COUNT(*) FROM appointments) AS total_appointments,
+                COUNT(CASE WHEN appointment_date = CURDATE() THEN 1 END) AS today_total,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CONFIRMED' THEN 1 END) AS today_confirmed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'COMPLETED' THEN 1 END) AS today_completed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'PENDING' THEN 1 END) AS today_pending,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CANCELLED' THEN 1 END) AS today_cancelled
+            FROM appointments
+        `);
+        
+        const stats = statsRows[0];
 
         // Top 5 doctors by appointment count today
         const [top_doctors_today] = await db.query(`
@@ -206,10 +567,8 @@ router.get('/stats', async (req, res) => {
         `);
 
         res.json({
-            total_doctors, total_patients, total_appointments,
-            today_total, today_confirmed, today_completed, today_pending, today_cancelled,
-            // backward compat alias
-            today_appointments: today_total,
+            ...stats,
+            today_appointments: stats.today_total, // backward compat
             top_doctors_today,
         });
     } catch (error) {
@@ -218,54 +577,78 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// GET /api/admin/queue-overview — today's live queue grouped by doctor
+/**
+ * @swagger
+ * /api/admin/queue-overview:
+ *   get:
+ *     summary: Get live queue status overview for all doctors today
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Complete live queue overview retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (Requires ADMIN role)
+ */
 router.get('/queue-overview', async (req, res) => {
     try {
-        // All doctors who have appointments today
-        const [doctors] = await db.query(`
-            SELECT DISTINCT d.id, d.first_name, d.last_name, d.specialty
+        // Single query to get all data: Doctors and their Live Queue entries for today
+        const [rows] = await db.query(`
+            SELECT 
+                d.id AS doctor_id, d.first_name, d.last_name, d.specialty,
+                lq.id AS queue_id, lq.queue_number, lq.status AS queue_status,
+                CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
+                a.time_slot,
+                (SELECT COUNT(*) FROM appointments WHERE doctor_id = d.id AND appointment_date = CURDATE()) AS doc_total_today
             FROM doctors d
-            JOIN appointments a ON a.doctor_id = d.id
-            WHERE a.appointment_date = CURDATE()
-            ORDER BY d.first_name
+            LEFT JOIN appointments a ON a.doctor_id = d.id AND a.appointment_date = CURDATE()
+            LEFT JOIN live_queue lq ON lq.appointment_id = a.id
+            LEFT JOIN patients p ON a.patient_id = p.id
+            WHERE a.id IS NOT NULL OR d.id IN (SELECT DISTINCT doctor_id FROM appointments WHERE appointment_date = CURDATE())
+            ORDER BY d.first_name, lq.queue_number ASC
         `);
 
-        const result = [];
+        // Group rows by doctor in memory
+        const doctorMap = new Map();
 
-        for (const doc of doctors) {
-            const [queue] = await db.query(`
-                SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status,
-                       CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
-                       a.time_slot
-                FROM live_queue lq
-                JOIN appointments a ON lq.appointment_id = a.id
-                JOIN patients p ON a.patient_id = p.id
-                WHERE a.doctor_id = ? AND a.appointment_date = CURDATE()
-                ORDER BY lq.queue_number ASC
-            `, [doc.id]);
+        rows.forEach(row => {
+            if (!doctorMap.has(row.doctor_id)) {
+                doctorMap.set(row.doctor_id, {
+                    doctor_id: row.doctor_id,
+                    doctor_name: `Dr. ${row.first_name} ${row.last_name}`,
+                    specialty: row.specialty,
+                    total_today: Number(row.doc_total_today),
+                    waiting: 0,
+                    in_progress: 0,
+                    completed: 0,
+                    missed: 0,
+                    queue: []
+                });
+            }
 
-            const counts = { WAITING: 0, IN_PROGRESS: 0, COMPLETED: 0, MISSED: 0 };
-            queue.forEach(q => { counts[q.queue_status] = (counts[q.queue_status] || 0) + 1; });
+            const doc = doctorMap.get(row.doctor_id);
+            
+            if (row.queue_id) {
+                doc.queue.push({
+                    queue_id: row.queue_id,
+                    queue_number: row.queue_number,
+                    queue_status: row.queue_status,
+                    patient_name: row.patient_name,
+                    time_slot: row.time_slot
+                });
 
-            const [[{ total_today }]] = await db.query(
-                'SELECT COUNT(*) AS total_today FROM appointments WHERE doctor_id = ? AND appointment_date = CURDATE()',
-                [doc.id]
-            );
+                // Update counters
+                if (row.queue_status === 'WAITING') doc.waiting++;
+                else if (row.queue_status === 'IN_PROGRESS') doc.in_progress++;
+                else if (row.queue_status === 'COMPLETED') doc.completed++;
+                else if (row.queue_status === 'MISSED') doc.missed++;
+            }
+        });
 
-            result.push({
-                doctor_id: doc.id,
-                doctor_name: `Dr. ${doc.first_name} ${doc.last_name}`,
-                specialty: doc.specialty,
-                total_today: Number(total_today),
-                waiting:     counts.WAITING,
-                in_progress: counts.IN_PROGRESS,
-                completed:   counts.COMPLETED,
-                missed:      counts.MISSED,
-                queue,
-            });
-        }
-
-        res.json(result);
+        res.json(Array.from(doctorMap.values()));
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

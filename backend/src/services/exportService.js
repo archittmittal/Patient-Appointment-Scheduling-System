@@ -1,82 +1,130 @@
+/**
+ * Export Service
+ * Generates downloadable reports in PDF and CSV formats.
+ */
+
 const PDFDocument = require('pdfkit');
 const { Parser } = require('json2csv');
 const db = require('../config/db');
 
 class ExportService {
     /**
-     * Generate Prescription PDF
+     * Export Appointment History as CSV
      */
-    async generatePrescriptionPDF(appointmentId, res) {
-        const query = `
-            SELECT a.*, p.first_name as patient_first, p.last_name as patient_last, p.dob,
-                   d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
+    async exportAppointmentsCSV(patientId) {
+        const [rows] = await db.query(`
+            SELECT 
+                a.appointment_date, a.time_slot, a.status, a.symptoms,
+                d.first_name AS doctor_first, d.last_name AS doctor_last, d.specialty
             FROM appointments a
-            JOIN patients p ON a.patient_id = p.id
             JOIN doctors d ON a.doctor_id = d.id
-            WHERE a.id = ?
-        `;
-        const [[appt]] = await db.query(query, [appointmentId]);
+            WHERE a.patient_id = ?
+            ORDER BY a.appointment_date DESC
+        `, [patientId]);
 
-        if (!appt) throw new Error('Appointment not found');
+        if (rows.length === 0) return null;
 
-        const doc = new PDFDocument();
+        const fields = [
+            { label: 'Date', value: 'appointment_date' },
+            { label: 'Time', value: 'time_slot' },
+            { label: 'Status', value: 'status' },
+            { label: 'Symptoms', value: 'symptoms' },
+            { label: 'Doctor', value: (row) => `Dr. ${row.doctor_first} ${row.doctor_last}` },
+            { label: 'Specialty', value: 'specialty' }
+        ];
+
+        const json2csvParser = new Parser({ fields });
+        return json2csvParser.parse(rows);
+    }
+
+    /**
+     * Export Medical Record Summary as PDF
+     */
+    async exportMedicalRecordPDF(patientId, res) {
+        // Fetch Patient Info
+        const [patients] = await db.query('SELECT * FROM patients WHERE id = ?', [patientId]);
+        if (patients.length === 0) throw new Error('Patient not found');
+        const patient = patients[0];
+
+        // Fetch Recent Vitals
+        const [vitals] = await db.query(`
+            SELECT v.*, a.appointment_date 
+            FROM vitals v 
+            JOIN live_queue lq ON v.queue_id = lq.id
+            JOIN appointments a ON lq.appointment_id = a.id
+            WHERE a.patient_id = ?
+            ORDER BY a.appointment_date DESC LIMIT 5
+        `, [patientId]);
+
+        const doc = new PDFDocument({ margin: 50 });
+
+        // Pipe PDF to response
         doc.pipe(res);
 
         // Header
-        doc.fontSize(20).text('Medical Prescription', { align: 'center' });
+        doc.fontSize(20).text('Medical Record Summary', { align: 'center' });
         doc.moveDown();
-        doc.fontSize(12).text(`Date: ${new Date(appt.appointment_date).toLocaleDateString()}`);
-        doc.text(`Appointment ID: ${appt.id}`);
-        doc.moveDown();
-
-        // Doctor Info
-        doc.fontSize(14).text(`Doctor: Dr. ${appt.doctor_first} ${appt.doctor_last}`, { underline: true });
-        doc.fontSize(12).text(`Specialty: ${appt.specialty}`);
+        doc.fontSize(12).text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'right' });
         doc.moveDown();
 
-        // Patient Info
-        doc.fontSize(14).text(`Patient: ${appt.patient_first} ${appt.patient_last}`, { underline: true });
-        doc.fontSize(12).text(`DOB: ${new Date(appt.dob).toLocaleDateString()}`);
+        // Patient Details
+        doc.fontSize(16).text('Patient Information', { underline: true });
+        doc.fontSize(12).text(`Name: ${patient.first_name} ${patient.last_name}`);
+        doc.text(`DOB: ${patient.dob ? new Date(patient.dob).toLocaleDateString() : 'N/A'}`);
+        doc.text(`Blood Group: ${patient.blood_group || 'N/A'}`);
+        doc.text(`Phone: ${patient.phone || 'N/A'}`);
         doc.moveDown();
 
-        // Prescription
-        doc.fontSize(14).text('Prescription:', { underline: true });
-        doc.fontSize(12).text(appt.prescription || 'No prescription recorded.');
-        doc.moveDown();
-
-        // Diagnosis/Notes
-        if (appt.diagnosis) {
-            doc.fontSize(14).text('Diagnosis:', { underline: true });
-            doc.fontSize(12).text(appt.diagnosis);
-            doc.moveDown();
+        // Vitals Section
+        if (vitals.length > 0) {
+            doc.fontSize(16).text('Recent Vitals', { underline: true });
+            doc.moveDown(0.5);
+            vitals.forEach((v, index) => {
+                doc.fontSize(12).text(`${new Date(v.appointment_date).toLocaleDateString()}:`, { continued: true });
+                doc.text(` BP: ${v.blood_pressure}, Heart Rate: ${v.heart_rate} bpm, Temp: ${v.temperature}°C, SpO2: ${v.spo2}%`);
+            });
+        } else {
+            doc.text('No vital records found.');
         }
 
-        // Footer
-        doc.fontSize(10).text('Generated by Hospital Management System', { align: 'center', bottom: 20 });
+        doc.moveDown();
+        doc.fontSize(10).fillColor('gray').text('This is a computer-generated summary. Please consult your doctor for medical advice.', { align: 'center' });
 
         doc.end();
     }
 
     /**
-     * Export Vitals CSV
+     * Export Patient Vitals as CSV (Streams directly to response)
      */
     async exportVitalsCSV(patientId, res) {
-        const query = `
-            SELECT v.*, a.appointment_date
+        const [rows] = await db.query(`
+            SELECT 
+                v.blood_pressure, v.heart_rate, v.temperature, v.spo2, v.weight_kg,
+                lq.status AS queue_status,
+                a.appointment_date, a.time_slot
             FROM vitals v
-            JOIN appointments a ON v.appointment_id = a.id
+            JOIN live_queue lq ON v.queue_id = lq.id
+            JOIN appointments a ON lq.appointment_id = a.id
             WHERE a.patient_id = ?
             ORDER BY a.appointment_date DESC
-        `;
-        const [vitals] = await db.query(query, [patientId]);
+        `, [patientId]);
 
-        const fields = ['appointment_date', 'blood_pressure', 'heart_rate', 'temperature', 'oxygen_saturation', 'weight'];
+        const fields = [
+            { label: 'Date', value: 'appointment_date' },
+            { label: 'Time', value: 'time_slot' },
+            { label: 'BP (mmHg)', value: 'blood_pressure' },
+            { label: 'Heart Rate (bpm)', value: 'heart_rate' },
+            { label: 'Temp (C)', value: 'temperature' },
+            { label: 'SpO2 (%)', value: 'spo2' },
+            { label: 'Weight (kg)', value: 'weight_kg' }
+        ];
+
         const json2csvParser = new Parser({ fields });
-        const csv = json2csvParser.parse(vitals);
+        const csv = json2csvParser.parse(rows);
 
-        res.header('Content-Type', 'text/csv');
-        res.attachment(`vitals_history_${patientId}.csv`);
-        res.send(csv);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=vitals_patient_${patientId}.csv`);
+        res.status(200).send(csv);
     }
 }
 

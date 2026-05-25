@@ -3,15 +3,25 @@ const pool = require('../config/db');
 /**
  * Handles user notification preferences
  */
-const preferenceService = {
+class PreferenceService {
+    constructor() {
+        // Ensure methods are bound to this instance
+        this.getUserPreferences = this.getUserPreferences.bind(this);
+        this.isInQuietHours = this.isInQuietHours.bind(this);
+        this.getPreferenceField = this.getPreferenceField.bind(this);
+        this.updatePreferences = this.updatePreferences.bind(this);
+        this.savePushSubscription = this.savePushSubscription.bind(this);
+    }
+
     /**
      * Get user notification preferences
      */
     async getUserPreferences(userId) {
-        const [[prefs]] = await pool.query(
+        const [prefsRows] = await pool.query(
             'SELECT * FROM notification_preferences WHERE user_id = ?',
             [userId]
         );
+        const prefs = prefsRows[0];
         
         if (!prefs) {
             return {
@@ -28,7 +38,7 @@ const preferenceService = {
         }
         
         return prefs;
-    },
+    }
 
     /**
      * Check if user is in quiet hours
@@ -45,7 +55,7 @@ const preferenceService = {
             return currentTime >= quietStart || currentTime <= quietEnd;
         }
         return currentTime >= quietStart && currentTime <= quietEnd;
-    },
+    }
 
     /**
      * Map notification type to preference field
@@ -63,7 +73,7 @@ const preferenceService = {
             'EMERGENCY_ALERT': 'queue_updates'
         };
         return mapping[type] || null;
-    },
+    }
 
     /**
      * Update notification preferences
@@ -97,7 +107,7 @@ const preferenceService = {
         );
         
         return { success: true };
-    },
+    }
 
     /**
      * Save push subscription
@@ -111,6 +121,6 @@ const preferenceService = {
         );
         return { success: true };
     }
-};
+}
 
-module.exports = preferenceService;
+module.exports = new PreferenceService();

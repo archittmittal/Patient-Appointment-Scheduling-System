@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Stethoscope, Users, X, Pencil } from 'lucide-react';
-import { API, authedHeaders } from '../config/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Trash2, X, Pencil } from 'lucide-react';
+import apiClient from '../services/apiClient';
 
-const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
+const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white/50";
 
 const AdminUsers = () => {
     const [users, setUsers] = useState([]);
+    const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 });
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(null); // 'doctor' | 'patient' | 'edit' | null
     const [formData, setFormData] = useState({});
@@ -14,23 +15,41 @@ const AdminUsers = () => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [filterRole, setFilterRole] = useState('ALL');
+    const [sortBy, setSortBy] = useState('id');
+    const [order, setOrder] = useState('ASC');
 
-    const fetchUsers = () => {
-        fetch(`${API}/api/admin/users`, { headers: authedHeaders() })
-            .then(res => res.json())
-            .then(data => setUsers(data))
-            .catch(err => console.error(err))
-            .finally(() => setIsLoading(false));
-    };
+    const fetchUsers = useCallback(async (page = 1) => {
+        setIsLoading(true);
+        try {
+            const query = new URLSearchParams({
+                page,
+                limit: 10,
+                role: filterRole,
+                sort_by: sortBy,
+                order
+            });
+            const data = await apiClient.get(`/api/admin/users?${query.toString()}`);
+            if (data.data) {
+                setUsers(data.data);
+                setMeta(data.meta);
+            } else {
+                setUsers(data);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [filterRole, sortBy, order]);
 
-    useEffect(() => { fetchUsers(); }, []);
+    useEffect(() => { fetchUsers(1); }, [fetchUsers]);
 
     const handleDelete = async (id, role) => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
         const endpoint = role === 'DOCTOR' ? `/api/admin/doctors/${id}` : `/api/admin/patients/${id}`;
         try {
-            await fetch(`${API}${endpoint}`, { method: 'DELETE', headers: authedHeaders() });
-            setUsers(prev => prev.filter(u => u.id !== id));
+            await apiClient.delete(endpoint);
+            fetchUsers(meta.page);
         } catch (err) {
             console.error(err);
         }
@@ -38,23 +57,26 @@ const AdminUsers = () => {
 
     const handleEdit = async (id, role) => {
         setError('');
-        const url = role === 'DOCTOR' ? `${API}/api/doctors/${id}` : `${API}/api/patients/${id}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        setFormData({
-            first_name: data.first_name || '',
-            last_name: data.last_name || '',
-            specialty: data.specialty || '',
-            degree: data.degree || '',
-            experience_years: data.experience_years || '',
-            location_room: data.location_room || '',
-            phone: data.phone || '',
-            address: data.address || '',
-            blood_group: data.blood_group || '',
-        });
-        setEditId(id);
-        setEditRole(role);
-        setShowForm('edit');
+        try {
+            const endpoint = role === 'DOCTOR' ? `/api/doctors/${id}` : `/api/patients/${id}`;
+            const data = await apiClient.get(endpoint);
+            setFormData({
+                first_name: data.first_name || '',
+                last_name: data.last_name || '',
+                specialty: data.specialty || '',
+                degree: data.degree || '',
+                experience_years: data.experience_years || '',
+                location_room: data.location_room || '',
+                phone: data.phone || '',
+                address: data.address || '',
+                blood_group: data.blood_group || '',
+            });
+            setEditId(id);
+            setEditRole(role);
+            setShowForm('edit');
+        } catch (err) {
+            setError('Failed to fetch user details');
+        }
     };
 
     const handleFormChange = e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -66,17 +88,14 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            const res = await fetch(`${API}/api/admin/doctors`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (!res.ok) { setError(data.message); return; }
+            await apiClient.post('/api/admin/doctors', formData);
             closeModal();
-            fetchUsers();
-        } catch { setError('Server error'); }
-        finally { setSubmitting(false); }
+            fetchUsers(1);
+        } catch (err) { 
+            setError(err.message || 'Server error'); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const handleSubmitPatient = async (e) => {
@@ -84,17 +103,14 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            const res = await fetch(`${API}/api/admin/patients`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
-            if (!res.ok) { setError(data.message); return; }
+            await apiClient.post('/api/admin/patients', formData);
             closeModal();
-            fetchUsers();
-        } catch { setError('Server error'); }
-        finally { setSubmitting(false); }
+            fetchUsers(1);
+        } catch (err) { 
+            setError(err.message || 'Server error'); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
     const handleSubmitEdit = async (e) => {
@@ -102,26 +118,22 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            const url = editRole === 'DOCTOR'
-                ? `${API}/api/doctors/${editId}`
-                : `${API}/api/patients/${editId}`;
-            const res = await fetch(url, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            if (!res.ok) { const d = await res.json(); setError(d.message); return; }
+            const endpoint = editRole === 'DOCTOR'
+                ? `/api/doctors/${editId}`
+                : `/api/patients/${editId}`;
+            await apiClient.patch(endpoint, formData);
             closeModal();
-            fetchUsers();
-        } catch { setError('Server error'); }
-        finally { setSubmitting(false); }
+            fetchUsers(1);
+        } catch (err) { 
+            setError(err.message || 'Server error'); 
+        } finally { 
+            setSubmitting(false); 
+        }
     };
 
-    const filtered = filterRole === 'ALL' ? users : users.filter(u => u.role === filterRole);
-
     return (
-        <div className="space-y-8 pb-10">
-            <div className="flex justify-between items-center">
+        <div className="section-container pb-10 space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Manage Users</h1>
                     <p className="text-gray-500 mt-1">Add, edit, or remove doctors and patients.</p>
@@ -138,9 +150,9 @@ const AdminUsers = () => {
 
             {/* Modal */}
             {showForm && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto">
-                        <button onClick={closeModal} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                    <div className="glass-modal w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto rounded-[2rem]">
+                        <button onClick={closeModal} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-xl transition-all">
                             <X size={18} />
                         </button>
                         <h2 className="text-xl font-bold text-gray-900 mb-6">
@@ -233,28 +245,31 @@ const AdminUsers = () => {
                 {['ALL', 'DOCTOR', 'PATIENT'].map(r => (
                     <button key={r} onClick={() => setFilterRole(r)}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterRole === r ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'}`}>
-                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : 'Patients'} ({r === 'ALL' ? users.length : users.filter(u => u.role === r).length})
+                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : 'Patients'}
                     </button>
                 ))}
             </div>
 
             {/* Users table */}
             {isLoading ? (
-                <div className="text-center text-gray-400 animate-pulse py-10">Loading users...</div>
+                <div className="text-center text-slate-400 animate-pulse py-20 flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                    <span>Loading users...</span>
+                </div>
             ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="glass-card rounded-[2rem] overflow-hidden border-none shadow-xl">
                     <table className="w-full">
                         <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => { setSortBy('name'); setOrder(order === 'ASC' ? 'DESC' : 'ASC'); }}>Name {sortBy === 'name' ? (order === 'ASC' ? '↑' : '↓') : ''}</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Role</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => { setSortBy('role'); setOrder(order === 'ASC' ? 'DESC' : 'ASC'); }}>Role {sortBy === 'role' ? (order === 'ASC' ? '↑' : '↓') : ''}</th>
                                 <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Details</th>
                                 <th className="px-6 py-4"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filtered.map(u => (
+                            {users.map(u => (
                                 <tr key={u.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
@@ -292,8 +307,31 @@ const AdminUsers = () => {
                             ))}
                         </tbody>
                     </table>
-                    {filtered.length === 0 && (
+                    {users.length === 0 && (
                         <div className="py-12 text-center text-gray-400">No users found.</div>
+                    )}
+                    {meta.total_pages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <span className="text-sm text-gray-500">
+                                Showing {((meta.page - 1) * meta.limit) + 1} to {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} entries
+                            </span>
+                            <div className="flex gap-2">
+                                <button 
+                                    disabled={meta.page <= 1} 
+                                    onClick={() => fetchUsers(meta.page - 1)}
+                                    className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <button 
+                                    disabled={meta.page >= meta.total_pages} 
+                                    onClick={() => fetchUsers(meta.page + 1)}
+                                    className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded hover:bg-gray-100 disabled:opacity-50 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     )}
                 </div>
             )}

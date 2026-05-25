@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, requireRole } = require('../middleware/authenticate');
 const {
     predictConsultationDuration,
     recordConsultationDuration,
@@ -15,12 +15,29 @@ const vitalsService = require('../services/vitalsService');
 const exportService = require('../services/exportService');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
+const sseManager = require('../services/sseManager');
+const virtualCheckinService = require('../services/virtualCheckinService');
 
 const bookSchema = Joi.object({
     doctorId: Joi.number().required(),
     date: Joi.string().isoDate().required(),
     timeSlot: Joi.string().required(),
     symptoms: Joi.string().allow('', null)
+});
+
+const predictDurationQuerySchema = Joi.object({
+    doctorId: Joi.number().required(),
+    patientId: Joi.number().allow(null),
+    symptoms: Joi.string().allow('', null),
+    timeSlot: Joi.string().allow('', null)
+});
+
+const joinWaitlistSchema = Joi.object({
+    doctorId: Joi.number().required(),
+    preferredDate: Joi.string().isoDate().required(),
+    timePreference: Joi.string().valid('MORNING', 'AFTERNOON', 'EVENING', 'ANY').default('ANY'),
+    maxNoticeHours: Joi.number().integer().min(1).max(72).default(24),
+    reason: Joi.string().max(255).allow('', null)
 });
 
 /**
@@ -74,44 +91,77 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
         }
 
         // Predict consultation duration using AI model
-        const prediction = await predictConsultationDuration({
-            doctorId,
-            patientId,
-            symptoms,
-            timeSlot
-        });
+        let prediction;
+        try {
+            prediction = await predictConsultationDuration({
+                doctorId,
+                patientId,
+                symptoms,
+                timeSlot
+            });
+        } catch (predErr) {
+            console.error('Duration prediction failed, using defaults:', predErr.message);
+            prediction = {
+                predictedDuration: 15,
+                factors: { isFollowUp: false, error: 'Prediction unavailable' }
+            };
+        }
 
-        const [result] = await db.query(
-            'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp]
-        );
+        // Insert appointment — use lowercase status to match DB ENUM
+        let result;
+        try {
+            [result] = await db.query(
+                'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp || false]
+            );
+        } catch (fullInsertErr) {
+            // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
+            if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
+                [result] = await db.query(
+                    'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
+                    [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed']
+                );
+            } else {
+                throw fullInsertErr;
+            }
+        }
+
+        if (!result || !result.insertId) {
+            return res.status(500).json({ message: 'Failed to create appointment record' });
+        }
 
         // Add to live queue only if appointment is today
-        const [todayCheck] = await db.query(
-            'SELECT 1 FROM appointments WHERE id = ? AND appointment_date = CURDATE()',
-            [result.insertId]
-        );
-
         let queueNumber = null;
         let estimatedWait = null;
-        if (todayCheck.length > 0) {
-            const [[{ maxQ }]] = await db.query(
-                `SELECT MAX(lq.queue_number) AS maxQ
-                 FROM live_queue lq
-                 JOIN appointments a ON lq.appointment_id = a.id
-                 WHERE a.doctor_id = ? AND a.appointment_date = CURDATE()`,
-                [doctorId]
+        try {
+            const [todayCheck] = await db.query(
+                'SELECT 1 FROM appointments WHERE id = ? AND appointment_date = CURDATE()',
+                [result.insertId]
             );
-            queueNumber = (maxQ || 0) + 1;
-            
-            // Calculate actual wait time based on AI predictions for patients ahead
-            const waitInfo = await calculateQueueWaitTime(result.insertId);
-            estimatedWait = waitInfo.estimatedWait || (queueNumber - 1) * prediction.predictedDuration;
-            
-            await db.query(
-                'INSERT INTO live_queue (appointment_id, queue_number, status, estimated_time, predicted_duration) VALUES (?, ?, ?, ?, ?)',
-                [result.insertId, queueNumber, 'WAITING', estimatedWait, prediction.predictedDuration]
-            );
+
+            if (todayCheck.length > 0) {
+                const [_rows1] = await db.query(
+                    `SELECT MAX(lq.queue_number) AS maxQ
+                     FROM live_queue lq
+                     JOIN appointments a ON lq.appointment_id = a.id
+                     WHERE a.doctor_id = ? AND a.appointment_date = CURDATE()`,
+                    [doctorId]
+                );
+                const { maxQ } = _rows1[0] || {};
+                queueNumber = (maxQ || 0) + 1;
+                
+                // Calculate actual wait time based on AI predictions for patients ahead
+                const waitInfo = await calculateQueueWaitTime(result.insertId);
+                estimatedWait = waitInfo.estimatedWait || (queueNumber - 1) * prediction.predictedDuration;
+                
+                await db.query(
+                    'INSERT INTO live_queue (appointment_id, queue_number, status, estimated_time, predicted_duration) VALUES (?, ?, ?, ?, ?)',
+                    [result.insertId, queueNumber, 'WAITING', estimatedWait, prediction.predictedDuration]
+                );
+            }
+        } catch (queueErr) {
+            // Queue insertion is non-critical — appointment is still booked
+            console.error('Queue insertion failed (non-critical):', queueErr.message);
         }
 
         res.status(201).json({ 
@@ -123,19 +173,15 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             predictionFactors: prediction.factors
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error booking appointment' });
+        console.error('BOOKING_ERROR:', error);
+        res.status(500).json({ message: 'Server error booking appointment', detail: error.message });
     }
 });
 
 // GET /api/appointments/predict-duration — predict duration for given parameters (without booking)
-router.get('/predict-duration', authenticate, async (req, res) => {
+router.get('/predict-duration', authenticate, validateRequest(predictDurationQuerySchema, 'query'), async (req, res) => {
     try {
         const { doctorId, patientId, symptoms, timeSlot } = req.query;
-        
-        if (!doctorId) {
-            return res.status(400).json({ message: 'doctorId is required' });
-        }
 
         const prediction = await predictConsultationDuration({
             doctorId: parseInt(doctorId),
@@ -152,10 +198,10 @@ router.get('/predict-duration', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/queue/:appointmentId
-router.get('/queue/:appointmentId', async (req, res) => {
+router.get('/queue/:appointmentId', authenticate, async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins
+            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins, a.patient_id
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE lq.appointment_id = ?
@@ -165,16 +211,22 @@ router.get('/queue/:appointmentId', async (req, res) => {
 
         const entry = rows[0];
 
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== entry.patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
         // Calculate actual wait time using AI predictions
         const waitInfo = await calculateQueueWaitTime(req.params.appointmentId);
 
         // Find the token currently IN_PROGRESS for this doctor today
-        const [[inProgress]] = await db.query(`
+        const [inProgressRows] = await db.query(`
             SELECT lq.queue_number FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status = 'IN_PROGRESS'
             ORDER BY lq.queue_number ASC LIMIT 1
         `, [entry.doctor_id, entry.appointment_date]);
+        const inProgress = inProgressRows[0];
 
         const currentToken = inProgress ? inProgress.queue_number : 0;
 
@@ -192,10 +244,16 @@ router.get('/queue/:appointmentId', async (req, res) => {
             ORDER BY lq.queue_number ASC
         `, [req.params.appointmentId, entry.doctor_id, entry.appointment_date]);
 
+        // Obfuscate names for other patients
+        const processedSequence = sequence.map(r => ({
+            ...r,
+            name: (r.isCurrent || req.user.role === 'DOCTOR' || req.user.role === 'ADMIN') ? r.name : 'Patient'
+        }));
+
         res.json({
             ...entry,
             currentToken,
-            queueSequence: sequence,
+            queueSequence: processedSequence,
             estimatedWaitMins: waitInfo.estimatedWait,
             patientsAhead: waitInfo.patientsAhead,
             predictedDuration: entry.predicted_duration || entry.predicted_duration_mins || 15
@@ -206,13 +264,58 @@ router.get('/queue/:appointmentId', async (req, res) => {
     }
 });
 
+// GET /api/appointments/queue/:appointmentId/stream
+router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
+    try {
+        const { appointmentId } = req.params;
+        
+        // Get initial data
+        const [rows] = await db.query(`
+            SELECT a.doctor_id, a.patient_id
+            FROM appointments a WHERE a.id = ?
+        `, [appointmentId]);
+        
+        if (rows.length === 0) return res.status(404).json({ message: 'Appointment not found' });
+        const { doctor_id, patient_id } = rows[0];
+
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const connectionId = `queue-${appointmentId}-${Date.now()}`;
+        sseManager.addClient(connectionId, res, { appointmentId, doctorId: doctor_id });
+
+    } catch (error) {
+        console.error('Queue SSE Error:', error);
+        if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
+    }
+});
+
 const notificationService = require('../services/notificationService');
+
+
+const queueUpdateSchema = Joi.object({
+    status: Joi.string().valid('WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED').required(),
+    diagnosis: Joi.string().allow('', null),
+    notes: Joi.string().allow('', null),
+    prescription: Joi.string().allow('', null),
+    follow_up_date: Joi.string().isoDate().allow('', null),
+    vitals: Joi.object({
+        weight_kg: Joi.number().min(1).max(500).allow(null),
+        height_cm: Joi.number().min(20).max(300).allow(null),
+        blood_pressure_sys: Joi.number().min(40).max(300).allow(null),
+        blood_pressure_dia: Joi.number().min(30).max(200).allow(null),
+        heart_rate: Joi.number().min(30).max(250).allow(null),
+        temperature_c: Joi.number().min(30).max(45).allow(null)
+    }).allow(null)
+});
 
 // PATCH /api/appointments/queue/:queueId/status — update a token's status (for doctor/assistant)
 // When status is COMPLETED or MISSED, also syncs the parent appointments row so that
 // admin views, patient history, and stats all reflect the real outcome (fixes D4).
 // Now also records consultation duration for AI prediction training (Issue #48)
-router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
+router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), validateRequest(queueUpdateSchema), async (req, res) => {
     const status = (req.body.status || '').toUpperCase();
     const { diagnosis, notes, prescription, follow_up_date, vitals } = req.body;
     const validStatuses = ['WAITING', 'IN_PROGRESS', 'COMPLETED', 'MISSED'];
@@ -220,12 +323,13 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
         return res.status(400).json({ message: 'Invalid status value' });
     }
 
-    const conn = await db.getConnection();
+    let conn = null;
     try {
+        conn = await db.getConnection();
         await conn.beginTransaction();
 
         // Get appointment details for duration tracking and notifications
-        const [[queueRow]] = await conn.query(`
+        const [queueRowRows] = await conn.query(`
             SELECT lq.appointment_id, lq.queue_number, a.doctor_id, a.patient_id, a.symptoms, 
                    a.appointment_date, a.consultation_start, a.is_follow_up,
                    d.first_name AS doc_first, d.last_name AS doc_last, d.location_room
@@ -234,9 +338,16 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
             JOIN doctors d ON a.doctor_id = d.id
             WHERE lq.id = ?
         `, [req.params.queueId]);
+        const queueRow = queueRowRows[0];
 
         if (!queueRow) {
             throw new Error('Queue entry not found');
+        }
+
+        // SECURITY: Verify this doctor is the one assigned to the appointment
+        if (req.user.id != queueRow.doctor_id) {
+            if (conn) await conn.rollback();
+            return res.status(403).json({ message: 'You are not authorized to manage this queue' });
         }
 
         const doctorName = `Dr. ${queueRow.doc_first} ${queueRow.doc_last}`;
@@ -247,7 +358,7 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
         // 2. Handle status-specific logic
         if (status === 'IN_PROGRESS') {
             await conn.query(
-                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'IN_PROGRESS' WHERE lq.id = ?",
+                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'in_progress' WHERE lq.id = ?",
                 [req.params.queueId]
             );
 
@@ -259,13 +370,14 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
             ).catch(err => console.error('Your Turn Notification Error:', err));
 
             // Notify NEXT patient that the doctor is now seeing the patient before them
-            const [[nextPatient]] = await conn.query(`
+            const [nextPatientRows] = await conn.query(`
                 SELECT a.patient_id, lq.queue_number, lq.estimated_time
                 FROM live_queue lq
                 JOIN appointments a ON lq.appointment_id = a.id
                 WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number > ? AND lq.status = 'WAITING'
                 ORDER BY lq.queue_number ASC LIMIT 1
             `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number]);
+            const nextPatient = nextPatientRows[0];
 
             if (nextPatient) {
                 notificationService.notifyTurnApproaching(
@@ -278,10 +390,11 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
 
         } else if (status === 'COMPLETED') {
             // Record consultation end time and calculate duration
-            const [[consultStart]] = await conn.query(
+            const [consultStartRows] = await conn.query(
                 'SELECT consultation_start FROM appointments WHERE id = ?',
                 [queueRow.appointment_id]
             );
+            const consultStart = consultStartRows[0];
             
             let actualDuration = 15; // Default if no start time
             if (consultStart?.consultation_start) {
@@ -294,7 +407,7 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
             // Update appointment with completion details and actual duration
             await conn.query(
                 `UPDATE appointments
-                    SET status = 'COMPLETED',
+                    SET status = 'completed',
                         consultation_end = NOW(),
                         actual_duration_mins = ?,
                         diagnosis    = COALESCE(?, diagnosis),
@@ -319,6 +432,7 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                     queueRow.patient_id,
                     prescription,
                     notes || 'Prescribed during consultation',
+                    queueRow.appointment_id,
                     conn
                 );
             }
@@ -328,17 +442,19 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
                 await vitalsService.logVitals(
                     queueRow.patient_id,
                     vitals,
+                    queueRow.doctor_id,
                     conn
                 );
             }
 
             // Notify NEXT patient that they are next
-            const [[nextPatient]] = await conn.query(`
+            const [nextPatientRows] = await conn.query(`
                 SELECT a.patient_id, lq.queue_number, lq.estimated_time
                 FROM live_queue lq
                 JOIN appointments a ON lq.appointment_id = a.id
                 WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.queue_number = ?
             `, [queueRow.doctor_id, queueRow.appointment_date, queueRow.queue_number + 1]);
+            const nextPatient = nextPatientRows[0];
 
             if (nextPatient) {
                 notificationService.notifyTurnApproaching(
@@ -365,12 +481,13 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
 
         } else if (status === 'MISSED') {
             // Find the maximum queue number for waiting patients
-            const [[{ maxQ }]] = await conn.query(`
+            const [_rows2] = await conn.query(`
                 SELECT MAX(lq.queue_number) AS maxQ 
                 FROM live_queue lq
                 JOIN appointments a ON lq.appointment_id = a.id
                 WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status IN ('WAITING', 'IN_PROGRESS')
             `, [queueRow.doctor_id, queueRow.appointment_date]);
+            const { maxQ } = _rows2[0] || {};
             
             // Re-insert 5 positions down or at the end of the queue, whichever is strictly closer
             const shiftCount = 5;
@@ -409,34 +526,64 @@ router.patch('/queue/:queueId/status', authenticate, async (req, res) => {
         }
 
         await conn.commit();
+
+        // BROADCAST UPDATES
+        // 1. Update individual waiting rooms
+        const [waitingPatients] = await db.query(`
+            SELECT lq.appointment_id, a.patient_id 
+            FROM live_queue lq
+            JOIN appointments a ON lq.appointment_id = a.id
+            WHERE lq.status IN ('WAITING', 'IN_PROGRESS') 
+            AND a.doctor_id = ? AND a.appointment_date = ?
+        `, [queueRow.doctor_id, queueRow.appointment_date]);
+
+        for (const p of waitingPatients) {
+            const status = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
+            if (status) {
+                sseManager.broadcastQueueUpdate(p.appointment_id, status);
+            }
+        }
+
+        // 2. Update Live Queue for all subscribers of this doctor
+        sseManager.broadcastToDoctor(queueRow.doctor_id, 'doctor_queue_update', {
+            refresh: true,
+            timestamp: new Date().toISOString()
+        });
+
         res.json({ message: 'Queue status updated' });
     } catch (error) {
-        await conn.rollback();
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        if (conn) await conn.rollback();
+        console.error('QUEUE_STATUS_ERROR:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     } finally {
-        conn.release();
+        if (conn) conn.release();
     }
 });
 
 // PATCH /api/appointments/:id/cancel — cancel a CONFIRMED/PENDING appointment
-router.patch('/:id/cancel', async (req, res) => {
+router.patch('/:id/cancel', authenticate, async (req, res) => {
     const conn = await db.getConnection();
     try {
-        const [[appt]] = await conn.query(
-            'SELECT status, appointment_date FROM appointments WHERE id = ?',
+        const [apptRows] = await conn.query(
+            'SELECT status, appointment_date, patient_id FROM appointments WHERE id = ?',
             [req.params.id]
         );
+        const appt = apptRows[0];
 
         if (!appt) return res.status(404).json({ message: 'Appointment not found' });
-        if (!['CONFIRMED', 'PENDING'].includes(appt.status)) {
+
+        // SECURITY: Verify patient owns appointment
+        if (req.user.role === 'PATIENT' && req.user.id !== appt.patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+        if (!['CONFIRMED', 'PENDING', 'confirmed', 'pending', 'scheduled'].includes(appt.status)) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }
 
         await conn.beginTransaction();
 
         await conn.query(
-            "UPDATE appointments SET status = 'CANCELLED' WHERE id = ?",
+            "UPDATE appointments SET status = 'cancelled' WHERE id = ?",
             [req.params.id]
         );
 
@@ -457,7 +604,7 @@ router.patch('/:id/cancel', async (req, res) => {
         
         res.json({ message: 'Appointment cancelled' });
     } catch (error) {
-        await conn.rollback();
+        if (conn) await conn.rollback();
         console.error(error);
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {
@@ -471,13 +618,14 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
         const doctorId = req.params.doctorId;
 
         // Get doctor's average times
-        const [[avgTimes]] = await db.query(
+        const [avgTimesRows] = await db.query(
             `SELECT * FROM doctor_avg_times WHERE doctor_id = ?`,
             [doctorId]
         );
+        const avgTimes = avgTimesRows[0];
 
         // Get consultation history stats
-        const [[historyStats]] = await db.query(`
+        const [historyStatsRows] = await db.query(`
             SELECT 
                 COUNT(*) as total_consultations,
                 AVG(actual_duration_mins) as avg_duration,
@@ -487,6 +635,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
             FROM consultation_history
             WHERE doctor_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
         `, [doctorId]);
+        const historyStats = historyStatsRows[0];
 
         // Get day-wise patterns
         const [dayPatterns] = await db.query(`
@@ -513,7 +662,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
         `, [doctorId]);
 
         // Get prediction accuracy (compare predicted vs actual)
-        const [[accuracy]] = await db.query(`
+        const [accuracyRows] = await db.query(`
             SELECT 
                 AVG(ABS(predicted_duration_mins - actual_duration_mins)) as avg_error,
                 AVG(CASE WHEN ABS(predicted_duration_mins - actual_duration_mins) <= 5 THEN 1 ELSE 0 END) * 100 as accuracy_within_5min
@@ -522,6 +671,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
               AND actual_duration_mins IS NOT NULL 
               AND predicted_duration_mins IS NOT NULL
         `, [doctorId]);
+        const accuracy = accuracyRows[0];
 
         res.json({
             averages: avgTimes || { avg_duration_mins: 15, total_consultations: 0 },
@@ -552,15 +702,16 @@ router.get('/analytics/symptoms', authenticate, async (req, res) => {
 // ==================== Issue #41: Waitlist Endpoints ====================
 
 // POST /api/appointments/waitlist/join - Join waitlist for a doctor
-router.post('/waitlist/join', authenticate, async (req, res) => {
+router.post('/waitlist/join', authenticate, validateRequest(joinWaitlistSchema), async (req, res) => {
     try {
         const { doctorId, preferredDate, timePreference, maxNoticeHours, reason } = req.body;
         
         // Get patient ID from user
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
         
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -587,10 +738,11 @@ router.post('/waitlist/join', authenticate, async (req, res) => {
 // DELETE /api/appointments/waitlist/:id - Leave waitlist
 router.delete('/waitlist/:id', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -612,10 +764,11 @@ router.delete('/waitlist/:id', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/my - Get patient's waitlist entries
 router.get('/waitlist/my', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.json([]);
@@ -632,10 +785,11 @@ router.get('/waitlist/my', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/offers - Get pending slot offers for patient
 router.get('/waitlist/offers', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.json([]);
@@ -652,10 +806,11 @@ router.get('/waitlist/offers', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/accept - Accept a slot offer
 router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -677,10 +832,11 @@ router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/decline - Decline a slot offer
 router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
     try {
-        const [[patient]] = await db.query(
+        const [patientRows] = await db.query(
             'SELECT id FROM patients WHERE id = ?',
             [req.user.id]
         );
+        const patient = patientRows[0];
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -700,7 +856,7 @@ router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
 });
 
 // POST /api/appointments/waitlist/cleanup - Clean up expired entries (admin/cron)
-router.post('/waitlist/cleanup', async (req, res) => {
+router.post('/waitlist/cleanup', authenticate, requireRole('ADMIN'), async (req, res) => {
     try {
         const result = await waitlistService.cleanupExpired();
         res.json({ message: 'Cleanup complete', ...result });

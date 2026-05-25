@@ -9,8 +9,38 @@ const lateArrivalService = require('../services/lateArrivalService');
 const { authenticate } = require('../middleware/authenticate');
 
 /**
- * Check late status for an appointment
- * GET /api/late-arrival/check/:appointmentId
+ * @swagger
+ * tags:
+ *   name: LateArrival
+ *   description: Handling late arrival detection, grace period configuration, options processing, and analytics
+ */
+
+/**
+ * @swagger
+ * /api/late-arrival/check/{appointmentId}:
+ *   get:
+ *     summary: Check late status for an appointment
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: patientId
+ *         schema:
+ *           type: integer
+ *         description: Patient ID (Required if user role is not patient)
+ *     responses:
+ *       200:
+ *         description: Late status and options retrieved successfully
+ *       400:
+ *         description: Patient ID required
+ *       500:
+ *         description: Server error
  */
 router.get('/check/:appointmentId', authenticate, async (req, res) => {
     try {
@@ -30,8 +60,39 @@ router.get('/check/:appointmentId', authenticate, async (req, res) => {
 });
 
 /**
- * Process late arrival option selection
- * POST /api/late-arrival/process
+ * @swagger
+ * /api/late-arrival/process:
+ *   post:
+ *     summary: Process late arrival option selection (e.g. reschedule, proceed with wait, etc.)
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appointmentId
+ *               - optionId
+ *             properties:
+ *               appointmentId:
+ *                 type: integer
+ *               optionId:
+ *                 type: string
+ *               notes:
+ *                 type: string
+ *               patientId:
+ *                 type: integer
+ *                 description: Patient ID (Required if user role is not patient)
+ *     responses:
+ *       200:
+ *         description: Late arrival option processed successfully
+ *       400:
+ *         description: Bad request (missing fields)
+ *       500:
+ *         description: Server error
  */
 router.post('/process', authenticate, async (req, res) => {
     try {
@@ -56,8 +117,24 @@ router.post('/process', authenticate, async (req, res) => {
 });
 
 /**
- * Get doctor's late arrival policy
- * GET /api/late-arrival/policy/:doctorId
+ * @swagger
+ * /api/late-arrival/policy/{doctorId}:
+ *   get:
+ *     summary: Get doctor's late arrival policy
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Doctor's late arrival policy retrieved successfully
+ *       500:
+ *         description: Server error
  */
 router.get('/policy/:doctorId', authenticate, async (req, res) => {
     try {
@@ -70,8 +147,33 @@ router.get('/policy/:doctorId', authenticate, async (req, res) => {
 });
 
 /**
- * Set doctor's late arrival policy (doctors only)
- * POST /api/late-arrival/policy
+ * @swagger
+ * /api/late-arrival/policy:
+ *   post:
+ *     summary: Set doctor's late arrival policy (grace period, actions)
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - gracePeriodMinutes
+ *             properties:
+ *               gracePeriodMinutes:
+ *                 type: integer
+ *               policyDetails:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Late arrival policy set successfully
+ *       403:
+ *         description: Forbidden (Only doctors can set their policy)
+ *       500:
+ *         description: Server error
  */
 router.post('/policy', authenticate, async (req, res) => {
     try {
@@ -88,8 +190,24 @@ router.post('/policy', authenticate, async (req, res) => {
 });
 
 /**
- * Send pre-arrival reminder
- * POST /api/late-arrival/reminder/:appointmentId
+ * @swagger
+ * /api/late-arrival/reminder/{appointmentId}:
+ *   post:
+ *     summary: Send pre-arrival reminder for the appointment
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appointmentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Pre-arrival reminder sent successfully
+ *       500:
+ *         description: Server error
  */
 router.post('/reminder/:appointmentId', authenticate, async (req, res) => {
     try {
@@ -102,8 +220,29 @@ router.post('/reminder/:appointmentId', authenticate, async (req, res) => {
 });
 
 /**
- * Get late arrival analytics (doctors only)
- * GET /api/late-arrival/analytics
+ * @swagger
+ * /api/late-arrival/analytics:
+ *   get:
+ *     summary: Get late arrival analytics
+ *     tags: [LateArrival]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Late arrival analytics retrieved successfully
+ *       403:
+ *         description: Forbidden (Doctors only)
+ *       500:
+ *         description: Server error
  */
 router.get('/analytics', authenticate, async (req, res) => {
     try {

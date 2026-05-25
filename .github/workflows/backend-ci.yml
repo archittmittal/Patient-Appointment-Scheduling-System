@@ -36,3 +36,7 @@ jobs:
       env:
         JWT_SECRET: test_secret
         NODE_ENV: test
+        DB_HOST: localhost
+        DB_USER: root
+        DB_PASSWORD: password
+        DB_NAME: hospital_db

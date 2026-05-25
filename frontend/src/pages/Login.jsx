@@ -39,10 +39,11 @@ const Login = () => {
             
             // Check for pending booking
             const pending = localStorage.getItem('pendingBooking');
-            if (pending && data.user.role === 'PATIENT') {
+            const role = data.role || data.user?.role;
+            if (pending && role === 'PATIENT') {
                 navigate('/book');
             } else {
-                navigate(ROLE_HOME[data.user.role] || '/login');
+                navigate(ROLE_HOME[role] || '/login');
             }
         } catch (err) {
             setError(err.message || 'Unable to connect to the server. Please try again later.');
@@ -131,6 +132,9 @@ const Login = () => {
                             <p className="text-sm text-[var(--text-base)]/60">
                                 Don't have an account?{' '}
                                 <Link to="/register" className="text-primary font-semibold hover:underline">Create account</Link>
+                            </p>
+                            <p className="mt-4 text-[10px] text-[var(--text-base)]/40 font-bold uppercase tracking-widest">
+                                Doctor or Admin? Access is managed by your institution.
                             </p>
                         </div>
                     </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Lock, HeartPulse, ShieldCheck, ArrowRight, ArrowLeft, KeyRound } from 'lucide-react';
-import { API } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const ResetPassword = () => {
     const navigate = useNavigate();
@@ -25,13 +25,8 @@ const ResetPassword = () => {
         setError('');
 
         try {
-            const res = await fetch(`${API}/api/auth/reset-password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp, newPassword }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
+            const data = await apiClient.post('/api/auth/reset-password', { email, otp, newPassword });
+            if (data && data.error) {
                 setError(data.message || 'Error resetting password');
                 return;
             }

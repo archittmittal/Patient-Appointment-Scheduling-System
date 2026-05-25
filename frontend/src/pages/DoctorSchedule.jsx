@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, Users, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -89,8 +89,8 @@ const DoctorSchedule = () => {
         if (!user?.id) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/weekly-schedule?week=${toStr(weekStart)}`, { headers: authedHeaders() });
-            setData(await res.json());
+            const result = await apiClient.get(`/api/doctors/${user.id}/weekly-schedule?week=${toStr(weekStart)}`);
+            setData(result);
         } finally { setLoading(false); }
     }, [user?.id, weekStart]);
 

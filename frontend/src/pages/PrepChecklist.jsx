@@ -1,8 +1,3 @@
-/**
- * Issue #46: Patient Prep Checklist Page - PREMIUM OVERHAUL
- * Clinical Readiness Protocol interface for pre-visit synchronization.
- */
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -13,7 +8,7 @@ import {
     Activity, ShieldCheck, Zap, Compass, Info, Target
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const PriorityBadge = ({ priority }) => {
     const config = {
@@ -24,7 +19,7 @@ const PriorityBadge = ({ priority }) => {
     const { label, bg, text, border } = config[priority] || config.optional;
 
     return (
-        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest italic border ${bg} ${text} ${border} shadow-inner transition-all duration-700`}>
+        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${bg} ${text} ${border} shadow-inner transition-all duration-700`}>
             {label}
         </span>
     );
@@ -64,14 +59,14 @@ const PrepItem = ({ item, onToggle, isUpdating }) => {
             <div className="flex-1 min-w-0 relative z-10">
                 <div className="flex items-center gap-3 mb-2">
                     <span className="text-xl group-hover:rotate-12 transition-transform duration-700">{item.icon}</span>
-                    <span className={`text-sm font-black uppercase italic tracking-tight ${item.isCompleted ? 'text-emerald-500 line-through opacity-60' : 'text-[var(--text-base)]'}`}>
+                    <span className={`text-sm font-black uppercase tracking-tight ${item.isCompleted ? 'text-emerald-500 line-through opacity-60' : 'text-[var(--text-base)]'}`}>
                         {item.label}
                     </span>
                 </div>
                 <div className="flex items-center gap-4">
                     <PriorityBadge priority={item.priority} />
                     {item.notes && (
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60 truncate">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-60 truncate">
                             {item.notes}
                         </p>
                     )}
@@ -102,8 +97,8 @@ const ProgressRing = ({ progress, size = 120, strokeWidth = 8 }) => {
                 <circle className={`${getColor()} transition-all duration-1000 shadow-2xl`} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" stroke="currentColor" fill="transparent" r={radius} cx={size/2} cy={size/2} />
             </svg>
             <div className="absolute text-center relative z-10">
-                <span className={`text-3xl font-black italic tracking-tighter tabular-nums ${getColor()}`}>{progress}<span className="text-sm ml-0.5 opacity-60">%</span></span>
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] italic mt-1 pb-1">Ready</p>
+                <span className={`text-3xl font-black tracking-tighter tabular-nums ${getColor()}`}>{progress}<span className="text-sm ml-0.5 opacity-60">%</span></span>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 pb-1">Ready</p>
             </div>
         </div>
     );
@@ -120,24 +115,24 @@ const AppointmentPrepCard = ({ appointment, onClick }) => {
                 <ProgressRing progress={progress} size={84} strokeWidth={6} />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-black text-[var(--text-base)] uppercase italic tracking-tighter truncate leading-none">Dr. {appointment.doctor_name}</h3>
+                        <h3 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tighter truncate leading-none">Dr. {appointment.doctor_name}</h3>
                         {!allRequiredDone && <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shadow-lg shadow-rose-500/50"></div>}
                     </div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic leading-none mb-4">{appointment.specialty || 'Clinical Discipline'}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-4">{appointment.specialty || 'Clinical Discipline'}</p>
                     
                     <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest italic">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest ">
                             <Calendar size={14} strokeWidth={2.5} />
                             {new Date(appointment.appointment_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-600 uppercase tracking-widest italic">
+                        <div className="flex items-center gap-2 text-[10px] font-black text-slate-600 uppercase tracking-widest ">
                             <Clock size={14} strokeWidth={2.5} />
                             {appointment.appointment_time}
                         </div>
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-3 px-6 py-4 bg-white/5 rounded-2xl border border-white/5">
-                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] italic ${allRequiredDone ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${allRequiredDone ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {allRequiredDone ? 'Base Clear' : 'Input Req'}
                     </span>
                     <ChevronRight className="text-slate-700 group-hover:translate-x-2 transition-transform duration-700" size={20} />
@@ -162,11 +157,10 @@ const PrepChecklist = () => {
         const fetchData = async () => {
             try {
                 if (appointmentId) {
-                    const res = await fetch(`${API}/api/prep/appointment/${appointmentId}`, { headers: authedHeaders() });
-                    setSelectedPrep(await res.json());
+                    const data = await apiClient.get(`/api/prep/appointment/${appointmentId}`);
+                    if (data && !data.error) setSelectedPrep(data);
                 } else {
-                    const res = await fetch(`${API}/api/prep/overview`, { headers: authedHeaders() });
-                    const data = await res.json();
+                    const data = await apiClient.get('/api/prep/overview');
                     setOverview(Array.isArray(data) ? data : []);
                 }
             } catch (err) { console.error(err); } finally { setIsLoading(false); }
@@ -178,7 +172,10 @@ const PrepChecklist = () => {
         if (!selectedPrep) return;
         setIsUpdating(true);
         try {
-            await fetch(`${API}/api/prep/complete/${selectedPrep.appointment.id}/${itemId}`, { method: completed ? 'POST' : 'DELETE', headers: authedHeaders() });
+            const endpoint = `/api/prep/complete/${selectedPrep.appointment.id}/${itemId}`;
+            if (completed) await apiClient.post(endpoint, {});
+            else await apiClient.delete(endpoint);
+
             setSelectedPrep(prev => ({
                 ...prev,
                 items: prev.items.map(item => item.id === itemId ? { ...item, isCompleted: completed } : item),
@@ -187,7 +184,7 @@ const PrepChecklist = () => {
         } catch (err) { console.error(err); } finally { setIsUpdating(false); }
     };
 
-    if (isLoading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse italic">Synchronizing Protocol Feed...</div>;
+    if (isLoading) return <div className="p-20 text-center text-slate-500 font-black uppercase tracking-[0.2em] animate-pulse ">Synchronizing Protocol Feed...</div>;
 
     if (selectedPrep) {
         const progress = selectedPrep.totalCount > 0 ? Math.round((selectedPrep.completedCount / selectedPrep.totalCount) * 100) : 100;
@@ -200,7 +197,7 @@ const PrepChecklist = () => {
 
         return (
             <div className="max-w-2xl mx-auto space-y-10 pb-20 animate-in fade-in duration-700 px-4">
-                <button onClick={() => navigate('/prep-checklist')} className="flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic hover:text-primary transition-colors mb-6 group">
+                <button onClick={() => navigate('/prep-checklist')} className="flex items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] hover:text-primary transition-colors mb-6 group">
                     <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to Matrix
                 </button>
 
@@ -209,13 +206,13 @@ const PrepChecklist = () => {
                     <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
                         <ProgressRing progress={progress} size={110} strokeWidth={8} />
                         <div className="text-center md:text-left space-y-3">
-                            <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">Dr. {selectedPrep.appointment.doctorName}</h2>
-                            <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em] italic leading-none">{selectedPrep.appointment.specialty}</p>
+                            <h2 className="text-3xl font-black text-white tracking-tighter uppercase leading-none">Dr. {selectedPrep.appointment.doctorName}</h2>
+                            <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em] leading-none">{selectedPrep.appointment.specialty}</p>
                             <div className="flex items-center justify-center md:justify-start gap-6 pt-4 border-t border-white/10">
-                                <div className="flex items-center gap-2 text-[9px] font-black text-white/80 uppercase tracking-widest italic">
+                                <div className="flex items-center gap-2 text-[9px] font-black text-white/80 uppercase tracking-widest ">
                                     <Calendar size={14} className="text-primary-light" /> {new Date(selectedPrep.appointment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                 </div>
-                                <div className="flex items-center gap-2 text-[9px] font-black text-white/80 uppercase tracking-widest italic">
+                                <div className="flex items-center gap-2 text-[9px] font-black text-white/80 uppercase tracking-widest ">
                                     <Clock size={14} className="text-primary-light" /> {selectedPrep.appointment.time}
                                 </div>
                             </div>
@@ -237,8 +234,8 @@ const PrepChecklist = () => {
                                     {section === 'required' ? <AlertTriangle size={18} /> : section === 'recommended' ? <Star size={18} /> : <ClipboardCheck size={18} />}
                                 </div>
                                 <div className="text-left">
-                                    <h3 className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-[0.4em] italic leading-none mb-1">{section} Protocol</h3>
-                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic">{groupedItems[section].filter(i=>i.isCompleted).length} / {groupedItems[section].length} Synchronized</p>
+                                    <h3 className="text-[11px] font-black text-[var(--text-base)] uppercase tracking-[0.4em] leading-none mb-1">{section} Protocol</h3>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest ">{groupedItems[section].filter(i=>i.isCompleted).length} / {groupedItems[section].length} Synchronized</p>
                                 </div>
                             </div>
                             {expandedSection === section ? <ChevronUp size={20} className="text-primary" /> : <ChevronDown size={20} className="text-slate-700" />}
@@ -261,8 +258,8 @@ const PrepChecklist = () => {
                     <ClipboardCheck size={32} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase italic leading-none mb-3">Protocol Matrix</h1>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] italic leading-none">Pre-appointment clinical readiness synchronization</p>
+                    <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-3">Protocol Matrix</h1>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] leading-none">Pre-appointment clinical readiness synchronization</p>
                 </div>
             </div>
 
@@ -272,13 +269,13 @@ const PrepChecklist = () => {
                     <Sparkles size={28} strokeWidth={2.5} />
                 </div>
                 <div>
-                    <h3 className="text-lg font-black text-amber-600 uppercase tracking-tighter italic mb-2">Registry Efficiency Opt</h3>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic leading-relaxed">Complete your readiness protocol before arrival for zero-latency clinical entry.</p>
+                    <h3 className="text-lg font-black text-amber-600 uppercase tracking-tighter mb-2">Registry Efficiency Opt</h3>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">Complete your readiness protocol before arrival for zero-latency clinical entry.</p>
                 </div>
             </div>
 
             <div className="space-y-6">
-                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] italic px-2 flex items-center gap-3">
+                <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] px-2 flex items-center gap-3">
                     <Calendar className="text-primary" size={16} /> Upcoming Cycle Preparations
                 </h2>
 
@@ -289,9 +286,9 @@ const PrepChecklist = () => {
                 ) : (
                     <div className="py-24 text-center glass-modal rounded-[3.5rem] border-none shadow-2xl space-y-8">
                         <Compass size={64} className="text-slate-700/20 mx-auto" />
-                        <h3 className="text-xl font-black text-slate-500 uppercase italic tracking-tighter">No Active Protocols</h3>
-                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] italic">Awaiting new clinical appointment synchronization.</p>
-                        <button onClick={() => navigate('/book')} className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all italic flex items-center gap-4 mx-auto">
+                        <h3 className="text-xl font-black text-slate-500 uppercase tracking-tighter">No Active Protocols</h3>
+                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] ">Awaiting new clinical appointment synchronization.</p>
+                        <button onClick={() => navigate('/book')} className="px-10 py-5 bg-primary text-white font-black text-[10px] uppercase tracking-[0.4em] rounded-[1.75rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-4 mx-auto">
                             Sync New Appointment <ArrowRight size={16} />
                         </button>
                     </div>
@@ -300,7 +297,7 @@ const PrepChecklist = () => {
 
             <div className="glass-card rounded-[3.5rem] p-10 border-white/5 relative overflow-hidden group">
                  <div className="absolute top-0 right-0 p-8 opacity-5"><Info size={48} /></div>
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 italic px-2">Legend Calibration</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] mb-10 px-2">Legend Calibration</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     <LegendModule icon={AlertTriangle} color="rose" label="Mandatory" desc="Critical sync requirements." />
                     <LegendModule icon={Star} color="amber" label="Optimal" desc="Enhanced consultation prep." />
@@ -317,8 +314,8 @@ const LegendModule = ({ icon: Icon, color, label, desc }) => (
             <Icon size={16} strokeWidth={2.5} />
         </div>
         <div>
-            <h4 className="text-[10px] font-black text-[var(--text-base)] uppercase tracking-widest italic mb-1">{label}</h4>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] italic opacity-60 leading-none">{desc}</p>
+            <h4 className="text-[10px] font-black text-[var(--text-base)] uppercase tracking-widest mb-1">{label}</h4>
+            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em] opacity-60 leading-none">{desc}</p>
         </div>
     </div>
 );

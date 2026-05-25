@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, CheckCircle2, Activity, Users, RefreshCw, X, FileText, Pill, CalendarCheck, AlertTriangle, Thermometer, Scale, Ruler, BarChart3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 import EmergencyModal from '../components/EmergencyModal';
 
 const QUEUE_POLL_INTERVAL = 20_000; // 20 seconds
@@ -30,6 +31,20 @@ const EMPTY_NOTES = {
 
 const NotesModal = ({ item, onSave, onClose, saving }) => {
     const [form, setForm] = useState(EMPTY_NOTES);
+    const [previousVitals, setPreviousVitals] = useState(null);
+    const [loadingVitals, setLoadingVitals] = useState(true);
+
+    useEffect(() => {
+        const fetchPrevious = async () => {
+            const data = await apiClient.get(`/api/patients/${item.patient_id}/vitals`);
+            if (Array.isArray(data) && data.length > 0) {
+                setPreviousVitals(data[data.length - 1]);
+            }
+            setLoadingVitals(false);
+        };
+        fetchPrevious();
+    }, [item.patient_id]);
+
     const change = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
     const changeVitals = e => {
         const { name, value } = e.target;
@@ -112,6 +127,29 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                         </div>
                     </div>
 
+                    {previousVitals && (
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Previous Vitals</p>
+                                <p className="text-[10px] font-bold text-slate-400">{new Date(previousVitals.recorded_at).toLocaleDateString()}</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.blood_pressure_sys}/{previousVitals.blood_pressure_dia}</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">BP</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.heart_rate} bpm</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">Pulse</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-900">{previousVitals.temperature_c}°C</p>
+                                    <p className="text-[9px] font-medium text-slate-400 uppercase">Temp</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-4 pt-4 border-t border-[var(--border-base)]/10">
                         <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Vitals Checklist</label>
                         <div className="grid grid-cols-2 gap-4">
@@ -192,6 +230,7 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
 
 const DoctorDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [patients, setPatients] = useState([]);
     const [queue, setQueue] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -210,18 +249,16 @@ const DoctorDashboard = () => {
     const fetchData = async () => {
         if (!user?.id) return;
         try {
-            const headers = authedHeaders();
-            const [patientsRes, queueRes, delayRes] = await Promise.all([
-                fetch(`${API}/api/doctors/${user.id}/patients`, { headers }),
-                fetch(`${API}/api/doctors/${user.id}/queue`, { headers }),
-                fetch(`${API}/api/doctors/${user.id}/delay-status`, { headers })
+            const [patientsData, queueData, delayData] = await Promise.all([
+                apiClient.get(`/api/doctors/${user.id}/patients`),
+                apiClient.get(`/api/doctors/${user.id}/queue`),
+                apiClient.get(`/api/doctors/${user.id}/delay-status`)
             ]);
-            setPatients(await patientsRes.json());
-            setQueue(await queueRes.json());
+            setPatients(patientsData);
+            setQueue(queueData);
             setQueueLastUpdated(new Date());
 
-            if (delayRes.ok) {
-                const delayData = await delayRes.json();
+            if (delayData && !delayData.error) {
                 setDelayInfo({
                     isDelayed: delayData.isDelayed || false,
                     delayMins: delayData.delayMins || 0,
@@ -239,15 +276,11 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         setSettingDelay(true);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/delay`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({
-                    delayMins: delayForm.minutes,
-                    reason: delayForm.reason || 'Surgical emergency'
-                })
+            const data = await apiClient.post(`/api/doctors/${user.id}/delay`, {
+                delayMins: delayForm.minutes,
+                reason: delayForm.reason || 'Surgical emergency'
             });
-            if (res.ok) {
+            if (data && !data.error) {
                 setDelayInfo({ isDelayed: true, delayMins: delayForm.minutes, reason: delayForm.reason || 'Surgical emergency' });
                 setShowDelayModal(false);
             }
@@ -260,11 +293,7 @@ const DoctorDashboard = () => {
         if (!user?.id) return;
         setSettingDelay(true);
         try {
-            await fetch(`${API}/api/doctors/${user.id}/delay`, {
-                method: 'POST',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ delayMins: 0, reason: '' })
-            });
+            await apiClient.post(`/api/doctors/${user.id}/delay`, { delayMins: 0, reason: '' });
             setDelayInfo({ isDelayed: false, delayMins: 0, reason: '' });
         } finally {
             setSettingDelay(false);
@@ -276,13 +305,9 @@ const DoctorDashboard = () => {
     useEffect(() => {
         if (!user?.id) return;
         const interval = setInterval(async () => {
-            try {
-                const res = await fetch(`${API}/api/doctors/${user.id}/queue`, {
-                    headers: authedHeaders()
-                });
-                setQueue(await res.json());
-                setQueueLastUpdated(new Date());
-            } catch (err) { console.error('Queue sync error:', err); }
+            const data = await apiClient.get(`/api/doctors/${user.id}/queue`);
+            setQueue(data);
+            setQueueLastUpdated(new Date());
         }, QUEUE_POLL_INTERVAL);
         return () => clearInterval(interval);
     }, [user?.id]);
@@ -290,11 +315,7 @@ const DoctorDashboard = () => {
     const updateQueueStatus = async (queueId, newStatus, extra = {}) => {
         setUpdatingId(queueId);
         try {
-            await fetch(`${API}/api/appointments/queue/${queueId}/status`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ status: newStatus, ...extra })
-            });
+            await apiClient.patch(`/api/appointments/queue/${queueId}/status`, { status: newStatus, ...extra });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
         } finally { setUpdatingId(null); }
     };
@@ -371,7 +392,7 @@ const DoctorDashboard = () => {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
                 <div>
                     <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight">
-                        Daily <span className="text-primary italic">Ops</span> Center
+                        Daily <span className="text-primary ">Ops</span> Center
                     </h1>
                     <p className="text-slate-500 font-bold mt-2 flex items-center gap-2">
                         <Activity size={16} className="text-primary" />
@@ -393,6 +414,14 @@ const DoctorDashboard = () => {
                     >
                         <Clock size={18} strokeWidth={2.5} /> Report Delay
                     </button>
+
+                    <button
+                        onClick={() => navigate('/doctor-analytics')}
+                        className="btn-secondary px-6 flex items-center gap-2"
+                    >
+                        <BarChart3 size={18} strokeWidth={2.5} /> Analytics
+                    </button>
+
                     <div className="glass-card p-4 flex items-center gap-4 border-primary/10">
                         <div className="w-12 h-12 rounded-2xl bg-primary-light/30 flex items-center justify-center text-primary shadow-inner">
                             <Calendar size={24} strokeWidth={2.5} />

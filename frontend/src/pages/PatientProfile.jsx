@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { API, authedHeaders } from '../config/api';
+import apiClient from '../services/apiClient';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -22,22 +22,22 @@ const PatientProfile = () => {
     const [pastVisits, setPastVisits] = useState([]);
     const [latestFollowup, setLatestFollowup] = useState(null);
     const [activeVisit, setActiveVisit] = useState(null);
+    const [vitals, setVitals] = useState([]);
 
     useEffect(() => {
         if (!user?.id) return;
         const fetchData = async () => {
             try {
-                const headers = authedHeaders();
-                const [pRes, vRes] = await Promise.all([
-                    fetch(`${API}/api/patients/${user.id}`, { headers }),
-                    fetch(`${API}/api/patients/${user.id}/appointments?type=past`, { headers })
+                const [pRes, vRes, vitRes] = await Promise.all([
+                    apiClient.get(`/api/patients/${user.id}`),
+                    apiClient.get(`/api/patients/${user.id}/appointments?type=past`),
+                    apiClient.get(`/api/patients/${user.id}/vitals`)
                 ]);
-                const pData = await pRes.json();
-                const vData = await vRes.json();
                 
-                setProfile(pData);
-                const visits = Array.isArray(vData) ? vData : [];
+                setProfile(pRes);
+                const visits = Array.isArray(vRes) ? vRes : [];
                 setPastVisits(visits);
+                setVitals(Array.isArray(vitRes) ? vitRes : []);
                 
                 const withFollowup = visits
                     .filter(a => a.follow_up_date && new Date(a.follow_up_date) >= new Date())
@@ -74,13 +74,7 @@ const PatientProfile = () => {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(`${API}/api/patients/${user.id}`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify(form),
-            });
-            if (!res.ok) throw new Error();
-            const updated = await res.json();
+            const updated = await apiClient.patch(`/api/patients/${user.id}`, form);
             setProfile(updated);
             login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
             setIsEditing(false);
@@ -126,7 +120,7 @@ const PatientProfile = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Profile Card */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="apple-card p-8 text-center">
+                    <div className="glass-card p-8 text-center rounded-3xl">
                         <div className="w-32 h-32 mx-auto rounded-full bg-slate-50 border-4 border-white shadow-sm mb-6 overflow-hidden">
                             <img 
                                 src={`https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=e8f2ff&color=0071e3&size=200&bold=true`} 
@@ -144,7 +138,7 @@ const PatientProfile = () => {
                     </div>
 
                     {/* Quick Stats */}
-                    <div className="apple-card p-6 space-y-4">
+                    <div className="glass-card p-6 space-y-4 rounded-3xl">
                         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Health Snapshot</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center py-2 border-b border-slate-50">
@@ -162,7 +156,7 @@ const PatientProfile = () => {
                 {/* Information Sections */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Personal Details */}
-                    <div className="apple-card p-8">
+                    <div className="glass-card p-8 rounded-3xl">
                         <div className="flex items-center gap-3 mb-8">
                             <div className="w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center text-primary">
                                 <User size={20} />
@@ -229,7 +223,7 @@ const PatientProfile = () => {
 
                     {/* Past Appointments */}
                     {pastVisits.length > 0 && (
-                        <div className="apple-card p-8">
+                        <div className="glass-card p-8 rounded-3xl">
                             <div className="flex items-center gap-3 mb-8">
                                 <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500">
                                     <FileText size={20} />
@@ -261,6 +255,63 @@ const PatientProfile = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Vitals History */}
+                    <div className="glass-card p-8 rounded-3xl">
+                        <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500">
+                                    <Activity size={20} />
+                                </div>
+                                <h3 className="text-xl font-bold">Health Vitals</h3>
+                            </div>
+                            <button className="text-xs font-bold text-primary uppercase tracking-widest hover:underline">Trend Analytics</button>
+                        </div>
+
+                        {vitals.length > 0 ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="border-b border-slate-50">
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Date</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">BP (sys/dia)</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">HR</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">SpO2</th>
+                                            <th className="py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Temp</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {vitals.slice(0, 5).map((v, i) => (
+                                            <tr key={i} className="hover:bg-slate-50/50 transition-all">
+                                                <td className="py-4 text-sm font-medium text-slate-600">
+                                                    {new Date(v.recorded_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.blood_pressure_sys && v.blood_pressure_dia ? `${v.blood_pressure_sys}/${v.blood_pressure_dia}` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.heart_rate ? `${v.heart_rate} bpm` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.spo2 ? `${v.spo2}%` : '—'}
+                                                </td>
+                                                <td className="py-4 text-sm font-bold text-slate-900 text-center">
+                                                    {v.temperature_c ? `${v.temperature_c}°C` : '—'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <div className="py-12 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                    <Activity size={32} />
+                                </div>
+                                <p className="text-slate-400 text-sm">No vital records found yet.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
             
@@ -286,7 +337,7 @@ const ReportModal = ({ visit, onClose }) => {
     
     return (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-            <div className="apple-card w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="glass-card w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh] rounded-[2rem]">
                 <div className="p-8 border-b border-slate-100 flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-primary-light rounded-xl flex items-center justify-center text-primary">

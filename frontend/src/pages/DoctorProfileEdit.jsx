@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { API, authedHeaders } from '../config/api';
+import { apiClient } from '../services/apiClient';
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABELS = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
@@ -40,35 +40,43 @@ const DoctorProfileEdit = () => {
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`${API}/api/doctors/${user.id}`)
-            .then(res => res.json())
-            .then(data => {
-                setProfile({
-                    first_name: data.first_name || '',
-                    last_name: data.last_name || '',
-                    specialty: data.specialty || '',
-                    degree: data.degree || '',
-                    experience_years: data.experience_years ?? '',
-                    about: data.about || '',
-                    location_room: data.location_room || '',
-                    image_url: data.image_url || '',
-                    max_patients_per_slot: data.max_patients_per_slot ?? 15,
-                });
-                if (data.availability) {
-                    const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
-                    setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
+        const fetchProfile = async () => {
+            try {
+                const data = await apiClient.get(`/api/doctors/${user.id}`);
+                if (data) {
+                    setProfile({
+                        first_name: data.first_name || '',
+                        last_name: data.last_name || '',
+                        specialty: data.specialty || '',
+                        degree: data.degree || '',
+                        experience_years: data.experience_years ?? '',
+                        about: data.about || '',
+                        location_room: data.location_room || '',
+                        image_url: data.image_url || '',
+                        max_patients_per_slot: data.max_patients_per_slot ?? 15,
+                    });
+                    if (data.availability) {
+                        const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
+                        setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
+                    }
                 }
-            })
-            .catch(err => console.error(err))
-            .finally(() => setIsLoading(false));
+            } catch (err) {
+                console.error('Failed to fetch profile:', err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProfile();
     }, [user?.id]);
 
-    const fetchBlockedDates = () => {
+    const fetchBlockedDates = async () => {
         if (!user?.id) return;
-        fetch(`${API}/api/doctors/${user.id}/blocked-dates`)
-            .then(r => r.json())
-            .then(data => setBlockedDates(Array.isArray(data) ? data : []))
-            .catch(err => console.error(err));
+        try {
+            const data = await apiClient.get(`/api/doctors/${user.id}/blocked-dates`);
+            setBlockedDates(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to fetch blocked dates:', err);
+        }
     };
 
     useEffect(() => { fetchBlockedDates(); }, [user?.id]);
@@ -93,15 +101,13 @@ const DoctorProfileEdit = () => {
         setSavingProfile(true);
         setProfileMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify(profile),
-            });
-            if (!res.ok) throw new Error();
-            const updated = await res.json();
-            login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
-            showMsg(setProfileMsg, { type: 'success', text: 'Clinical Identity Synchronized' });
+            const updated = await apiClient.patch(`/api/doctors/${user.id}`, profile);
+            if (updated && !updated.error) {
+                login({ ...user, first_name: updated.first_name, last_name: updated.last_name });
+                showMsg(setProfileMsg, { type: 'success', text: 'Clinical Identity Synchronized' });
+            } else {
+                throw new Error();
+            }
         } catch {
             showMsg(setProfileMsg, { type: 'error', text: 'Registry Link Down. Data not saved.' });
         } finally { setSavingProfile(false); }
@@ -113,13 +119,12 @@ const DoctorProfileEdit = () => {
     const saveAvailability = async () => {
         setSavingAvail(true); setAvailMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/availability`, {
-                method: 'PATCH',
-                headers: authedHeaders(true),
-                body: JSON.stringify({ availability }),
-            });
-            if (!res.ok) throw new Error();
-            showMsg(setAvailMsg, { type: 'success', text: 'Operational Window Updated' });
+            const data = await apiClient.patch(`/api/doctors/${user.id}/availability`, { availability });
+            if (data && !data.error) {
+                showMsg(setAvailMsg, { type: 'success', text: 'Operational Window Updated' });
+            } else {
+                throw new Error();
+            }
         } catch { showMsg(setAvailMsg, { type: 'error', text: 'Sync Error. Check connectivity.' }); }
         finally { setSavingAvail(false); }
     };
@@ -128,20 +133,19 @@ const DoctorProfileEdit = () => {
         if (!newBlockDate) { showMsg(setBlockMsg, { type: 'error', text: 'Select valid timestamp' }); return; }
         setBlockMsg(null);
         try {
-            const res = await fetch(`${API}/api/doctors/${user.id}/blocked-dates`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: newBlockDate, reason: newBlockReason || null }),
-            });
-            if (!res.ok) throw new Error();
-            setNewBlockDate(''); setNewBlockReason(''); fetchBlockedDates();
-            showMsg(setBlockMsg, { type: 'success', text: 'Clinical Downtime Indexed' });
+            const data = await apiClient.post(`/api/doctors/${user.id}/blocked-dates`, { date: newBlockDate, reason: newBlockReason || null });
+            if (data && !data.error) {
+                setNewBlockDate(''); setNewBlockReason(''); fetchBlockedDates();
+                showMsg(setBlockMsg, { type: 'success', text: 'Clinical Downtime Indexed' });
+            } else {
+                throw new Error();
+            }
         } catch { showMsg(setBlockMsg, { type: 'error', text: 'Exclusion Protocol Failed' }); }
     };
 
     const removeBlockedDate = async (id) => {
         try {
-            await fetch(`${API}/api/doctors/${user.id}/blocked-dates/${id}`, { method: 'DELETE' });
+            await apiClient.delete(`/api/doctors/${user.id}/blocked-dates/${id}`);
             setBlockedDates(prev => prev.filter(d => d.id !== id));
         } catch (err) { console.error(err); }
     };
@@ -158,8 +162,8 @@ const DoctorProfileEdit = () => {
                         <User size={32} strokeWidth={2.5} />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight uppercase italic leading-none">Practitioner Workspace</h1>
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 italic">Clinical Identity & Schedule Administration</p>
+                        <h1 className="text-4xl font-black text-[var(--text-base)] tracking-tight uppercase leading-none">Practitioner Workspace</h1>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-2 ">Clinical Identity & Schedule Administration</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 bg-white/5 px-6 py-2.5 rounded-full border border-[var(--border-base)] shadow-sm">
@@ -173,7 +177,7 @@ const DoctorProfileEdit = () => {
                 <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] -z-10 translate-x-1/4 -translate-y-1/4 animate-pulse"></div>
                 
                 <div className="flex items-center justify-between mb-12">
-                     <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                     <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 ">
                         <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><ShieldCheck size={20} /></span>
                         Registry Status
                     </h2>
@@ -200,8 +204,8 @@ const DoctorProfileEdit = () => {
                             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                         </div>
                         <div className="bg-primary-light/5 rounded-[2.5rem] p-8 border border-[var(--border-base)] space-y-4">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] italic mb-1">UI Visual Protocol</p>
-                            <h4 className="text-sm font-black text-[var(--text-base)] uppercase tracking-tight italic">Registry Portrait</h4>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">UI Visual Protocol</p>
+                            <h4 className="text-sm font-black text-[var(--text-base)] uppercase tracking-tight ">Registry Portrait</h4>
                             <p className="text-[10px] font-bold text-slate-500 leading-relaxed uppercase tracking-widest">High-contrast clinical portraits optimize trust metrics. Ensure subject clarity and clinical grade lighting.</p>
                         </div>
                     </div>
@@ -217,15 +221,15 @@ const DoctorProfileEdit = () => {
                             <Field label="Neural Buffer Capacity" name="max_patients_per_slot" type="number" value={profile.max_patients_per_slot} onChange={handleProfileChange} subLabel="PAX per clinical window" placeholder="15" />
                         </div>
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Physical Deployment Zone</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 ">Physical Deployment Zone</label>
                             <div className="relative group/input">
                                 <MapPin className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-primary transition-colors" size={20} />
                                 <input name="location_room" value={profile.location_room} onChange={handleProfileChange} className="w-full pl-16 pr-6 py-5 bg-white/5 border border-[var(--border-base)] rounded-3xl text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all shadow-inner uppercase tracking-widest" placeholder="FACILITY COORDINATES" />
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic">Clinical Biography (Neural Sync)</label>
-                            <textarea name="about" value={profile.about} onChange={handleProfileChange} rows={5} className="w-full bg-white/5 border border-[var(--border-base)] rounded-[2.5rem] px-8 py-6 text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all shadow-inner resize-none italic" placeholder="ENCRYPT PROFESSIONAL HISTORY..." />
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 ">Clinical Biography (Neural Sync)</label>
+                            <textarea name="about" value={profile.about} onChange={handleProfileChange} rows={5} className="w-full bg-white/5 border border-[var(--border-base)] rounded-[2.5rem] px-8 py-6 text-sm font-bold text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary/40 transition-all shadow-inner resize-none " placeholder="ENCRYPT PROFESSIONAL HISTORY..." />
                         </div>
                         <div className="flex justify-end pt-4">
                             <button onClick={saveProfile} disabled={savingProfile} className="btn-primary px-12 py-5 font-black text-[10px] uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 flex items-center gap-4 transition-all group">
@@ -242,7 +246,7 @@ const DoctorProfileEdit = () => {
                 <div className="glass-modal rounded-[3.5rem] p-10 border-none shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 left-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] -z-10 -translate-x-1/4 -translate-y-1/4 animate-pulse"></div>
                     <div className="flex items-center justify-between mb-10">
-                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 ">
                             <span className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner"><Clock size={20} /></span>
                             Operational Grid
                         </h2>
@@ -264,7 +268,7 @@ const DoctorProfileEdit = () => {
                                             <span className="text-slate-500 font-black">—</span>
                                             <input type="time" value={slot.to} onChange={e => updateDayTime(day, 'to', e.target.value)} className="bg-white/5 border border-[var(--border-base)] rounded-xl px-3 py-2 text-[10px] font-black text-[var(--text-base)] focus:ring-2 focus:ring-primary/20 outline-none transition-all" />
                                         </div>
-                                    ) : <div className="flex-1 text-right text-[9px] font-black text-rose-500 uppercase tracking-widest italic opacity-60">Facility Offline</div>}
+                                    ) : <div className="flex-1 text-right text-[9px] font-black text-rose-500 uppercase tracking-widest opacity-60">Facility Offline</div>}
                                 </div>
                             );
                         })}
@@ -280,7 +284,7 @@ const DoctorProfileEdit = () => {
                 <div className="glass-modal rounded-[3.5rem] p-10 border-none shadow-2xl relative overflow-hidden group">
                     <div className="absolute bottom-0 right-0 w-80 h-80 bg-rose-500/5 rounded-full blur-[100px] -z-10 translate-x-1/4 translate-y-1/4 animate-pulse"></div>
                     <div className="flex items-center justify-between mb-10">
-                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 italic">
+                         <h2 className="text-xl font-black text-[var(--text-base)] uppercase tracking-tight flex items-center gap-4 ">
                             <span className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shadow-inner"><CalendarX size={20} /></span>
                             Clinical Downtime
                         </h2>
@@ -303,14 +307,14 @@ const DoctorProfileEdit = () => {
 
                         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {blockedDates.length === 0 ? (
-                                <div className="py-12 text-center opacity-30 italic">
+                                <div className="py-12 text-center opacity-30 ">
                                     <Sparkles size={32} className="mx-auto text-slate-500 mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest">No Active Downtime Nodes</p>
                                 </div>
                             ) : blockedDates.map(d => (
                                 <div key={d.id} className="flex items-center justify-between p-5 bg-white/5 border border-rose-500/10 rounded-[2rem] hover:border-rose-500/30 transition-all group/item">
                                     <div className="space-y-1">
-                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-tighter leading-none italic">{new Date(d.blocked_date).toLocaleDateString()}</p>
+                                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-tighter leading-none ">{new Date(d.blocked_date).toLocaleDateString()}</p>
                                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{d.reason || 'UNSPECIFIED LEAVE'}</p>
                                     </div>
                                     <button onClick={() => removeBlockedDate(d.id)} className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center border border-rose-500/20">
@@ -328,12 +332,12 @@ const DoctorProfileEdit = () => {
 
 const Field = ({ label, icon, subLabel, ...props }) => (
     <div className="space-y-2">
-        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 italic leading-none">{label}</label>
+        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 leading-none">{label}</label>
         <div className="relative group/input">
             {icon && <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within/input:text-primary transition-colors">{icon}</div>}
-            <input {...props} className={`${inputClass} ${icon ? 'pl-16' : 'px-6'} uppercase tracking-widest italic`} />
+            <input {...props} className={`${inputClass} ${icon ? 'pl-16' : 'px-6'} uppercase tracking-widest `} />
         </div>
-        {subLabel && <p className="text-[9px] font-bold text-slate-500 mt-2 ml-2 italic italic opacity-60">{subLabel}</p>}
+        {subLabel && <p className="text-[9px] font-bold text-slate-500 mt-2 ml-2 opacity-60">{subLabel}</p>}
     </div>
 );
 
