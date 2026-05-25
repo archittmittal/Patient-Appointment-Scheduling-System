@@ -107,43 +107,21 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             };
         }
 
-        // Try inserting with all columns first, fallback to basic columns if schema differs
+        // Insert appointment — use lowercase status to match DB ENUM
         let result;
-        const statusCandidates = ['CONFIRMED', 'confirmed'];
-
-        for (const status of statusCandidates) {
-            // Attempt 1: Full INSERT with predicted_duration_mins and is_follow_up
-            try {
+        try {
+            [result] = await db.query(
+                'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp || false]
+            );
+        } catch (fullInsertErr) {
+            // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
+            if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
                 [result] = await db.query(
-                    'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [patientId, doctorId, date, timeSlot, symptoms || null, status, prediction.predictedDuration, prediction.factors.isFollowUp || false]
+                    'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
+                    [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed']
                 );
-                break; // Success — exit loop
-            } catch (fullInsertErr) {
-                // If the error is about unknown columns, try a simpler INSERT
-                if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
-                    try {
-                        [result] = await db.query(
-                            'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
-                            [patientId, doctorId, date, timeSlot, symptoms || null, status]
-                        );
-                        break; // Success — exit loop
-                    } catch (simpleInsertErr) {
-                        // If this also fails (e.g., ENUM mismatch), continue to next status candidate
-                        if (status === statusCandidates[statusCandidates.length - 1]) {
-                            throw simpleInsertErr; // Last candidate, throw
-                        }
-                        continue;
-                    }
-                }
-                // If it's an ENUM mismatch error, try next status candidate
-                if (fullInsertErr.code === 'WARN_DATA_TRUNCATED' || (fullInsertErr.message && fullInsertErr.message.includes('Data truncated'))) {
-                    if (status === statusCandidates[statusCandidates.length - 1]) {
-                        throw fullInsertErr;
-                    }
-                    continue;
-                }
-                // Unknown error — throw immediately
+            } else {
                 throw fullInsertErr;
             }
         }
@@ -380,7 +358,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         // 2. Handle status-specific logic
         if (status === 'IN_PROGRESS') {
             await conn.query(
-                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'IN_PROGRESS' WHERE lq.id = ?",
+                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'in_progress' WHERE lq.id = ?",
                 [req.params.queueId]
             );
 
@@ -429,7 +407,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
             // Update appointment with completion details and actual duration
             await conn.query(
                 `UPDATE appointments
-                    SET status = 'COMPLETED',
+                    SET status = 'completed',
                         consultation_end = NOW(),
                         actual_duration_mins = ?,
                         diagnosis    = COALESCE(?, diagnosis),
@@ -598,14 +576,14 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
         if (req.user.role === 'PATIENT' && req.user.id !== appt.patient_id) {
             return res.status(403).json({ message: 'Access denied' });
         }
-        if (!['CONFIRMED', 'PENDING'].includes(appt.status)) {
+        if (!['CONFIRMED', 'PENDING', 'confirmed', 'pending', 'scheduled'].includes(appt.status)) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }
 
         await conn.beginTransaction();
 
         await conn.query(
-            "UPDATE appointments SET status = 'CANCELLED' WHERE id = ?",
+            "UPDATE appointments SET status = 'cancelled' WHERE id = ?",
             [req.params.id]
         );
 
