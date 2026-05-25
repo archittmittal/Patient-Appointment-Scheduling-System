@@ -27,10 +27,10 @@ class VirtualCheckinService {
         
         // Verify appointment belongs to patient and is for today
         const [appointments] = await db.query(
-            `SELECT a.*, u.first_name, u.last_name, d.first_name as doc_first, d.last_name as doc_last
+            `SELECT a.*, p.first_name, p.last_name, d.first_name as doc_first, d.last_name as doc_last
              FROM appointments a
-             JOIN users u ON a.patient_id = u.id
-             JOIN users d ON a.doctor_id = d.id
+             JOIN patients p ON a.patient_id = p.id
+             JOIN doctors d ON a.doctor_id = d.id
              WHERE a.id = ? AND a.patient_id = ?`,
             [appointmentId, patientId]
         );
@@ -159,11 +159,11 @@ class VirtualCheckinService {
     async getWaitingRoomStatus(appointmentId, patientId) {
         const [appointments] = await db.query(
             `SELECT a.*, 
-                    u.first_name, u.last_name,
+                    p.first_name, p.last_name,
                     d.first_name as doc_first, d.last_name as doc_last,
                     d.specialty
              FROM appointments a
-             JOIN users u ON a.patient_id = u.id
+             JOIN patients p ON a.patient_id = p.id
              JOIN doctors d ON a.doctor_id = d.id
              WHERE a.id = ? AND a.patient_id = ?`,
             [appointmentId, patientId]
@@ -230,10 +230,10 @@ class VirtualCheckinService {
         const [patients] = await db.query(
             `SELECT a.id, a.time_slot, a.status, a.virtual_checkin_status,
                     a.virtual_checkin_time, a.patient_eta_minutes,
-                    u.first_name, u.last_name, u.phone,
+                    p.first_name, p.last_name, p.phone,
                     s.session_start, s.last_ping
              FROM appointments a
-             JOIN users u ON a.patient_id = u.id
+             JOIN patients p ON a.patient_id = p.id
              LEFT JOIN virtual_waiting_sessions s ON a.id = s.appointment_id AND s.status = 'ACTIVE'
              WHERE a.doctor_id = ?
                AND DATE(a.appointment_date) = ?
@@ -302,12 +302,12 @@ class VirtualCheckinService {
     async getPendingNotifications(doctorId = null) {
         let query = `
             SELECT cn.*, a.time_slot, a.doctor_id,
-                   u.first_name, u.last_name,
+                   p.first_name, p.last_name,
                    d.first_name as doc_first, d.last_name as doc_last
             FROM checkin_notifications cn
             JOIN appointments a ON cn.appointment_id = a.id
-            JOIN users u ON a.patient_id = u.id
-            JOIN users d ON a.doctor_id = d.id
+            JOIN patients p ON a.patient_id = p.id
+            JOIN doctors d ON a.doctor_id = d.id
             WHERE cn.acknowledged = FALSE
               AND DATE(a.appointment_date) = CURDATE()`;
 
