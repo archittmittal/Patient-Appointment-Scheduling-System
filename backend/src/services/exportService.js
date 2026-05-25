@@ -126,6 +126,103 @@ class ExportService {
         res.setHeader('Content-Disposition', `attachment; filename=vitals_patient_${patientId}.csv`);
         res.status(200).send(csv);
     }
+
+    /**
+     * Export a specific Prescription as a PDF
+     */
+    async generatePrescriptionPDF(appointmentId, res) {
+        const query = `
+            SELECT 
+                a.id AS appointment_id,
+                DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
+                a.prescription,
+                a.diagnosis,
+                a.notes,
+                p.first_name AS patient_first,
+                p.last_name AS patient_last,
+                p.dob AS patient_dob,
+                p.phone AS patient_phone,
+                d.first_name AS doctor_first,
+                d.last_name AS doctor_last,
+                d.specialty AS doctor_specialty,
+                d.location_room
+            FROM appointments a
+            JOIN patients p ON a.patient_id = p.id
+            JOIN doctors d ON a.doctor_id = d.id
+            WHERE a.id = ?
+        `;
+        const [rows] = await db.query(query, [appointmentId]);
+        if (rows.length === 0) throw new Error('Appointment not found');
+        const data = rows[0];
+
+        const doc = new PDFDocument({ margin: 50 });
+        doc.pipe(res);
+
+        // Header and branding style
+        doc.fontSize(24).fillColor('#4f46e5').text('HEALTHSYNC PREMIUM', { align: 'center', underline: true });
+        doc.fontSize(10).fillColor('#64748b').text('Clinical Orchestration Engine & Medical Portal', { align: 'center' });
+        doc.moveDown(2);
+
+        // Doctor & Clinic Info (Left side)
+        const doctorName = `Dr. ${data.doctor_first} ${data.doctor_last}`;
+        doc.fontSize(14).fillColor('#1e293b').text(doctorName, { bold: true });
+        doc.fontSize(10).fillColor('#64748b').text(data.doctor_specialty || 'General Practitioner');
+        doc.text(`Medical Center - Room ${data.location_room || 'N/A'}`);
+        doc.moveDown();
+
+        // Right side alignment (simulated via absolute coordinates or Y-resets)
+        doc.y = 110; 
+        doc.fontSize(10).fillColor('#64748b').text(`Date: ${data.appointment_date}`, { align: 'right' });
+        doc.text(`Prescription ID: PR-${data.appointment_id}`, { align: 'right' });
+        doc.moveDown(2);
+
+        doc.y = 180; // move below header block
+
+        // Divider
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#e2e8f0').stroke();
+        doc.moveDown();
+
+        // Patient Info
+        doc.fontSize(12).fillColor('#1e293b').text('PATIENT INFORMATION', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11).fillColor('#334155').text(`Name: ${data.patient_first} ${data.patient_last}`);
+        doc.text(`DOB: ${data.patient_dob ? new Date(data.patient_dob).toLocaleDateString() : 'N/A'}`);
+        doc.text(`Phone: ${data.patient_phone || 'N/A'}`);
+        doc.moveDown(2);
+
+        // Diagnosis
+        doc.fontSize(12).fillColor('#1e293b').text('CLINICAL DIAGNOSIS', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11).fillColor('#334155').text(data.diagnosis || 'General check-up / consultation notes');
+        doc.moveDown(2);
+
+        // Prescription/Medicines
+        doc.fontSize(12).fillColor('#1e293b').text('PRESCRIBED MEDICATIONS', { underline: true });
+        doc.moveDown(0.5);
+        
+        doc.fontSize(12).fillColor('#4f46e5').text(data.prescription || 'No medications prescribed during this session.', {
+            indent: 10,
+            lineGap: 4
+        });
+        doc.moveDown(2);
+
+        // Clinical / Private Notes
+        if (data.notes) {
+            doc.fontSize(12).fillColor('#1e293b').text('INSTRUCTIONS / CLINICAL NOTES', { underline: true });
+            doc.moveDown(0.5);
+            doc.fontSize(11).fillColor('#334155').text(data.notes);
+            doc.moveDown(2);
+        }
+
+        // Footer
+        doc.y = 700; 
+        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#e2e8f0').stroke();
+        doc.moveDown(0.5);
+        doc.fontSize(9).fillColor('#94a3b8').text('This is a secure, electronically verified prescription document from HealthSync.', { align: 'center' });
+        doc.text('Verification and security powered by JWT credentials.', { align: 'center' });
+
+        doc.end();
+    }
 }
 
 module.exports = new ExportService();

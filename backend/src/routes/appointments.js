@@ -430,8 +430,14 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                 await prescriptionService.createPrescription(
                     queueRow.doctor_id,
                     queueRow.patient_id,
-                    prescription,
-                    notes || 'Prescribed during consultation',
+                    {
+                        medications: prescription,
+                        instructions: notes || 'Prescribed during consultation',
+                        dosage: null,
+                        frequency: null,
+                        duration_days: null,
+                        refills_remaining: 0
+                    },
                     queueRow.appointment_id,
                     conn
                 );
