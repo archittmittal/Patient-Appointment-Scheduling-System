@@ -334,6 +334,11 @@ const DoctorDashboard = () => {
         try {
             await apiClient.patch(`/api/appointments/queue/${queueId}/status`, { status: newStatus, ...extra });
             setQueue(prev => prev.map(q => q.queue_id === queueId ? { ...q, queue_status: newStatus } : q));
+        } catch (err) {
+            console.error('Failed to update queue status:', err);
+            const errMsg = err.response?.data?.message || err.message || 'Failed to update status. Please check your clinical inputs.';
+            alert(errMsg);
+            throw err;
         } finally { setUpdatingId(null); }
     };
 
@@ -346,9 +351,32 @@ const DoctorDashboard = () => {
                     item={notesModal.item}
                     saving={updatingId === notesModal.queueId}
                     onSave={async (form) => {
-                        await updateQueueStatus(notesModal.queueId, 'COMPLETED', form);
-                        setNotesModal(null);
-                        fetchData();
+                        // Clean up form to match backend schemas and convert blank strings to appropriate types
+                        const cleanedForm = { ...form };
+                        if (cleanedForm.diagnosis === '') cleanedForm.diagnosis = null;
+                        if (cleanedForm.notes === '') cleanedForm.notes = null;
+                        if (cleanedForm.prescription === '') cleanedForm.prescription = null;
+                        if (cleanedForm.follow_up_date === '') cleanedForm.follow_up_date = null;
+
+                        if (cleanedForm.vitals) {
+                            const cleanedVitals = {};
+                            let hasVitals = false;
+                            Object.entries(cleanedForm.vitals).forEach(([key, val]) => {
+                                if (val !== '' && val !== null && val !== undefined) {
+                                    cleanedVitals[key] = Number(val);
+                                    hasVitals = true;
+                                }
+                            });
+                            cleanedForm.vitals = hasVitals ? cleanedVitals : null;
+                        }
+
+                        try {
+                            await updateQueueStatus(notesModal.queueId, 'COMPLETED', cleanedForm);
+                            setNotesModal(null);
+                            fetchData();
+                        } catch (err) {
+                            console.error('Modal save failed:', err);
+                        }
                     }}
                     onClose={() => setNotesModal(null)}
                 />
