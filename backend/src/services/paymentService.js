@@ -1,5 +1,13 @@
-const stripeKey = process.env.STRIPE_SECRET_KEY || 'sk_test_mock';
-const stripe = require('stripe')(stripeKey);
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+
+if (!stripeKey) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL CONFIGURATION ERROR: STRIPE_SECRET_KEY environment variable is missing in production.');
+    }
+    console.warn('⚠️ WARNING: STRIPE_SECRET_KEY is not defined. Using sk_test_mock fallback for development.');
+}
+
+const stripe = require('stripe')(stripeKey || 'sk_test_mock');
 const db = require('../config/db');
 
 class PaymentService {
