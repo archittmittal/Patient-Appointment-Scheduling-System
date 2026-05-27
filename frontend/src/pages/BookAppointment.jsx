@@ -202,23 +202,29 @@ const BookAppointment = () => {
     };
 
     const handleBook = async () => {
+        if (!user || !user.id) {
+            alert('Please sign in to book an appointment.');
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await apiClient.post('/api/appointments/book', { 
-                patientId: user.id, 
                 doctorId: selectedDoctorId, 
                 date: selectedDate, 
                 timeSlot: selectedSlot, 
                 symptoms: symptoms || null 
             });
-            if (!data.error) {
+            // apiClient returns [] on network errors — treat arrays as failure
+            if (data && !Array.isArray(data) && !data.error && data.appointmentId) {
                 setBookingResult(data);
                 setIsBooked(true);
-            } else {
+            } else if (data && data.error) {
                 const errMsg = data.detail 
                     ? `${data.message}: ${data.detail}` 
                     : (data.message || 'Unable to complete booking. Please try again.');
                 alert(errMsg);
+            } else {
+                alert('Unable to complete booking. Please check your connection and try again.');
             }
         } catch (err) {
             console.error('[Booking] Connection error:', err);
