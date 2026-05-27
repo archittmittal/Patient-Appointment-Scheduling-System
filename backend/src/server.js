@@ -102,8 +102,7 @@ const whitelist = new Set([
     ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
     process.env.APP_URL,
     process.env.FRONTEND_URL,
-    'http://localhost:5173',
-    'http://127.0.0.1:5173'
+    ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : [])
 ].map(normalizeOrigin).filter(Boolean));
 
 const corsOptions = {
@@ -117,16 +116,13 @@ const corsOptions = {
         if (whitelist.has(normalizedOrigin)) return callback(null, true);
         
         // 2. Allow all localhost/127.0.0.1 variants for development
-        if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
-            return callback(null, true);
+        if (process.env.NODE_ENV !== 'production') {
+            if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+                return callback(null, true);
+            }
         }
         
-        // 3. Allow all Vercel and Hugging Face deployments
-        if (/\.vercel\.app$/.test(origin) || /\.hf\.space$/.test(origin)) {
-            return callback(null, true);
-        }
-        
-        // 4. In development, be permissive if needed
+        // 3. In development, be permissive if needed
         if (process.env.NODE_ENV !== 'production') return callback(null, true);
 
         callback(new Error('Not allowed by CORS'));

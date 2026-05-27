@@ -22,9 +22,17 @@ function validateEnv() {
     } else {
         // Novel: Verify JWT Secret Strength
         const jwtSecret = process.env.JWT_SECRET;
-        if (jwtSecret === 'hs_jwt_super_secret_change_in_production_2024' || jwtSecret.length < 32) {
-            console.warn('\x1b[33m%s\x1b[0m', '⚠️  SECURITY WARNING: JWT_SECRET is using a default value or is too weak.');
-            console.warn('\x1b[33m%s\x1b[0m', '   For production, please use a secure, random string (min 32 characters).');
+        const isDefaultSecret = jwtSecret === 'hs_jwt_super_secret_change_in_production_2024';
+        
+        if (isDefaultSecret || jwtSecret.length < 32) {
+            if (process.env.NODE_ENV === 'production') {
+                console.error('\x1b[31m%s\x1b[0m', 'FATAL SECURITY ERROR: JWT_SECRET is using the default placeholder value or is too weak in production.');
+                console.error('\x1b[31m%s\x1b[0m', 'Startup blocked for safety. Please configure a secure, random string (min 32 characters).');
+                process.exit(1);
+            } else {
+                console.warn('\x1b[33m%s\x1b[0m', '⚠️  SECURITY WARNING: JWT_SECRET is using a default value or is too weak.');
+                console.warn('\x1b[33m%s\x1b[0m', '   For production, please use a secure, random string (min 32 characters).');
+            }
         } else {
             console.log('\x1b[32m%s\x1b[0m', '✓ Security: JWT Secret strength verified.');
         }
