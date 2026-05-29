@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2, Info, Sparkles, ShieldCheck } from 'lucide-react';
+import { Camera, Save, Clock, CheckCircle2, AlertCircle, User, MapPin, Award, BookOpen, CalendarX, Plus, Trash2, Info, Sparkles, ShieldCheck, IndianRupee } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
 
@@ -25,7 +25,7 @@ const DoctorProfileEdit = () => {
     const [profile, setProfile] = useState({
         first_name: '', last_name: '', specialty: '', degree: '',
         experience_years: '', about: '', location_room: '', image_url: '',
-        max_patients_per_slot: 15,
+        max_patients_per_slot: 15, consultation_fee: '',
     });
     const [availability, setAvailability] = useState(DEFAULT_AVAILABILITY);
     const [isLoading, setIsLoading] = useState(true);
@@ -54,6 +54,7 @@ const DoctorProfileEdit = () => {
                         location_room: data.location_room || '',
                         image_url: data.image_url || '',
                         max_patients_per_slot: data.max_patients_per_slot ?? 15,
+                        consultation_fee: data.consultation_fee ?? '',
                     });
                     if (data.availability) {
                         const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
@@ -219,6 +220,37 @@ const DoctorProfileEdit = () => {
                             <Field label="Academic Weight" name="degree" value={profile.degree} onChange={handleProfileChange} icon={<BookOpen size={18} />} placeholder="e.g. MB, BCh, M.Sc" />
                             <Field label="Clinical Tenure (Years)" name="experience_years" type="number" value={profile.experience_years} onChange={handleProfileChange} placeholder="0" />
                             <Field label="Neural Buffer Capacity" name="max_patients_per_slot" type="number" value={profile.max_patients_per_slot} onChange={handleProfileChange} subLabel="PAX per clinical window" placeholder="15" />
+                        </div>
+
+                        {/* ── CONSULTATION FEE ── */}
+                        <div className="p-8 bg-emerald-500/5 rounded-[2.5rem] border border-emerald-500/10 space-y-4 mt-2">
+                            <div className="flex items-center gap-3 mb-2">
+                                <span className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shadow-inner">
+                                    <IndianRupee size={20} strokeWidth={2.5} />
+                                </span>
+                                <div>
+                                    <h4 className="text-sm font-black text-[var(--text-base)] uppercase tracking-tight leading-none">Consultation Fee</h4>
+                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">Amount charged per patient visit (₹ INR)</p>
+                                </div>
+                            </div>
+                            <div className="relative group/input">
+                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-emerald-500/60 group-focus-within/input:text-emerald-500 transition-colors">₹</span>
+                                <input
+                                    name="consultation_fee"
+                                    type="number"
+                                    min="1"
+                                    step="0.01"
+                                    value={profile.consultation_fee}
+                                    onChange={handleProfileChange}
+                                    placeholder="500"
+                                    className="w-full pl-14 pr-6 py-5 bg-white/5 border border-emerald-500/20 rounded-3xl text-2xl font-black text-[var(--text-base)] focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500/40 transition-all shadow-inner tracking-widest"
+                                />
+                            </div>
+                            {profile.consultation_fee && (
+                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-2 animate-in fade-in duration-500">
+                                    Patients will be charged ₹{Number(profile.consultation_fee).toLocaleString('en-IN')} per visit
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-4">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] ml-2 ">Physical Deployment Zone</label>

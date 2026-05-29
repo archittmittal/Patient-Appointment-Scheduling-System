@@ -30,7 +30,13 @@ const { initCronJobs } = require('./jobs/reminderJobs');
 
 const app = express();
 
-app.use(express.json());
+// Parse JSON for all routes EXCEPT the Stripe webhook (which needs the raw body for signature verification)
+app.use((req, res, next) => {
+    if (req.originalUrl === '/api/payments/webhook') {
+        return next();
+    }
+    express.json()(req, res, next);
+});
 
 // Debug Logger
 app.use((req, res, next) => {

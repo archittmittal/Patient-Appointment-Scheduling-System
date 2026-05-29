@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronRight, IndianRupee } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 
@@ -93,7 +93,11 @@ const DoctorProfile = () => {
                         <StatBox label="Registry Core" value={doctor.patients} />
                         <StatBox label="Clinical Tenure" value={doctor.experience} />
                         <StatBox label="Satisfaction" value={doctor.rating} subIcon={<Star size={16} className="fill-amber-500 text-amber-500" />} />
-                        <StatBox label="Testimonials" value={doctor.review_count} />
+                        {doctor.consultation_fee ? (
+                            <StatBox label="Consultation Fee" value={`₹${Number(doctor.consultation_fee).toLocaleString('en-IN')}`} subIcon={<IndianRupee size={16} className="text-emerald-500" />} highlight />
+                        ) : (
+                            <StatBox label="Testimonials" value={doctor.review_count} />
+                        )}
                     </div>
 
                     <div className="mt-10 flex flex-col sm:flex-row gap-5">
@@ -103,9 +107,13 @@ const DoctorProfile = () => {
                         >
                             Schedule Clinical Visit <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
                         </button>
-                        <button className="btn-secondary px-10 py-5 font-black text-xs uppercase tracking-widest border-[var(--border-base)] text-slate-500 hover:text-primary flex items-center justify-center gap-3 active:scale-[0.98]">
-                            <Phone size={18} strokeWidth={2.5} /> Quick Connect
-                        </button>
+                        {doctor.consultation_fee && (
+                            <div className="flex items-center justify-center gap-2 px-8 py-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                                <IndianRupee size={18} className="text-emerald-500" strokeWidth={2.5} />
+                                <span className="text-lg font-black text-emerald-500 tracking-tight">₹{Number(doctor.consultation_fee).toLocaleString('en-IN')}</span>
+                                <span className="text-[9px] font-black text-emerald-500/60 uppercase tracking-widest">per visit</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -182,11 +190,11 @@ const DoctorProfile = () => {
     );
 };
 
-const StatBox = ({ label, value, subIcon }) => (
-    <div className="glass-card bg-white/5 p-6 rounded-[2rem] hover:scale-105 transition-all border-[var(--border-base)] group hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5">
-        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1 group-hover:text-primary transition-colors">{label}</p>
+const StatBox = ({ label, value, subIcon, highlight }) => (
+    <div className={`glass-card bg-white/5 p-6 rounded-[2rem] hover:scale-105 transition-all border-[var(--border-base)] group hover:shadow-xl hover:shadow-primary/5 ${highlight ? 'hover:border-emerald-500/30 border-emerald-500/10 bg-emerald-500/5' : 'hover:border-primary/30'}`}>
+        <p className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1 transition-colors ${highlight ? 'text-emerald-500 group-hover:text-emerald-400' : 'text-slate-500 group-hover:text-primary'}`}>{label}</p>
         <div className="flex items-center gap-2 mt-1">
-            <p className="text-3xl font-black text-[var(--text-base)] tracking-tighter ">{value}</p>
+            <p className={`text-3xl font-black tracking-tighter ${highlight ? 'text-emerald-500' : 'text-[var(--text-base)]'}`}>{value}</p>
             {subIcon}
         </div>
     </div>
