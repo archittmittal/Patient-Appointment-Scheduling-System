@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS doctors (
     image_url VARCHAR(255),
     availability JSON,
     max_patients_per_slot INT DEFAULT 15,
+    consultation_fee DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -103,9 +104,9 @@ INSERT IGNORE INTO patients (id, first_name, last_name, dob, phone, blood_group,
 (1, 'John', 'Doe', '1990-05-15', '+15551234567', 'O+', '123 Healing St, Apartment 4B, Healthville');
 
 -- Insert Mock Doctors
-INSERT IGNORE INTO doctors (id, first_name, last_name, specialty, degree, experience_years, rating, review_count, about, location_room, image_url) VALUES
-(2, 'Sarah', 'Jenkins', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 4.9, 128, 'Top Cardiologist with over 15 years experience.', 'Heart Care Pavilion, Block C', 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random'),
-(3, 'Michael', 'Chen', 'General Physician', 'MBBS', 8, 4.8, 256, 'Expert in general medicine.', 'Central Clinic, Room 102', 'https://ui-avatars.com/api/?name=Michael+Chen&background=random');
+INSERT IGNORE INTO doctors (id, first_name, last_name, specialty, degree, experience_years, rating, review_count, about, location_room, image_url, consultation_fee) VALUES
+(2, 'Sarah', 'Jenkins', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 4.9, 128, 'Top Cardiologist with over 15 years experience.', 'Heart Care Pavilion, Block C', 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random', 150.00),
+(3, 'Michael', 'Chen', 'General Physician', 'MBBS', 8, 4.8, 256, 'Expert in general medicine.', 'Central Clinic, Room 102', 'https://ui-avatars.com/api/?name=Michael+Chen&background=random', 75.00);
 
 -- Insert Mock Appointments (with symptoms)
 INSERT IGNORE INTO appointments (id, patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES
