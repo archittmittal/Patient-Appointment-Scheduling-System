@@ -36,6 +36,18 @@ function validateEnv() {
         } else {
             console.log('\x1b[32m%s\x1b[0m', '✓ Security: JWT Secret strength verified.');
         }
+
+        // Sprint 3: Verify Stripe webhook secret is configured in production
+        if (process.env.NODE_ENV === 'production' && !process.env.STRIPE_WEBHOOK_SECRET) {
+            console.error('\x1b[31m%s\x1b[0m', 'FATAL SECURITY ERROR: STRIPE_WEBHOOK_SECRET is not configured in production.');
+            console.error('\x1b[31m%s\x1b[0m', 'Unverified Stripe webhooks will be rejected. Configure the signing secret from your Stripe Dashboard.');
+            process.exit(1);
+        } else if (!process.env.STRIPE_WEBHOOK_SECRET) {
+            console.warn('\x1b[33m%s\x1b[0m', '⚠️  SECURITY WARNING: STRIPE_WEBHOOK_SECRET is not set. Webhook signature verification is disabled in development.');
+        } else {
+            console.log('\x1b[32m%s\x1b[0m', '✓ Security: Stripe webhook secret configured.');
+        }
+
         console.log('\x1b[32m%s\x1b[0m', '✓ Environment variables validated.');
     }
 }
