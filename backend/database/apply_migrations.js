@@ -6,7 +6,8 @@ async function applyMigrations() {
     const migrationsDir = __dirname;
     const migrationFiles = [
         'migration_week4_billing.sql',
-        'migration_week4_messaging.sql'
+        'migration_week4_messaging.sql',
+        'migration_sprint2_schema_hardening.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');
