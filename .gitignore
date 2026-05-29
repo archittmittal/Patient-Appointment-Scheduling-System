@@ -9,3 +9,4 @@ build/
 
 # Local helper output and caches
 frontend/build_log*.txt
+graphify-out/
