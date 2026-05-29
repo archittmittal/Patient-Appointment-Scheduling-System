@@ -60,8 +60,12 @@ CREATE TABLE IF NOT EXISTS appointments (
     predicted_duration_mins INT DEFAULT 15,
     is_follow_up BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id),
-    FOREIGN KEY (doctor_id) REFERENCES doctors(id)
+    UNIQUE KEY unique_booking (doctor_id, appointment_date, time_slot),
+    INDEX idx_appointments_doctor_date (doctor_id, appointment_date),
+    INDEX idx_appointments_patient_date (patient_id, appointment_date),
+    INDEX idx_appointments_status (status),
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
 );
 
 -- 5. Live Queue Table
@@ -73,7 +77,8 @@ CREATE TABLE IF NOT EXISTS live_queue (
     estimated_time INT DEFAULT 0, -- represented in minutes
     predicted_duration INT DEFAULT 15,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+    INDEX idx_live_queue_appointment (appointment_id),
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
 );
 
 -- 6. Doctor Blocked Dates Table
