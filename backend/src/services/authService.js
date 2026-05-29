@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const db = require('../config/db');
 const { bcryptRounds } = require('../config/auth');
 const sessionService = require('./sessionService');
@@ -87,39 +88,91 @@ class AuthService {
 
     async forgotPassword(email) {
         const [users] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+
+        // [SEC-006] Return a generic success message regardless of whether
+        // the account exists to prevent user enumeration attacks.
         if (users.length === 0) {
-            const error = new Error('User not found');
-            error.status = 404;
+            return { message: 'If an account with that email exists, an OTP has been sent' };
+        }
+
+        // [SEC-007] Check if the account is currently locked out from OTP requests
+        const [lockRows] = await db.query(
+            'SELECT otp_locked_until FROM users WHERE email = ?',
+            [email]
+        );
+        if (lockRows.length > 0 && lockRows[0].otp_locked_until && new Date(lockRows[0].otp_locked_until) > new Date()) {
+            const error = new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
+            error.status = 429;
             throw error;
         }
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        // [SEC-006] Use crypto.randomInt() for cryptographically secure OTP generation
+        // instead of the predictable Math.random()
+        const otp = crypto.randomInt(100000, 999999).toString();
         const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
+        // Reset failed attempts on new OTP generation
         await db.query(
-            'UPDATE users SET otp_code = ?, otp_expiry = ? WHERE email = ?',
+            'UPDATE users SET otp_code = ?, otp_expiry = ?, failed_otp_attempts = 0 WHERE email = ?',
             [otp, expiry, email]
         );
 
         await sendOTP(email, otp);
-        return { message: 'OTP sent to your email' };
+        return { message: 'If an account with that email exists, an OTP has been sent' };
     }
 
     async resetPassword(email, otp, newPassword) {
+        // [SEC-007] Check if account is locked out
+        const [lockCheck] = await db.query(
+            'SELECT otp_locked_until, failed_otp_attempts FROM users WHERE email = ?',
+            [email]
+        );
+        if (lockCheck.length > 0 && lockCheck[0].otp_locked_until && new Date(lockCheck[0].otp_locked_until) > new Date()) {
+            const error = new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
+            error.status = 429;
+            throw error;
+        }
+
         const [users] = await db.query(
             'SELECT * FROM users WHERE email = ? AND otp_code = ? AND otp_expiry > NOW()',
             [email, otp]
         );
 
         if (users.length === 0) {
+            // [SEC-007] Increment failed attempt counter and lock after 5 failures
+            const MAX_OTP_ATTEMPTS = 5;
+            const LOCKOUT_MINUTES = 15;
+
+            await db.query(
+                'UPDATE users SET failed_otp_attempts = COALESCE(failed_otp_attempts, 0) + 1 WHERE email = ?',
+                [email]
+            );
+
+            // Check if we've exceeded max attempts
+            const [updated] = await db.query(
+                'SELECT failed_otp_attempts FROM users WHERE email = ?',
+                [email]
+            );
+            if (updated.length > 0 && updated[0].failed_otp_attempts >= MAX_OTP_ATTEMPTS) {
+                const lockUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000);
+                await db.query(
+                    'UPDATE users SET otp_locked_until = ?, otp_code = NULL, otp_expiry = NULL WHERE email = ?',
+                    [lockUntil, email]
+                );
+                const error = new Error(`Account locked for ${LOCKOUT_MINUTES} minutes after ${MAX_OTP_ATTEMPTS} failed OTP attempts`);
+                error.status = 429;
+                throw error;
+            }
+
             const error = new Error('Invalid or expired OTP');
             error.status = 400;
             throw error;
         }
 
+        // Success — reset password and clear all OTP state
         const passwordHash = await bcrypt.hash(newPassword, bcryptRounds);
         await db.query(
-            'UPDATE users SET password_hash = ?, otp_code = NULL, otp_expiry = NULL WHERE email = ?',
+            'UPDATE users SET password_hash = ?, otp_code = NULL, otp_expiry = NULL, failed_otp_attempts = 0, otp_locked_until = NULL WHERE email = ?',
             [passwordHash, email]
         );
 

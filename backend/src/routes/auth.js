@@ -12,7 +12,9 @@ const loginSchema = Joi.object({
 const registerSchema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    role: Joi.string().valid('PATIENT', 'DOCTOR', 'ADMIN').default('PATIENT'),
+    // [SEC-005] Role field removed from public registration.
+    // All self-registrations are PATIENT-only. ADMIN/DOCTOR accounts
+    // must be provisioned through a dedicated admin panel.
     first_name: Joi.string().required(),
     last_name: Joi.string().required(),
     phone: Joi.string().required(),
