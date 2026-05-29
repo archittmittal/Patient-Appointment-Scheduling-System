@@ -7,9 +7,21 @@ const express = require('express');
 const router = express.Router();
 const expressCheckinService = require('../services/expressCheckinService');
 const { authenticate } = require('../middleware/authenticate');
+const { kioskAuth } = require('../middleware/kioskAuth');
+const rateLimit = require('express-rate-limit');
 const db = require('../config/db');
 const sseManager = require('../services/sseManager');
 const virtualCheckinService = require('../services/virtualCheckinService');
+
+// [SEC-012] Strict rate limiter for the kiosk scan endpoint
+// Prevents brute-forcing QR check-in tokens
+const scanRateLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute window
+    max: 10,             // Max 10 scan attempts per minute per IP
+    message: { error: 'Too many scan attempts. Please wait before trying again.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
 /**
  * @swagger
@@ -88,8 +100,18 @@ router.post('/generate-token/:appointmentId', authenticate, async (req, res) => 
  * @swagger
  * /api/express-checkin/scan:
  *   post:
- *     summary: Process QR code scan for check-in
+ *     summary: Process QR code scan for check-in (Kiosk endpoint)
+ *     description: |
+ *       Requires `X-Kiosk-API-Key` header for authentication.
+ *       Rate-limited to 10 requests per minute per IP address.
  *     tags: [ExpressCheckin]
+ *     parameters:
+ *       - in: header
+ *         name: X-Kiosk-API-Key
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Pre-shared API key for kiosk device authentication
  *     requestBody:
  *       required: true
  *       content:
@@ -107,7 +129,7 @@ router.post('/generate-token/:appointmentId', authenticate, async (req, res) => 
  *       400:
  *         description: Bad request (missing or invalid token)
  */
-router.post('/scan', async (req, res) => {
+router.post('/scan', scanRateLimiter, kioskAuth, async (req, res) => {
     try {
         const { token } = req.body;
 

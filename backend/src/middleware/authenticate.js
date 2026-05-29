@@ -11,9 +11,9 @@ function authenticate(req, res, next) {
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.slice(7);
-    } else if (req.query.token) {
-        token = req.query.token;
     }
+    // [SEC-002] Query-string token parsing removed.
+    // Tokens in URLs are logged in browser history, access logs, and proxy caches.
 
     if (!token) {
         return res.status(401).json({ message: 'Authentication required' });
