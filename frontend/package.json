@@ -12,6 +12,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^6.4.0",
+    "@stripe/stripe-js": "^9.7.0",
     "@tailwindcss/vite": "^4.2.1",
     "axios": "^1.16.0",
     "clsx": "^2.1.1",
