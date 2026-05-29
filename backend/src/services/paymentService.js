@@ -75,14 +75,14 @@ class PaymentService {
             throw error;
         }
 
-        const amountInCents = Math.round(consultationFee * 100);
+        const amountInPaise = Math.round(consultationFee * 100);
 
         // ------------------------------------------------------------------
         // 5. Create Stripe Payment Intent
         // ------------------------------------------------------------------
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: amountInCents,
-            currency: 'usd',
+            amount: amountInPaise,
+            currency: 'inr',
             metadata: {
                 appointmentId: appointmentId.toString(),
                 userId: userId.toString(),
