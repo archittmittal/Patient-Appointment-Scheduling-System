@@ -24,7 +24,8 @@ const doctorProfileSchema = Joi.object({
     about: Joi.string().max(2000),
     location_room: Joi.string().max(20),
     image_url: Joi.string().uri().allow('', null),
-    max_patients_per_slot: Joi.number().integer().min(1).max(100)
+    max_patients_per_slot: Joi.number().integer().min(1).max(100),
+    consultation_fee: Joi.number().precision(2).min(1).max(100000)
 });
 
 const availabilitySchema = Joi.object({
@@ -114,7 +115,7 @@ router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctor
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot } = req.body;
+        const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot, consultation_fee } = req.body;
         await db.query(
             `UPDATE doctors SET
                 first_name = COALESCE(?, first_name),
@@ -125,9 +126,10 @@ router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctor
                 about = COALESCE(?, about),
                 location_room = COALESCE(?, location_room),
                 image_url = COALESCE(?, image_url),
-                max_patients_per_slot = COALESCE(?, max_patients_per_slot)
+                max_patients_per_slot = COALESCE(?, max_patients_per_slot),
+                consultation_fee = COALESCE(?, consultation_fee)
              WHERE id = ?`,
-            [first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot ?? null, req.params.id]
+            [first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot ?? null, consultation_fee ?? null, req.params.id]
         );
         const [rows] = await db.query('SELECT * FROM doctors WHERE id = ?', [req.params.id]);
         res.json(rows[0]);

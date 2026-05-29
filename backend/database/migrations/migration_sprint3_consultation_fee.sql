@@ -5,9 +5,9 @@
 -- Step 1: Add the column with a temporary default for existing records
 ALTER TABLE doctors ADD COLUMN consultation_fee DECIMAL(10, 2) NOT NULL DEFAULT 50.00 AFTER max_patients_per_slot;
 
--- Step 2: Set specific fees for existing mock doctors
-UPDATE doctors SET consultation_fee = 150.00 WHERE id = 2;  -- Dr. Sarah Jenkins (Cardiologist)
-UPDATE doctors SET consultation_fee = 75.00  WHERE id = 3;  -- Dr. Michael Chen (General Physician)
+-- Step 2: Set specific fees for existing mock doctors (in INR)
+UPDATE doctors SET consultation_fee = 1500.00 WHERE id = 2;  -- Dr. Sarah Jenkins (Cardiologist)
+UPDATE doctors SET consultation_fee = 500.00  WHERE id = 3;  -- Dr. Michael Chen (General Physician)
 
 -- Step 3: Remove the default so all future inserts MUST supply a fee explicitly
 ALTER TABLE doctors ALTER COLUMN consultation_fee DROP DEFAULT;

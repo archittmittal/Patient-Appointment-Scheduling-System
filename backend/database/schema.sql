@@ -105,8 +105,8 @@ INSERT IGNORE INTO patients (id, first_name, last_name, dob, phone, blood_group,
 
 -- Insert Mock Doctors
 INSERT IGNORE INTO doctors (id, first_name, last_name, specialty, degree, experience_years, rating, review_count, about, location_room, image_url, consultation_fee) VALUES
-(2, 'Sarah', 'Jenkins', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 4.9, 128, 'Top Cardiologist with over 15 years experience.', 'Heart Care Pavilion, Block C', 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random', 150.00),
-(3, 'Michael', 'Chen', 'General Physician', 'MBBS', 8, 4.8, 256, 'Expert in general medicine.', 'Central Clinic, Room 102', 'https://ui-avatars.com/api/?name=Michael+Chen&background=random', 75.00);
+(2, 'Sarah', 'Jenkins', 'Cardiologist', 'MBBS, MD - Cardiology', 15, 4.9, 128, 'Top Cardiologist with over 15 years experience.', 'Heart Care Pavilion, Block C', 'https://ui-avatars.com/api/?name=Sarah+Jenkins&background=random', 1500.00),
+(3, 'Michael', 'Chen', 'General Physician', 'MBBS', 8, 4.8, 256, 'Expert in general medicine.', 'Central Clinic, Room 102', 'https://ui-avatars.com/api/?name=Michael+Chen&background=random', 500.00);
 
 -- Insert Mock Appointments (with symptoms)
 INSERT IGNORE INTO appointments (id, patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES

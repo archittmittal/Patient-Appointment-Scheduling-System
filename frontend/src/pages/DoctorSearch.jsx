@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Filter, Calendar as CalendarIcon, Users, ArrowRight, Activity } from 'lucide-react';
+import { Search, MapPin, Star, Filter, Calendar as CalendarIcon, Users, ArrowRight, Activity, IndianRupee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../services/apiClient';
 
@@ -21,7 +21,7 @@ const getNextAvailableDate = (availability) => {
     return null;
 };
 
-const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nextAvailable }) => {
+const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nextAvailable, consultation_fee }) => {
     const navigate = useNavigate();
     return (
         <div className="apple-card p-6 border border-[var(--border-base)]/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-500 group">
@@ -60,6 +60,13 @@ const DoctorCard = ({ id, name, specialty, rating, location_room, image_url, nex
                                 <span className="text-danger/70 ">Fully booked this week</span>
                             )}
                         </div>
+                        {consultation_fee && (
+                            <div className="flex items-center gap-2 text-xs">
+                                <IndianRupee size={14} className="text-emerald-500/70" />
+                                <span className="text-emerald-600 font-semibold">₹{Number(consultation_fee).toLocaleString('en-IN')}</span>
+                                <span className="text-[var(--text-base)]/40">per visit</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
