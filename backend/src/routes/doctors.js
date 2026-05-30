@@ -13,6 +13,7 @@ const {
     getDelayAnalytics
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
+const { DEFAULT_MAX_PATIENTS_PER_SLOT } = require('../config/constants');
 
 // Validation Schemas
 const doctorProfileSchema = Joi.object({
@@ -369,7 +370,7 @@ router.get('/:id/weekly-schedule', async (req, res) => {
             week_start:    toStr(weekStart),
             week_end:      toStr(weekEnd),
             availability:  doctor?.availability  ?? null,
-            capacity:      doctor?.max_patients_per_slot ?? 15,
+            capacity:      doctor?.max_patients_per_slot ?? DEFAULT_MAX_PATIENTS_PER_SLOT,
             blocked_dates: blocked.map(b => b.blocked_date),
             appointments,
         });
