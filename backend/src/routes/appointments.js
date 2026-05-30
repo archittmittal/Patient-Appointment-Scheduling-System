@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
 const {
     predictConsultationDuration,
     recordConsultationDuration,
@@ -265,7 +265,7 @@ router.get('/queue/:appointmentId', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/queue/:appointmentId/stream
-router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
+router.get('/queue/:appointmentId/stream', authenticateSse, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         
@@ -293,7 +293,7 @@ router.get('/queue/:appointmentId/stream', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/stream — establish SSE stream for doctor queue updates
-router.get('/stream', authenticate, requireRole('DOCTOR'), async (req, res) => {
+router.get('/stream', authenticateSse, requireRole('DOCTOR'), async (req, res) => {
     try {
         const doctorId = parseInt(req.query.doctorId);
         if (!doctorId) {

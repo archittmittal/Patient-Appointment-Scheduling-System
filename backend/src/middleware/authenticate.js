@@ -7,21 +7,35 @@ const { jwtSecret } = require('../config/auth');
  * On success attaches req.user = { id, email, role }.
  */
 function authenticate(req, res, next) {
-    let token = '';
-    const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.slice(7);
-    }
-    // [SEC-002] Query-string token parsing removed.
-    // Tokens in URLs are logged in browser history, access logs, and proxy caches.
-
+    const token = extractBearerToken(req);
     if (!token) {
         return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
+    return verifyToken(token, req, res, next);
+}
+
+function authenticateSse(req, res, next) {
+    const token = extractBearerToken(req) || req.query.token;
+    if (!token) {
+        return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    return verifyToken(token, req, res, next);
+}
+
+function extractBearerToken(req) {
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.slice(7);
+    }
+    return '';
+}
+
+function verifyToken(token, req, res, next) {
     try {
         req.user = jwt.verify(token, jwtSecret);
-        next();
+        return next();
     } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
     }
@@ -41,4 +55,4 @@ function requireRole(roles) {
     };
 }
 
-module.exports = { authenticate, requireRole, jwtSecret };
+module.exports = { authenticate, authenticateSse, requireRole, jwtSecret };

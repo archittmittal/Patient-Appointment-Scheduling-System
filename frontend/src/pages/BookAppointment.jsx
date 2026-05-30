@@ -16,7 +16,11 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 
 // Initialize Stripe outside component to avoid recreation
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_TYooMQauvdEDq54NiTphI7jx');
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
+if (!stripePublicKey) {
+    console.error('Missing VITE_STRIPE_PUBLIC_KEY. Stripe checkout is disabled.');
+}
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -228,20 +232,32 @@ const BookAppointment = () => {
             if (data && !Array.isArray(data) && !data.error && data.appointmentId) {
                 setBookingResult(data);
                 
-                // Fetch Stripe client secret for this appointment
-                const intentData = await apiClient.post('/api/payments/create-intent', {
-                    appointmentId: data.appointmentId
-                });
-                
-                if (intentData && intentData.clientSecret) {
-                    setClientSecret(intentData.clientSecret);
-                    setStripeOptions({
-                        clientSecret: intentData.clientSecret,
-                        appearance: { theme: 'stripe' }
+                if (!stripePromise) {
+                    alert('Booking created, but payment is temporarily unavailable due to missing Stripe configuration. Please complete payment from your dashboard later.');
+                    setIsBooked(true);
+                    return;
+                }
+
+                try {
+                    // Fetch Stripe client secret for this appointment
+                    const intentData = await apiClient.post('/api/payments/create-intent', {
+                        appointmentId: data.appointmentId
                     });
-                    setStep(6); // Transition to Payment Step
-                } else {
-                    alert('Booking created, but failed to initialize payment. Please check your dashboard.');
+                    
+                    if (intentData && intentData.clientSecret) {
+                        setClientSecret(intentData.clientSecret);
+                        setStripeOptions({
+                            clientSecret: intentData.clientSecret,
+                            appearance: { theme: 'stripe' }
+                        });
+                        setStep(6); // Transition to Payment Step
+                    } else {
+                        alert('Booking created, but failed to initialize payment. Please complete payment from your dashboard later.');
+                        setIsBooked(true);
+                    }
+                } catch (paymentErr) {
+                    console.error('[Booking] Payment intent initialization failed:', paymentErr);
+                    alert('Booking created successfully, but payment setup failed. Please complete payment from your dashboard later.');
                     setIsBooked(true);
                 }
             } else if (data && data.error) {
