@@ -16,7 +16,7 @@ function authenticate(req, res, next) {
 }
 
 function authenticateSse(req, res, next) {
-    const token = extractBearerToken(req) || req.query.token;
+    const token = extractBearerToken(req) || extractSseTokenFromUrl(req);
     if (!token) {
         return res.status(401).json({ message: 'Authentication required' });
     }
@@ -28,6 +28,22 @@ function extractBearerToken(req) {
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
         return authHeader.slice(7);
+    }
+
+    function extractSseTokenFromUrl(req) {
+        const requestUrl = req.originalUrl || req.url || '';
+        const queryStart = requestUrl.indexOf('?');
+        if (queryStart < 0) {
+            return '';
+        }
+
+        const queryParams = new URLSearchParams(requestUrl.slice(queryStart + 1));
+        const token = queryParams.get('token') || '';
+        if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) {
+            return '';
+        }
+
+        return token;
     }
     return '';
 }
