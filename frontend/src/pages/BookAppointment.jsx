@@ -10,7 +10,17 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
 import InsuranceScanner from '../components/InsuranceScanner';
 import InsuranceForm from '../components/InsuranceForm';
+import CheckoutForm from '../components/CheckoutForm';
 import { motion, AnimatePresence } from 'framer-motion';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+
+// Initialize Stripe outside component to avoid recreation
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
+if (!stripePublicKey) {
+    console.error('Missing VITE_STRIPE_PUBLIC_KEY. Stripe checkout is disabled.');
+}
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -75,6 +85,10 @@ const BookAppointment = () => {
     const [waitlistJoining, setWaitlistJoining] = useState(false);
     const [waitlistJoined, setWaitlistJoined] = useState(false);
     const [waitlistTimePreference, setWaitlistTimePreference] = useState('ANY');
+    
+    // Stripe State
+    const [clientSecret, setClientSecret] = useState('');
+    const [stripeOptions, setStripeOptions] = useState(null);
     
     // Insurance integration
     const [insurance, setInsurance] = useState(null);
@@ -217,7 +231,35 @@ const BookAppointment = () => {
             // apiClient returns [] on network errors — treat arrays as failure
             if (data && !Array.isArray(data) && !data.error && data.appointmentId) {
                 setBookingResult(data);
-                setIsBooked(true);
+                
+                if (!stripePromise) {
+                    alert('Booking created, but payment is temporarily unavailable due to missing Stripe configuration. Please complete payment from your dashboard later.');
+                    setIsBooked(true);
+                    return;
+                }
+
+                try {
+                    // Fetch Stripe client secret for this appointment
+                    const intentData = await apiClient.post('/api/payments/create-intent', {
+                        appointmentId: data.appointmentId
+                    });
+                    
+                    if (intentData && intentData.clientSecret) {
+                        setClientSecret(intentData.clientSecret);
+                        setStripeOptions({
+                            clientSecret: intentData.clientSecret,
+                            appearance: { theme: 'stripe' }
+                        });
+                        setStep(6); // Transition to Payment Step
+                    } else {
+                        alert('Booking created, but failed to initialize payment. Please complete payment from your dashboard later.');
+                        setIsBooked(true);
+                    }
+                } catch (paymentErr) {
+                    console.error('[Booking] Payment intent initialization failed:', paymentErr);
+                    alert('Booking created successfully, but payment setup failed. Please complete payment from your dashboard later.');
+                    setIsBooked(true);
+                }
             } else if (data && data.error) {
                 const errMsg = data.detail 
                     ? `${data.message}: ${data.detail}` 
@@ -234,6 +276,10 @@ const BookAppointment = () => {
         }
     };
 
+    const handlePaymentSuccess = () => {
+        setIsBooked(true);
+    };
+
     const selectedDoctor = doctors.find(d => String(d.id) === String(selectedDoctorId));
     const doctorAvail = parseAvailability(selectedDoctor?.availability);
     const capacity = selectedDoctor?.max_patients_per_slot || 15;
@@ -245,7 +291,7 @@ const BookAppointment = () => {
     // Helper: Step Progress
     const StepIndicator = () => (
         <div className="flex items-center justify-center gap-4 mb-12">
-            {[1, 2, 3, 4, 5].map(s => (
+            {[1, 2, 3, 4, 5, 6].map(s => (
                 <div key={s} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                         step === s ? 'bg-primary text-white scale-110 shadow-lg' : 
@@ -253,7 +299,7 @@ const BookAppointment = () => {
                     }`}>
                         {step > s ? <CheckCircle2 size={16} /> : s}
                     </div>
-                    {s < 5 && <div className={`w-8 md:w-16 h-0.5 mx-2 rounded-full ${step > s ? 'bg-success' : 'bg-slate-200'}`}></div>}
+                    {s < 6 && <div className={`w-8 md:w-16 h-0.5 mx-2 rounded-full ${step > s ? 'bg-success' : 'bg-slate-200'}`}></div>}
                 </div>
             ))}
         </div>
@@ -539,7 +585,7 @@ const BookAppointment = () => {
                                 className="w-full btn-primary py-4 text-lg"
                             >
                                 {isSubmitting ? <Activity size={20} className="animate-spin" /> : <ShieldCheck size={20} />}
-                                {isSubmitting ? 'Confirming...' : 'Confirm Booking'}
+                                {isSubmitting ? 'Confirming...' : 'Proceed to Payment'}
                             </button>
                         ) : (
                             <div className="space-y-4">
@@ -676,6 +722,31 @@ const BookAppointment = () => {
         </div>
     );
 
+    const renderStep6 = () => (
+        <div className="max-w-md mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center mb-8">
+                <h2 className="text-2xl font-semibold mb-2">Complete Payment</h2>
+                <p className="text-slate-500 text-sm">You're booking a consultation with Dr. {selectedDoctor?.first_name}</p>
+            </div>
+            
+            {clientSecret && stripeOptions && (
+                <Elements stripe={stripePromise} options={stripeOptions}>
+                    <CheckoutForm 
+                        amount={selectedDoctor?.consultation_fee || 500} 
+                        onPaymentSuccess={handlePaymentSuccess} 
+                    />
+                </Elements>
+            )}
+            
+            {!clientSecret && (
+                <div className="text-center p-10">
+                    <Activity size={32} className="animate-spin text-primary mx-auto mb-4" />
+                    <p className="text-slate-500 font-medium">Initializing secure payment gateway...</p>
+                </div>
+            )}
+        </div>
+    );
+
     if (isBooked) {
         return (
             <div className="max-w-2xl mx-auto py-12 px-4 animate-in zoom-in-95 duration-500">
@@ -727,6 +798,7 @@ const BookAppointment = () => {
                 {step === 3 && renderStep3()}
                 {step === 4 && renderStep4()}
                 {step === 5 && renderStep5()}
+                {step === 6 && renderStep6()}
             </div>
         </div>
     );

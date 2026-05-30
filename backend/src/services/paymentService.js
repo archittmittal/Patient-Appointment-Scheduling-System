@@ -9,6 +9,7 @@ if (!stripeKey) {
 
 const stripe = require('stripe')(stripeKey || 'sk_test_mock');
 const db = require('../config/db');
+const emailService = require('./emailService');
 
 class PaymentService {
     /**
@@ -131,6 +132,32 @@ class PaymentService {
                 'INSERT INTO payment_transactions (appointment_id, user_id, amount, status, provider, provider_transaction_id) VALUES (?, ?, ?, ?, ?, ?)',
                 [appointmentId, intent.metadata.userId, intent.amount / 100, 'SUCCESS', 'STRIPE', intent.id]
             );
+
+            // Fetch details for email receipt
+            try {
+                const [apptRows] = await db.query(`
+                    SELECT a.appointment_date, a.time_slot, a.queue_number, 
+                           u.email, d.first_name, d.last_name 
+                    FROM appointments a
+                    JOIN users u ON a.patient_id = u.id
+                    JOIN doctors d ON a.doctor_id = d.id
+                    WHERE a.id = ?
+                `, [appointmentId]);
+
+                if (apptRows.length > 0) {
+                    const data = apptRows[0];
+                    await emailService.sendPaymentReceipt(data.email, {
+                        queueNumber: data.queue_number,
+                        amount: intent.amount / 100,
+                        doctorName: `${data.first_name} ${data.last_name}`,
+                        date: data.appointment_date,
+                        time: data.time_slot
+                    });
+                    console.log(`[Stripe Webhook] Payment receipt sent to ${data.email} for appointment ${appointmentId}`);
+                }
+            } catch (err) {
+                console.error(`[Stripe Webhook] Failed to send receipt for appointment ${appointmentId}:`, err);
+            }
         } else if (event.type === 'payment_intent.payment_failed') {
             await db.query(
                 'UPDATE appointments SET payment_status = ? WHERE id = ?',
