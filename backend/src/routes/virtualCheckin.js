@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const virtualCheckinService = require('../services/virtualCheckinService');
 const sseManager = require('../services/sseManager');
-const { authenticate, requireRole } = require('../middleware/authenticate');
+const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
 
 /**
  * @swagger
@@ -217,7 +217,7 @@ router.get('/:appointmentId/status', authenticate, async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/:appointmentId/stream', authenticate, async (req, res) => {
+router.get('/:appointmentId/stream', authenticateSse, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
