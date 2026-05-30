@@ -108,7 +108,7 @@ class AuthService {
 
         // [SEC-006] Use crypto.randomInt() for cryptographically secure OTP generation
         // instead of the predictable Math.random()
-        const otp = crypto.randomInt(100000, 999999).toString();
+        const otp = crypto.randomInt(100000, 1000000).toString();
         const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
 
         // Reset failed attempts on new OTP generation
