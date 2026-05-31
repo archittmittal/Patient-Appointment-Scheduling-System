@@ -56,12 +56,16 @@ describe('Appointment & Queue Endpoints', () => {
         return Promise.resolve([[]]);
       });
 
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDateString = tomorrow.toISOString().split('T')[0];
+
       const res = await request(app)
         .post('/api/appointments/book')
         .set('Authorization', `Bearer ${token}`)
         .send({
           doctorId: 1,
-          date: '2026-04-22',
+          date: futureDateString,
           timeSlot: '10:00 AM',
           symptoms: 'Fever'
         });
