@@ -17,10 +17,19 @@ const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 const sseManager = require('../services/sseManager');
 const virtualCheckinService = require('../services/virtualCheckinService');
+const { DEFAULT_PREDICTED_DURATION, DEFAULT_MAX_PATIENTS_PER_SLOT } = require('../config/constants');
 
 const bookSchema = Joi.object({
     doctorId: Joi.number().required(),
-    date: Joi.string().isoDate().required(),
+    date: Joi.string().isoDate().required().custom((value, helpers) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const inputDate = new Date(value);
+        if (inputDate < today) {
+            return helpers.message('Cannot book appointments in the past');
+        }
+        return value;
+    }),
     timeSlot: Joi.string().required(),
     symptoms: Joi.string().allow('', null)
 });
@@ -90,6 +99,14 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             return res.status(400).json({ message: 'Patient ID is required' });
         }
 
+        // Validate patient ID ownership and authorization (BUG-006)
+        if (req.user.role !== 'PATIENT') {
+            const [patientRows] = await db.query('SELECT id FROM users WHERE id = ? AND role = ?', [patientId, 'PATIENT']);
+            if (patientRows.length === 0) {
+                return res.status(403).json({ message: 'Invalid patient ID or unauthorized' });
+            }
+        }
+
         // Predict consultation duration using AI model
         let prediction;
         try {
@@ -102,45 +119,71 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
         } catch (predErr) {
             console.error('Duration prediction failed, using defaults:', predErr.message);
             prediction = {
-                predictedDuration: 15,
+                predictedDuration: DEFAULT_PREDICTED_DURATION,
                 factors: { isFollowUp: false, error: 'Prediction unavailable' }
             };
         }
 
-        // Insert appointment — use lowercase status to match DB ENUM
-        let result;
+        let conn = null;
         try {
-            [result] = await db.query(
-                'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp || false]
-            );
-        } catch (fullInsertErr) {
-            // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
-            if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
-                [result] = await db.query(
-                    'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
-                    [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed']
-                );
-            } else {
-                throw fullInsertErr;
+            conn = await db.getConnection();
+            await conn.beginTransaction();
+
+            // BUG-001 & DB-004: Slot capacity check with FOR UPDATE lock
+            const [docRows] = await conn.query('SELECT max_patients_per_slot FROM doctors WHERE id = ?', [doctorId]);
+            if (docRows.length === 0) {
+                await conn.rollback();
+                return res.status(404).json({ message: 'Doctor not found' });
             }
-        }
+            const maxPatients = docRows[0].max_patients_per_slot ?? DEFAULT_MAX_PATIENTS_PER_SLOT;
 
-        if (!result || !result.insertId) {
-            return res.status(500).json({ message: 'Failed to create appointment record' });
-        }
+            const [slotRows] = await conn.query(
+                `SELECT COUNT(*) AS slot_count 
+                 FROM appointments 
+                 WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'cancelled' 
+                 FOR UPDATE`,
+                [doctorId, date, timeSlot]
+            );
 
-        // Add to live queue only if appointment is today
-        let queueNumber = null;
-        let estimatedWait = null;
-        try {
-            const [todayCheck] = await db.query(
+            if (slotRows[0].slot_count >= maxPatients) {
+                await conn.rollback();
+                return res.status(409).json({ message: 'Time slot is fully booked' });
+            }
+
+            // Insert appointment — use lowercase status to match DB ENUM
+            let result;
+            try {
+                [result] = await conn.query(
+                    'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp || false]
+                );
+            } catch (fullInsertErr) {
+                // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
+                if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
+                    [result] = await conn.query(
+                        'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
+                        [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed']
+                    );
+                } else {
+                    throw fullInsertErr;
+                }
+            }
+
+            if (!result || !result.insertId) {
+                throw new Error('Failed to create appointment record');
+            }
+
+            // Add to live queue only if appointment is today
+            let queueNumber = null;
+            let estimatedWait = null;
+            
+            const [todayCheck] = await conn.query(
                 'SELECT 1 FROM appointments WHERE id = ? AND appointment_date = CURDATE()',
                 [result.insertId]
             );
 
             if (todayCheck.length > 0) {
-                const [_rows1] = await db.query(
+                const [_rows1] = await conn.query(
                     `SELECT MAX(lq.queue_number) AS maxQ
                      FROM live_queue lq
                      JOIN appointments a ON lq.appointment_id = a.id
@@ -154,27 +197,31 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
                 const waitInfo = await calculateQueueWaitTime(result.insertId);
                 estimatedWait = waitInfo.estimatedWait || (queueNumber - 1) * prediction.predictedDuration;
                 
-                await db.query(
+                await conn.query(
                     'INSERT INTO live_queue (appointment_id, queue_number, status, estimated_time, predicted_duration) VALUES (?, ?, ?, ?, ?)',
                     [result.insertId, queueNumber, 'WAITING', estimatedWait, prediction.predictedDuration]
                 );
             }
-        } catch (queueErr) {
-            // Queue insertion is non-critical — appointment is still booked
-            console.error('Queue insertion failed (non-critical):', queueErr.message);
-        }
 
-        res.status(201).json({ 
-            message: 'Appointment booked successfully', 
-            appointmentId: result.insertId, 
-            queueNumber,
-            predictedDuration: prediction.predictedDuration,
-            estimatedWait,
-            predictionFactors: prediction.factors
-        });
+            await conn.commit();
+
+            res.status(201).json({ 
+                message: 'Appointment booked successfully', 
+                appointmentId: result.insertId, 
+                queueNumber,
+                predictedDuration: prediction.predictedDuration,
+                estimatedWait,
+                predictionFactors: prediction.factors
+            });
+        } catch (error) {
+            if (conn) await conn.rollback();
+            throw error;
+        } finally {
+            if (conn) conn.release();
+        }
     } catch (error) {
         console.error('BOOKING_ERROR:', error);
-        res.status(500).json({ message: 'Server error booking appointment', detail: error.message });
+        res.status(500).json({ message: 'Server error booking appointment' });
     }
 });
 

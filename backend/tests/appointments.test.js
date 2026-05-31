@@ -38,12 +38,14 @@ describe('Appointment & Queue Endpoints', () => {
 
   describe('POST /api/appointments/book', () => {
     it('should book an appointment successfully', async () => {
-      // Mock duration prediction response (since it's called internally)
-      // Note: predictConsultationDuration is imported in the route, 
-      // but we need to mock the DB queries it makes if we don't mock the service itself.
-      // For simplicity, let's mock the DB queries made during booking.
-      
-      db.query.mockImplementation((sql) => {
+      // Mock duration prediction and transaction queries
+      const queryMock = jest.fn().mockImplementation((sql) => {
+        if (sql.includes('SELECT max_patients_per_slot FROM doctors')) {
+          return Promise.resolve([[{ max_patients_per_slot: 10 }]]);
+        }
+        if (sql.includes('SELECT COUNT(*) AS slot_count')) {
+          return Promise.resolve([[{ slot_count: 0 }]]);
+        }
         if (sql.includes('INSERT INTO appointments')) {
           return Promise.resolve([{ insertId: 101 }]);
         }
@@ -53,15 +55,36 @@ describe('Appointment & Queue Endpoints', () => {
         if (sql.includes('SELECT MAX(lq.queue_number)')) {
           return Promise.resolve([[{ maxQ: 5 }]]);
         }
+        if (sql.includes('INSERT INTO live_queue')) {
+          return Promise.resolve([{ insertId: 1 }]);
+        }
+        if (sql.includes('SELECT lq.queue_number')) {
+          return Promise.resolve([[{ queue_number: 6, doctor_id: 1, appointment_date: '2026-06-01' }]]);
+        }
         return Promise.resolve([[]]);
       });
+
+      db.query.mockImplementation(queryMock);
+
+      const mockConn = {
+        query: queryMock,
+        beginTransaction: jest.fn(),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+      };
+      db.getConnection.mockResolvedValue(mockConn);
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDateString = tomorrow.toISOString().split('T')[0];
 
       const res = await request(app)
         .post('/api/appointments/book')
         .set('Authorization', `Bearer ${token}`)
         .send({
           doctorId: 1,
-          date: '2026-04-22',
+          date: futureDateString,
           timeSlot: '10:00 AM',
           symptoms: 'Fever'
         });
@@ -69,6 +92,44 @@ describe('Appointment & Queue Endpoints', () => {
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('appointmentId', 101);
       expect(res.body).toHaveProperty('queueNumber', 6);
+    });
+
+    it('should return 404 if the doctor is not found', async () => {
+      const queryMock = jest.fn().mockImplementation((sql) => {
+        if (sql.includes('SELECT max_patients_per_slot FROM doctors')) {
+          return Promise.resolve([[]]); // Doctor not found
+        }
+        return Promise.resolve([[]]);
+      });
+
+      db.query.mockImplementation(queryMock);
+
+      const mockConn = {
+        query: queryMock,
+        beginTransaction: jest.fn(),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+      };
+      db.getConnection.mockResolvedValue(mockConn);
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDateString = tomorrow.toISOString().split('T')[0];
+
+      const res = await request(app)
+        .post('/api/appointments/book')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          doctorId: 999,
+          date: futureDateString,
+          timeSlot: '10:00 AM',
+          symptoms: 'Fever'
+        });
+
+      expect(res.statusCode).toEqual(404);
+      expect(res.body).toHaveProperty('message', 'Doctor not found');
+      expect(mockConn.rollback).toHaveBeenCalled();
     });
   });
 
