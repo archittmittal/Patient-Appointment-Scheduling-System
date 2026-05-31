@@ -136,11 +136,12 @@ class PaymentService {
             // Fetch details for email receipt
             try {
                 const [apptRows] = await db.query(`
-                    SELECT a.appointment_date, a.time_slot, a.queue_number, 
+                    SELECT a.appointment_date, a.time_slot, lq.queue_number, 
                            u.email, d.first_name, d.last_name 
                     FROM appointments a
                     JOIN users u ON a.patient_id = u.id
                     JOIN doctors d ON a.doctor_id = d.id
+                    LEFT JOIN live_queue lq ON a.id = lq.appointment_id
                     WHERE a.id = ?
                 `, [appointmentId]);
 

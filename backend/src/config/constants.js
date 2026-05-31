@@ -1,0 +1,4 @@
+module.exports = {
+    DEFAULT_PREDICTED_DURATION: 15,
+    DEFAULT_MAX_PATIENTS_PER_SLOT: 15
+};
