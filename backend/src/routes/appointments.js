@@ -132,7 +132,8 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             // BUG-001 & DB-004: Slot capacity check with FOR UPDATE lock
             const [docRows] = await conn.query('SELECT max_patients_per_slot FROM doctors WHERE id = ?', [doctorId]);
             if (docRows.length === 0) {
-                throw new Error('Doctor not found');
+                await conn.rollback();
+                return res.status(404).json({ message: 'Doctor not found' });
             }
             const maxPatients = docRows[0].max_patients_per_slot ?? DEFAULT_MAX_PATIENTS_PER_SLOT;
 
