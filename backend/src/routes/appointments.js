@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const { safeErrorMessage } = require('../middleware/errorHandler');
 const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
 const {
     predictConsultationDuration,
@@ -633,8 +634,9 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         res.json({ message: 'Queue status updated' });
     } catch (error) {
         if (conn) await conn.rollback();
-        console.error('QUEUE_STATUS_ERROR:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error('QUEUE_STATUS_ERROR:', error); // Full detail always in server logs
+        // SEC-010: Do not leak raw error.message to clients in production
+        res.status(500).json({ message: safeErrorMessage(error, 'Server error updating queue status') });
     } finally {
         if (conn) conn.release();
     }
@@ -656,6 +658,18 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
         if (req.user.role === 'PATIENT' && req.user.id !== appt.patient_id) {
             return res.status(403).json({ message: 'Access denied' });
         }
+
+        // BUG-003: Patients may not cancel past appointments
+        if (req.user.role === 'PATIENT') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const apptDate = new Date(appt.appointment_date);
+            apptDate.setHours(0, 0, 0, 0);
+            if (apptDate < today) {
+                return res.status(400).json({ message: 'Cannot cancel a past appointment' });
+            }
+        }
+
         if (!['CONFIRMED', 'PENDING', 'confirmed', 'pending', 'scheduled'].includes(appt.status)) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }

@@ -50,12 +50,32 @@ router.post('/', authenticate, async (req, res, next) => {
             return res.status(400).json({ message: 'Receiver ID and content are required' });
         }
 
+        const senderId = req.user.id;
+
+        // SEC-009: Enforce doctor–patient relationship before allowing messages.
+        // ADMINs may message anyone. All other roles must share at least one
+        // confirmed/in-progress/scheduled appointment with the receiver.
+        if (req.user.role !== 'ADMIN') {
+            const [relRows] = await db.query(
+                `SELECT id FROM appointments
+                 WHERE ((patient_id = ? AND doctor_id = ?) OR (patient_id = ? AND doctor_id = ?))
+                   AND LOWER(status) IN ('confirmed', 'in_progress', 'scheduled', 'pending')
+                 LIMIT 1`,
+                [senderId, receiverId, receiverId, senderId]
+            );
+            if (relRows.length === 0) {
+                return res.status(403).json({
+                    message: 'No active appointment relationship with this user'
+                });
+            }
+        }
+
         const [result] = await db.query(
             'INSERT INTO messages (sender_id, receiver_id, content, appointment_id) VALUES (?, ?, ?, ?)',
-            [req.user.id, receiverId, content, appointmentId || null]
+            [senderId, receiverId, content, appointmentId || null]
         );
 
-        res.status(201).json({ id: result.insertId, sender_id: req.user.id, receiver_id: receiverId, content });
+        res.status(201).json({ id: result.insertId, sender_id: senderId, receiver_id: receiverId, content });
     } catch (error) {
         next(error);
     }

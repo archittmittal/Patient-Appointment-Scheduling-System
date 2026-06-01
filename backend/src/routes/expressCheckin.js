@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('../config/db');
 const sseManager = require('../services/sseManager');
 const virtualCheckinService = require('../services/virtualCheckinService');
+const { safeErrorMessage } = require('../middleware/errorHandler');
 
 // [SEC-012] Strict rate limiter for the kiosk scan endpoint
 // Prevents brute-forcing QR check-in tokens
@@ -92,7 +93,8 @@ router.post('/generate-token/:appointmentId', authenticate, async (req, res) => 
         res.json(tokenData);
     } catch (error) {
         console.error('Token generation error:', error);
-        res.status(400).json({ error: error.message });
+        // SEC-010: Do not surface raw service errors to clients in production
+        res.status(400).json({ error: safeErrorMessage(error, 'Failed to generate check-in token') });
     }
 });
 
@@ -161,7 +163,8 @@ router.post('/scan', scanRateLimiter, kioskAuth, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('QR scan error:', error);
-        res.status(400).json({ error: error.message });
+        // SEC-010: Do not surface raw service errors to clients in production
+        res.status(400).json({ error: safeErrorMessage(error, 'Check-in scan failed') });
     }
 });
 
@@ -212,7 +215,8 @@ router.post('/one-tap/:appointmentId', authenticate, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('One-tap check-in error:', error);
-        res.status(400).json({ error: error.message });
+        // SEC-010: Do not surface raw service errors to clients in production
+        res.status(400).json({ error: safeErrorMessage(error, 'One-tap check-in failed') });
     }
 });
 
