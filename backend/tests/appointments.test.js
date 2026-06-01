@@ -135,9 +135,13 @@ describe('Appointment & Queue Endpoints', () => {
 
   describe('PATCH /api/appointments/:id/cancel', () => {
     it('should cancel an appointment and release slot', async () => {
+      // Use a future date so BUG-003 past-date guard does not block the request
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
       const mockConn = {
         query: jest.fn()
-          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: new Date(), patient_id: 1 }]]) // First query: select appt
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: tomorrow, patient_id: 1 }]]) // First query: select appt
           .mockResolvedValueOnce([{ affectedRows: 1 }]) // Second: update status
           .mockResolvedValueOnce([{ affectedRows: 1 }]), // Third: update live_queue
         beginTransaction: jest.fn(),
@@ -155,6 +159,31 @@ describe('Appointment & Queue Endpoints', () => {
       expect(res.body).toHaveProperty('message', 'Appointment cancelled');
       expect(mockConn.beginTransaction).toHaveBeenCalled();
       expect(mockConn.commit).toHaveBeenCalled();
+    });
+
+    it('BUG-003: should return 400 when a PATIENT tries to cancel a past appointment', async () => {
+      // Appointment date in the past
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const mockConn = {
+        query: jest.fn()
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: yesterday, patient_id: 1 }]]),
+        beginTransaction: jest.fn(),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+      };
+      db.getConnection.mockResolvedValue(mockConn);
+
+      const res = await request(app)
+        .patch('/api/appointments/99/cancel')
+        .set('Authorization', `Bearer ${token}`); // token has role PATIENT
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body).toHaveProperty('message', 'Cannot cancel a past appointment');
+      // Verify the transaction was never started (request rejected before beginTransaction)
+      expect(mockConn.beginTransaction).not.toHaveBeenCalled();
     });
   });
 

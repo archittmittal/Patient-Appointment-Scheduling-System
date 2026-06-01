@@ -37,11 +37,12 @@ class SSEManager {
         }
 
         // Set proper headers for SSE
+        // SEC-013: Do NOT set Access-Control-Allow-Origin here — CORS is already enforced
+        // by the cors() middleware in server.js. A wildcard here would bypass the whitelist.
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': '*'
+            'Connection': 'keep-alive'
         });
 
         // Add to connections

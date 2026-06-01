@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const paymentService = require('../services/paymentService');
 const { authenticate } = require('../middleware/authenticate');
+const { safeErrorMessage } = require('../middleware/errorHandler');
 
 /**
  * @swagger
@@ -121,7 +122,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         res.json({ received: true });
     } catch (error) {
         console.error('Webhook processing error:', error);
-        res.status(400).json({ error: `Webhook processing error: ${error.message}` });
+        // SEC-010: Do not surface internal webhook error detail in production
+        res.status(400).json({ error: safeErrorMessage(error, 'Webhook processing error') });
     }
 });
 

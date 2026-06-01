@@ -3,6 +3,7 @@ const router = express.Router();
 const insuranceService = require('../services/insuranceService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const db = require('../config/db');
+const { safeErrorMessage } = require('../middleware/errorHandler');
 
 /**
  * @swagger
@@ -150,7 +151,8 @@ router.post('/save', authenticate, async (req, res) => {
         res.status(result.action === 'CREATED' ? 201 : 200).json(result);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: error.message || 'Error saving insurance' });
+        // SEC-010: Do not leak internal error detail to clients in production
+        res.status(500).json({ message: safeErrorMessage(error, 'Error saving insurance') });
     }
 });
 
@@ -201,7 +203,8 @@ router.post('/verify/:id', authenticate, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: error.message || 'Error verifying eligibility' });
+        // SEC-010: Do not leak internal error detail to clients in production
+        res.status(500).json({ message: safeErrorMessage(error, 'Error verifying eligibility') });
     }
 });
 
