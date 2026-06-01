@@ -33,6 +33,12 @@ const availabilitySchema = Joi.object({
     availability: Joi.object().required()
 });
 
+// DB-005: Pagination schema for the doctor's patient listing
+const patientsQuerySchema = Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(50)
+});
+
 const blockedDateSchema = Joi.object({
     date: Joi.string().isoDate().required(),
     reason: Joi.string().max(255).allow('', null)
@@ -87,9 +93,17 @@ const autofillSettingsSchema = Joi.object({
  *       404:
  *         description: Doctor not found
  */
+// DB-007: Explicit column list for the public doctor listing (excludes availability blob)
+const DOCTOR_LIST_COLUMNS = `
+    id, first_name, last_name, specialty, degree, experience_years,
+    location_room, image_url, about, consultation_fee, max_patients_per_slot, rating
+`;
+
 router.get('/', async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM doctors');
+        // DB-007: Use explicit columns — availability is a potentially large JSON blob
+        // and is not needed for the doctor listing/search view.
+        const [rows] = await db.query(`SELECT ${DOCTOR_LIST_COLUMNS} FROM doctors`);
         res.json(rows);
     } catch (error) {
         console.error(error);
@@ -100,7 +114,12 @@ router.get('/', async (req, res) => {
 // GET /api/doctors/:id — single doctor (with availability)
 router.get('/:id', async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM doctors WHERE id = ?', [req.params.id]);
+        // DB-007: Include availability here — the booking UI needs it for slot selection,
+        // but exclude password_hash and other internal columns.
+        const [rows] = await db.query(
+            `SELECT ${DOCTOR_LIST_COLUMNS}, availability FROM doctors WHERE id = ?`,
+            [req.params.id]
+        );
         if (rows.length === 0) return res.status(404).json({ message: 'Doctor not found' });
         res.json(rows[0]);
     } catch (error) {
@@ -210,24 +229,44 @@ router.get('/:id/reviews', async (req, res) => {
 });
 
 // GET /api/doctors/:id/patients — all patients with their appointments + symptoms
-router.get('/:id/patients', authenticate, requireRole('DOCTOR'), async (req, res) => {
+// DB-005: Paginated — default 50 per page to avoid unbounded dumps for high-volume doctors
+router.get('/:id/patients', authenticate, requireRole('DOCTOR'), validateRequest(patientsQuerySchema, 'query'), async (req, res) => {
     // Only the doctor themselves can view their patient list
     if (req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const [rows] = await db.query(`
-            SELECT a.id AS appointment_id, a.appointment_date, a.time_slot, a.symptoms, a.status,
-                   a.diagnosis, a.notes, a.prescription, a.follow_up_date,
-                   p.id AS patient_id, p.first_name, p.last_name, p.phone, p.blood_group,
-                   u.email
-            FROM appointments a
-            JOIN patients p ON a.patient_id = p.id
-            JOIN users u ON p.id = u.id
-            WHERE a.doctor_id = ?
-            ORDER BY a.appointment_date DESC, a.id DESC
-        `, [req.params.id]);
-        res.json(rows);
+        const { page, limit } = req.query;
+        const offset = (page - 1) * limit;
+
+        const [[{ total }]] = await db.query(
+            'SELECT COUNT(*) AS total FROM appointments WHERE doctor_id = ?',
+            [req.params.id]
+        );
+
+        const [rows] = await db.query(
+            `SELECT a.id AS appointment_id, a.appointment_date, a.time_slot, a.symptoms, a.status,
+                    a.diagnosis, a.notes, a.prescription, a.follow_up_date,
+                    p.id AS patient_id, p.first_name, p.last_name, p.phone, p.blood_group,
+                    u.email
+             FROM appointments a
+             JOIN patients p ON a.patient_id = p.id
+             JOIN users u ON p.id = u.id
+             WHERE a.doctor_id = ?
+             ORDER BY a.appointment_date DESC, a.id DESC
+             LIMIT ? OFFSET ?`,
+            [req.params.id, limit, offset]
+        );
+
+        res.json({
+            data: rows,
+            meta: {
+                total,
+                page,
+                limit,
+                total_pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
