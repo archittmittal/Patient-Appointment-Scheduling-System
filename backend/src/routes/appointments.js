@@ -670,7 +670,8 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
             }
         }
 
-        if (!['CONFIRMED', 'PENDING', 'confirmed', 'pending', 'scheduled'].includes(appt.status)) {
+        // BUG-008: Use LOWER() to normalize before comparison — statuses are stored lowercase
+        if (!['confirmed', 'pending', 'scheduled'].includes(String(appt.status).toLowerCase())) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }
 
