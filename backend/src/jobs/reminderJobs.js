@@ -35,7 +35,8 @@ const initCronJobs = () => {
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.id
                 WHERE a.appointment_date = CURDATE() 
-                AND a.status = 'CONFIRMED'
+                AND a.status = 'confirmed'
+                -- BUG-005: was 'CONFIRMED' — statuses are stored lowercase at booking time
             `;
 
             const [appointments] = await db.query(query);
@@ -68,7 +69,8 @@ const initCronJobs = () => {
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.id
                 WHERE a.appointment_date = CURDATE()
-                AND a.status = 'CONFIRMED'
+                AND a.status = 'confirmed'
+                -- BUG-005: was 'CONFIRMED' — statuses are stored lowercase at booking time
             `;
 
             const [appointments] = await db.query(query);

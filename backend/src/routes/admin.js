@@ -39,6 +39,14 @@ const usersQuerySchema = Joi.object({
     order: Joi.string().valid('ASC', 'DESC', 'asc', 'desc').default('ASC')
 });
 
+// DB-003: Validation schema for paginated appointments listing
+const appointmentsQuerySchema = Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20),
+    status: Joi.string().valid('confirmed', 'pending', 'completed', 'cancelled', 'scheduled', 'ALL').default('ALL'),
+    date: Joi.string().isoDate().allow('', null)
+});
+
 // All admin routes require authentication + ADMIN role
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
@@ -491,31 +499,98 @@ router.get('/patients/search', async (req, res) => {
  * @swagger
  * /api/admin/appointments:
  *   get:
- *     summary: Retrieve a list of all appointments in the system
+ *     summary: Retrieve a paginated list of all appointments in the system
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [confirmed, pending, completed, cancelled, scheduled, ALL]
+ *           default: ALL
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
  *     responses:
  *       200:
- *         description: List of all appointments retrieved successfully
+ *         description: Paginated list of appointments retrieved successfully
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden (Requires ADMIN role)
  */
-router.get('/appointments', async (req, res) => {
+router.get('/appointments', validateRequest(appointmentsQuerySchema, 'query'), async (req, res) => {
     try {
-        const [rows] = await db.query(`
-            SELECT a.id, a.appointment_date, a.time_slot, a.symptoms, a.status, a.created_at,
-                   p.first_name AS patient_first, p.last_name AS patient_last,
-                   d.first_name AS doctor_first, d.last_name AS doctor_last,
-                   d.specialty, d.location_room
-            FROM appointments a
-            JOIN patients p ON a.patient_id = p.id
-            JOIN doctors d ON a.doctor_id = d.id
-            ORDER BY a.appointment_date DESC, a.created_at DESC
-        `);
-        res.json(rows);
+        const { page, limit, status, date } = req.query;
+        const offset = (page - 1) * limit;
+
+        // Build optional WHERE clauses
+        const conditions = [];
+        const filterParams = [];
+
+        // DB-003: status filter (ALL = no filter)
+        if (status && status !== 'ALL') {
+            conditions.push('LOWER(a.status) = ?');
+            filterParams.push(status.toLowerCase());
+        }
+
+        // DB-003: optional exact date filter
+        if (date) {
+            conditions.push('a.appointment_date = ?');
+            filterParams.push(date);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        // Count query
+        const [countResult] = await db.query(
+            `SELECT COUNT(*) AS total
+             FROM appointments a
+             JOIN patients p ON a.patient_id = p.id
+             JOIN doctors d ON a.doctor_id = d.id
+             ${whereClause}`,
+            filterParams
+        );
+        const total = countResult[0].total;
+
+        // Data query with pagination
+        const [rows] = await db.query(
+            `SELECT a.id, a.appointment_date, a.time_slot, a.symptoms, a.status, a.created_at,
+                    p.first_name AS patient_first, p.last_name AS patient_last,
+                    d.first_name AS doctor_first, d.last_name AS doctor_last,
+                    d.specialty, d.location_room
+             FROM appointments a
+             JOIN patients p ON a.patient_id = p.id
+             JOIN doctors d ON a.doctor_id = d.id
+             ${whereClause}
+             ORDER BY a.appointment_date DESC, a.created_at DESC
+             LIMIT ? OFFSET ?`,
+            [...filterParams, limit, offset]
+        );
+
+        res.json({
+            data: rows,
+            meta: {
+                total,
+                page,
+                limit,
+                total_pages: Math.ceil(total / limit)
+            }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -546,13 +621,12 @@ router.get('/stats', async (req, res) => {
                 (SELECT COUNT(*) FROM patients) AS total_patients,
                 (SELECT COUNT(*) FROM appointments) AS total_appointments,
                 COUNT(CASE WHEN appointment_date = CURDATE() THEN 1 END) AS today_total,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CONFIRMED' THEN 1 END) AS today_confirmed,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'COMPLETED' THEN 1 END) AS today_completed,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'PENDING' THEN 1 END) AS today_pending,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CANCELLED' THEN 1 END) AS today_cancelled
+                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'confirmed' THEN 1 END) AS today_confirmed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'completed' THEN 1 END) AS today_completed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'pending' THEN 1 END) AS today_pending,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'cancelled' THEN 1 END) AS today_cancelled
             FROM appointments
         `);
-        
         const stats = statsRows[0];
 
         // Top 5 doctors by appointment count today
