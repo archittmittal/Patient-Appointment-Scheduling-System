@@ -8,6 +8,7 @@ const router = express.Router();
 const virtualCheckinService = require('../services/virtualCheckinService');
 const sseManager = require('../services/sseManager');
 const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
+const { safeErrorMessage } = require('../middleware/errorHandler');
 
 /**
  * @swagger
@@ -80,7 +81,8 @@ router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Virtual check-in error:', error);
-        res.status(400).json({ error: error.message });
+        // SEC-010: Do not surface raw service errors to clients in production
+        res.status(400).json({ error: safeErrorMessage(error, 'Check-in failed') });
     }
 });
 
@@ -151,7 +153,8 @@ router.post('/:appointmentId/status', authenticate, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Status update error:', error);
-        res.status(400).json({ error: error.message });
+        // SEC-010: Do not surface raw service errors to clients in production
+        res.status(400).json({ error: safeErrorMessage(error, 'Status update failed') });
     }
 });
 
