@@ -146,11 +146,14 @@ const Login = () => {
                             <span className="text-xs font-semibold text-[var(--text-base)]/40 uppercase tracking-wider">Demo Accounts</span>
                         </div>
                         <div className="space-y-2">
-                            <div onClick={() => { setEmail('patient@healthsync.com'); setPassword('password123'); }} className="cursor-pointer">
-                                <CredentialItem role="Patient" email="patient@healthsync.com" pass="password123" />
+                            <div onClick={() => { setEmail('patient@example.com'); setPassword('password123'); }} className="cursor-pointer">
+                                <CredentialItem role="Patient" email="patient@example.com" pass="password123" />
                             </div>
-                            <div onClick={() => { setEmail('doctor@healthsync.com'); setPassword('password123'); }} className="cursor-pointer">
-                                <CredentialItem role="Doctor" email="doctor@healthsync.com" pass="password123" />
+                            <div onClick={() => { setEmail('dr.sarah@hospital.com'); setPassword('password123'); }} className="cursor-pointer">
+                                <CredentialItem role="Doctor" email="dr.sarah@hospital.com" pass="password123" />
+                            </div>
+                            <div onClick={() => { setEmail('admin@hospital.com'); setPassword('admin123'); }} className="cursor-pointer">
+                                <CredentialItem role="Admin" email="admin@hospital.com" pass="admin123" />
                             </div>
                         </div>
                     </div>

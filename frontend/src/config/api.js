@@ -1,7 +1,12 @@
 // Central API base URL.
-// Set VITE_API_URL in your .env file to point to the correct backend.
-// Falls back to localhost:5001 for local development so nothing breaks without a .env.
-export const API = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:7860');
+// Priority: VITE_API_URL env var → production HF Space → localhost fallback for dev
+const PRODUCTION_API = 'https://archittmittal-backend-patientappointment.hf.space';
+
+export const API = import.meta.env.VITE_API_URL
+    || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+        ? PRODUCTION_API
+        : 'http://localhost:7860');
+
 export const API_URL = `${API}/api`;
 
 /** Returns headers for an authenticated request.
