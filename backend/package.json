@@ -27,13 +27,15 @@
     "joi": "^18.1.2",
     "json2csv": "^6.0.0-alpha.2",
     "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0",
     "mysql2": "^3.18.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
     "pdfkit": "^0.18.0",
     "stripe": "^22.0.2",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "husky": "^9.1.7",

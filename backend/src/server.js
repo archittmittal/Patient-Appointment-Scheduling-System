@@ -27,6 +27,8 @@ const messageRoutes = require('./routes/messages');
 const exportRoutes = require('./routes/export');
 const errorHandler = require('./middleware/errorHandler');
 const { initCronJobs } = require('./jobs/reminderJobs');
+const logger = require('./config/logger');
+const requestLogger = require('./middleware/requestLogger');
 
 const app = express();
 
@@ -38,13 +40,8 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
 });
 
-// [BUG-009] Debug Logger — only active in non-production environments
-if (process.env.NODE_ENV !== 'production') {
-    app.use((req, res, next) => {
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-        next();
-    });
-}
+// Structured request logging middleware (Morgan + Winston)
+app.use(requestLogger);
 
 // Root Route (Moved to top for visibility)
 app.get('/', (req, res) => {
@@ -200,6 +197,19 @@ app.get('/api/health', async (req, res) => {
     const { getCronStatus } = require('./jobs/reminderJobs');
     const schedulerStatus = typeof getCronStatus === 'function' ? getCronStatus() : null;
 
+    // Collect process and system performance telemetry
+    const memUsage = process.memoryUsage();
+    const performanceStats = {
+        memory: {
+            rssMb: Math.round((memUsage.rss / 1024 / 1024) * 100) / 100,
+            heapTotalMb: Math.round((memUsage.heapTotal / 1024 / 1024) * 100) / 100,
+            heapUsedMb: Math.round((memUsage.heapUsed / 1024 / 1024) * 100) / 100,
+            externalMb: Math.round((memUsage.external / 1024 / 1024) * 100) / 100
+        },
+        cpu: process.cpuUsage(),
+        nodeVersion: process.version
+    };
+
     res.json({
         status: dbStatus.healthy ? 'ok' : 'error',
         message: 'Hospital API is running',
@@ -209,7 +219,8 @@ app.get('/api/health', async (req, res) => {
             error: dbStatus.error,
             stats: dbStats
         },
-        scheduler: schedulerStatus
+        scheduler: schedulerStatus,
+        performance: performanceStats
     });
 });
 
@@ -220,7 +231,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}`);
+        logger.info(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
         // Initialize Background Jobs
         initCronJobs();
     });
