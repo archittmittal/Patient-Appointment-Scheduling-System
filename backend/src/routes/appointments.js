@@ -414,8 +414,8 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
             throw new Error('Queue entry not found');
         }
 
-        // SECURITY: Verify this doctor is the one assigned to the appointment
-        if (req.user.id != queueRow.doctor_id) {
+        // [BUG-010] Use strict equality with parseInt() to prevent string/number type mismatch
+        if (parseInt(req.user.id) !== parseInt(queueRow.doctor_id)) {
             if (conn) await conn.rollback();
             return res.status(403).json({ message: 'You are not authorized to manage this queue' });
         }
@@ -619,9 +619,10 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         `, [queueRow.doctor_id, queueRow.appointment_date]);
 
         for (const p of waitingPatients) {
-            const status = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
-            if (status) {
-                sseManager.broadcastQueueUpdate(p.appointment_id, status);
+            // [DEAD-001] Renamed from 'status' to avoid shadowing outer scope variable
+            const patientStatus = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
+            if (patientStatus) {
+                sseManager.broadcastQueueUpdate(p.appointment_id, patientStatus);
             }
         }
 

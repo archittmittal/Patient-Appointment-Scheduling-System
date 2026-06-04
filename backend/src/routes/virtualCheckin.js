@@ -130,6 +130,12 @@ router.post('/:appointmentId/status', authenticate, async (req, res) => {
         const patientId = req.user.id;
         const { status, etaMinutes, message } = req.body;
 
+        // [BUG-007] Guard against missing status — status.toUpperCase() would crash
+        // with TypeError if status is undefined (no Joi schema on this endpoint).
+        if (!status) {
+            return res.status(400).json({ error: 'status is required' });
+        }
+
         const result = await virtualCheckinService.updateStatus(
             appointmentId,
             patientId,
@@ -157,6 +163,7 @@ router.post('/:appointmentId/status', authenticate, async (req, res) => {
         res.status(400).json({ error: safeErrorMessage(error, 'Status update failed') });
     }
 });
+
 
 /**
  * @swagger
