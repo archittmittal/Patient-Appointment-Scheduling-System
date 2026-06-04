@@ -257,7 +257,7 @@ class PrepChecklistService {
             LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
             WHERE a.patient_id = ?
             AND DATE(a.appointment_date) >= CURDATE()
-            AND a.status IN ('scheduled', 'confirmed')
+            AND a.status IN ('SCHEDULED', 'CONFIRMED')
             ORDER BY a.appointment_date, a.time_slot
             LIMIT 10
         `, [patientId]);
