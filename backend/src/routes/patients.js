@@ -163,8 +163,6 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
 
-// ... (existing routes)
-
 // Issue #94: Get patient prescriptions
 router.get('/:id/prescriptions', authenticate, async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
