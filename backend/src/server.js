@@ -38,11 +38,13 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
 });
 
-// Debug Logger
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
+// [BUG-009] Debug Logger — only active in non-production environments
+if (process.env.NODE_ENV !== 'production') {
+    app.use((req, res, next) => {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+        next();
+    });
+}
 
 // Root Route (Moved to top for visibility)
 app.get('/', (req, res) => {
@@ -111,25 +113,27 @@ const whitelist = new Set([
     ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : [])
 ].map(normalizeOrigin).filter(Boolean));
 
+// [SEC-008] CORS: whitelist-only in production; localhost pass-through in development.
+// Add specific deployment URLs to ALLOWED_ORIGINS env var — never use platform-wide wildcards.
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, Postman)
+        // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
         if (!origin) return callback(null, true);
-        
+
         const normalizedOrigin = normalizeOrigin(origin);
 
-        // 1. Allow whitelisted origins
+        // 1. Allow explicitly whitelisted origins (from env var or APP_URL/FRONTEND_URL)
         if (whitelist.has(normalizedOrigin)) return callback(null, true);
-        
-        // 2. Allow all localhost/127.0.0.1 variants for development
+
+        // 2. In development, allow any localhost / 127.0.0.1 variant
         if (process.env.NODE_ENV !== 'production') {
-            if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            if (
+                /^https?:\/\/localhost:\d+$/.test(origin) ||
+                /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)
+            ) {
                 return callback(null, true);
             }
         }
-        
-        // 3. In development, be permissive if needed
-        if (process.env.NODE_ENV !== 'production') return callback(null, true);
 
         callback(new Error('Not allowed by CORS'));
     },
