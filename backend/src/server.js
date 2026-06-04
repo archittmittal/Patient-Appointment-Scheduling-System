@@ -62,7 +62,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: 'http://localhost:7860',
+                url: process.env.APP_URL || 'http://localhost:7860',
             },
         ],
         components: {
@@ -139,10 +139,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Global Rate Limiter
+const rateLimitWindowMins = parseInt(process.env.RATE_LIMIT_WINDOW_MINS, 10) || 15;
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX, 10) || 100;
+
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+    windowMs: rateLimitWindowMins * 60 * 1000,
+    max: rateLimitMax,
+    message: `Too many requests from this IP, please try again after ${rateLimitWindowMins} minutes`
 });
 app.use('/api/', globalLimiter);
 
