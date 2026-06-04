@@ -29,21 +29,24 @@ if (process.env.NODE_ENV !== 'test') {
         });
 }
 
-// Connection pool monitoring
+// [DEAD-003] Connection pool monitoring — gated behind LOG_LEVEL=debug to prevent
+// noisy stdout output in staging/production environments.
+const debugLogging = process.env.LOG_LEVEL === 'debug' && process.env.NODE_ENV !== 'test';
+
 pool.on('acquire', (connection) => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (debugLogging) {
         console.log('Connection %d acquired', connection.threadId);
     }
 });
 
 pool.on('release', (connection) => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (debugLogging) {
         console.log('Connection %d released', connection.threadId);
     }
 });
 
 pool.on('enqueue', () => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (debugLogging) {
         console.warn('Waiting for available connection slot');
     }
 });
