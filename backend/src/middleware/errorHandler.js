@@ -14,6 +14,8 @@
  * @param {string} [fallback='An unexpected error occurred']
  * @returns {string}
  */
+const logger = require('../config/logger');
+
 function safeErrorMessage(error, fallback = 'An unexpected error occurred') {
     if (process.env.NODE_ENV !== 'production') return error.message || fallback;
     if (error.isPublic) return error.message || fallback;
@@ -28,10 +30,14 @@ function errorHandler(err, req, res, next) {
     // SEC-011: Never leak raw error.message in production from global handler
     const message = safeErrorMessage(err, 'An unexpected error occurred');
 
-    console.error(`[${code}] ${err.message}`); // Full message always goes to server logs
-    if (err.stack && process.env.NODE_ENV === 'development') {
-        console.error(err.stack);
-    }
+    // Structured logging of the error
+    logger.error(`[${code}] ${err.message}`, {
+        statusCode,
+        code,
+        url: req.originalUrl || req.url,
+        method: req.method,
+        stack: err.stack
+    });
 
     res.status(statusCode).json({
         status,
