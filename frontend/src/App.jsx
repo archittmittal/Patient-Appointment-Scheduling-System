@@ -36,6 +36,7 @@ import PatientPrescriptions from './pages/PatientPrescriptions';
 import Messages from './pages/Messages';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import AdminAnalytics from './pages/AdminAnalytics';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -105,6 +106,7 @@ function App() {
               <Route path="/admin-appointments" element={<AdminAppointments />} />
               <Route path="/admin/insurance" element={<InsurancePortal />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
+              <Route path="/admin-analytics" element={<AdminAnalytics />} />
             </Route>
 
             {/* Catch-all redirect to root */}
