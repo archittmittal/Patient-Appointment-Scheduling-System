@@ -59,7 +59,7 @@ router.post('/', authenticate, async (req, res, next) => {
             const [relRows] = await db.query(
                 `SELECT id FROM appointments
                  WHERE ((patient_id = ? AND doctor_id = ?) OR (patient_id = ? AND doctor_id = ?))
-                   AND LOWER(status) IN ('confirmed', 'in_progress', 'scheduled', 'pending')
+                    AND status IN ('CONFIRMED', 'IN_PROGRESS', 'SCHEDULED', 'PENDING')
                  LIMIT 1`,
                 [senderId, receiverId, receiverId, senderId]
             );
