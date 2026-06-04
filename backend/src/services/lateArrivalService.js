@@ -234,7 +234,7 @@ class LateArrivalService {
         // Update appointment status
         await db.execute(`
             UPDATE appointments 
-            SET status = 'late_arrival', 
+            SET status = 'LATE_ARRIVAL', 
                 late_arrival_mins = ?,
                 late_handling = 'fit_in',
                 checked_in_at = NOW()
@@ -247,7 +247,7 @@ class LateArrivalService {
                 (SELECT COUNT(*) FROM appointments a2 
                  WHERE a2.doctor_id = a.doctor_id 
                  AND DATE(a2.appointment_date) = DATE(a.appointment_date)
-                 AND a2.status IN ('checked_in', 'in_progress')
+                 AND a2.status IN ('CHECKED_IN', 'IN_PROGRESS')
                  AND a2.id != a.id) + 1 as queue_position
             FROM appointments a
             WHERE a.id = ?
@@ -273,14 +273,14 @@ class LateArrivalService {
             JOIN appointments target ON a.doctor_id = target.doctor_id
             WHERE target.id = ?
             AND DATE(a.appointment_date) = DATE(target.appointment_date)
-            AND a.status != 'cancelled'
+            AND a.status != 'CANCELLED'
         `, [appointmentId]);
 
         const estimatedTime = lastApt[0]?.last_time || '17:00';
 
         await db.execute(`
             UPDATE appointments 
-            SET status = 'late_arrival',
+            SET status = 'LATE_ARRIVAL',
                 late_arrival_mins = ?,
                 late_handling = 'end_of_session',
                 rescheduled_time = ?,
@@ -303,7 +303,7 @@ class LateArrivalService {
     async markForReschedule(appointmentId, patientId, notes) {
         await db.execute(`
             UPDATE appointments 
-            SET status = 'needs_reschedule',
+            SET status = 'NEEDS_RESCHEDULE',
                 late_handling = 'reschedule',
                 notes = CONCAT(IFNULL(notes, ''), ' | Late arrival: ', ?)
             WHERE id = ? AND patient_id = ?

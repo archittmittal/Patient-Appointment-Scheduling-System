@@ -117,17 +117,4 @@ INSERT IGNORE INTO appointments (id, patient_id, doctor_id, appointment_date, ti
 INSERT IGNORE INTO live_queue (appointment_id, queue_number, status, estimated_time) VALUES
 (1, 18, 'WAITING', 45);
 
--- -------------------------------------------------------
--- Run the following ALTERs if DB already exists (one-time migration):
--- ALTER TABLE appointments ADD COLUMN symptoms TEXT AFTER time_slot;
--- ALTER TABLE appointments ADD COLUMN diagnosis VARCHAR(255) AFTER status;
--- ALTER TABLE appointments ADD COLUMN notes TEXT AFTER diagnosis;
--- ALTER TABLE appointments ADD COLUMN prescription TEXT AFTER notes;
--- ALTER TABLE appointments ADD COLUMN follow_up_date DATE AFTER prescription;
--- ALTER TABLE appointments ADD COLUMN predicted_duration_mins INT DEFAULT 15;
--- ALTER TABLE appointments ADD COLUMN is_follow_up BOOLEAN DEFAULT FALSE;
--- ALTER TABLE doctors ADD COLUMN availability JSON;
--- ALTER TABLE doctors ADD COLUMN max_patients_per_slot INT DEFAULT 15;
--- ALTER TABLE live_queue ADD COLUMN predicted_duration INT DEFAULT 15;
--- CREATE TABLE IF NOT EXISTS doctor_blocked_dates (...);
--- -------------------------------------------------------
+
