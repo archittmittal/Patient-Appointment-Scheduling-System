@@ -1,0 +1,44 @@
+# CodeRabbit Configuration File
+# Documentation: https://coderabbit.ai/docs
+
+language: "en-US"
+tone_instructions: "Be constructive, encouraging, and clear. Focus on security, performance, and best practices in Node.js, Express, and React."
+early_access: false
+
+reviews:
+  # Enable CodeRabbit to auto-review pull requests
+  auto_review:
+    enabled: true
+    drafts: false
+  
+  # Configure PR summary generation
+  summary:
+    enabled: true
+    title: true
+  
+  # Configure PR walk-through generation
+  walkthrough:
+    enabled: true
+  
+  # Configure code review comments
+  profile: "custom"
+  instructions: |
+    - We use Express.js for the backend and React (Vite) for the frontend.
+    - Focus heavily on security (e.g., NoSQL/SQL injection, IDOR, XSS).
+    - Suggest performance improvements where applicable.
+    - Ignore minor formatting issues; focus on logic and architecture.
+  
+  # Automatically generate release notes
+  release_notes:
+    enabled: true
+    
+chat:
+  auto_reply: true
+
+# Path filters to ignore specific files or directories from being reviewed
+path_filters:
+  - "!node_modules/**"
+  - "!dist/**"
+  - "!build/**"
+  - "!package-lock.json"
+  - "!.husky/**"
