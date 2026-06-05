@@ -43,6 +43,20 @@ class AuthController {
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
+
+    async googleLogin(req, res) {
+        try {
+            const { token } = req.body;
+            if (!token) {
+                return res.status(400).json({ message: 'Google token is required' });
+            }
+            const result = await authService.googleLogin(token);
+            res.json(result);
+        } catch (error) {
+            console.error('[Google Login Error]', error);
+            res.status(error.status || 500).json({ message: error.message || 'Server error' });
+        }
+    }
 }
 
 module.exports = new AuthController();

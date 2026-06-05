@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
+import { GoogleLogin } from '@react-oauth/google';
 
 const ROLE_HOME = {
     PATIENT: '/patient-dashboard',
@@ -47,6 +48,34 @@ const Login = () => {
             }
         } catch (err) {
             setError(err.message || 'Unable to connect to the server. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setError('');
+        setLoading(true);
+        try {
+            const data = await authService.googleLogin(credentialResponse.credential);
+            
+            if (data.error || !data.token) {
+                setError(data.message || 'Google login failed.');
+                return;
+            }
+
+            login(data);
+            
+            // Check for pending booking
+            const pending = localStorage.getItem('pendingBooking');
+            const role = data.role || data.user?.role;
+            if (pending && role === 'PATIENT') {
+                navigate('/book');
+            } else {
+                navigate(ROLE_HOME[role] || '/login');
+            }
+        } catch (err) {
+            setError(err.message || 'Unable to connect to Google SSO. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -127,6 +156,24 @@ const Login = () => {
                                 )}
                             </button>
                         </form>
+
+                        <div className="mt-6 flex items-center justify-center space-x-4">
+                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                            <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
+                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                        </div>
+
+                        <div className="mt-6 flex justify-center w-full">
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => {
+                                    setError('Google login was unsuccessful or canceled.');
+                                }}
+                                useOneTap
+                                theme="filled_blue"
+                                shape="pill"
+                            />
+                        </div>
 
                         <div className="mt-10 pt-8 border-t border-[var(--border-base)]/30 text-center">
                             <p className="text-sm text-[var(--text-base)]/60">
