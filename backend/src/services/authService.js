@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const db = require('../config/db');
 const { bcryptRounds } = require('../config/auth');
 const sessionService = require('./sessionService');
@@ -181,6 +182,83 @@ class AuthService {
         );
 
         return { message: 'Password reset successful' };
+    }
+
+    async googleLogin(idToken) {
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            const error = new Error('Google OAuth is not configured');
+            error.status = 500;
+            throw error;
+        }
+
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, given_name, family_name } = payload;
+
+        // Check if user exists
+        let [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        let user = users[0];
+
+        if (!user) {
+            // New user, auto-register as PATIENT
+            const conn = await db.getConnection();
+            try {
+                await conn.beginTransaction();
+
+                const [result] = await conn.query(
+                    'INSERT INTO users (email, role, auth_provider, google_id) VALUES (?, ?, ?, ?)',
+                    [email, 'PATIENT', 'GOOGLE', googleId]
+                );
+                
+                const newId = result.insertId;
+
+                await conn.query(
+                    'INSERT INTO patients (id, first_name, last_name) VALUES (?, ?, ?)',
+                    [newId, given_name || 'Patient', family_name || 'User']
+                );
+
+                await conn.commit();
+                user = { id: newId, email, role: 'PATIENT' };
+            } catch (error) {
+                await conn.rollback();
+                throw error;
+            } finally {
+                conn.release();
+            }
+        } else {
+            // Existing user, link google_id if empty
+            if (!user.google_id) {
+                await db.query('UPDATE users SET auth_provider = ?, google_id = ? WHERE id = ?', ['GOOGLE', googleId, user.id]);
+            }
+        }
+
+        // Get names for the response
+        let firstName = 'Admin';
+        let lastName = '';
+
+        if (user.role === 'PATIENT') {
+            const [rows] = await db.query('SELECT first_name, last_name FROM patients WHERE id = ?', [user.id]);
+            if (rows.length > 0) { firstName = rows[0].first_name; lastName = rows[0].last_name; }
+        } else if (user.role === 'DOCTOR') {
+            const [rows] = await db.query('SELECT first_name, last_name FROM doctors WHERE id = ?', [user.id]);
+            if (rows.length > 0) { firstName = rows[0].first_name; lastName = rows[0].last_name; }
+        }
+
+        const token = sessionService.generateToken(user);
+
+        return {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            first_name: firstName,
+            last_name: lastName,
+            token
+        };
     }
 }
 

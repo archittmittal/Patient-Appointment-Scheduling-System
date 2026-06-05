@@ -66,4 +66,13 @@ router.post('/forgot-password', authController.forgotPassword);
  */
 router.post('/reset-password', authController.resetPassword);
 
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Login with Google
+ *     tags: [Auth]
+ */
+router.post('/google', authController.googleLogin);
+
 module.exports = router;
