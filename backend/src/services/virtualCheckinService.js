@@ -230,10 +230,10 @@ class VirtualCheckinService {
         const [patients] = await db.query(
             `SELECT a.id, a.time_slot, a.status, a.virtual_checkin_status,
                     a.virtual_checkin_time, a.patient_eta_minutes,
-                    u.first_name, u.last_name, u.phone,
+                    p.first_name, p.last_name, p.phone,
                     s.session_start, s.last_ping
              FROM appointments a
-             JOIN users u ON a.patient_id = u.id
+             JOIN patients p ON a.patient_id = p.id
              LEFT JOIN virtual_waiting_sessions s ON a.id = s.appointment_id AND s.status = 'ACTIVE'
              WHERE a.doctor_id = ?
                AND DATE(a.appointment_date) = ?

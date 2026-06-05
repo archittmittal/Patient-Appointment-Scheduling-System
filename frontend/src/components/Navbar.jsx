@@ -92,8 +92,9 @@ const Navbar = () => {
 
         try {
             await apiClient.post(`/api/notifications/${activeAlert.id}/read`, {});
-            if (activeAlert.type === 'YOUR_TURN' && activeAlert.data?.appointment_id) {
-                navigate(`/virtual-waiting/${activeAlert.data.appointment_id}`);
+            if (activeAlert.type === 'YOUR_TURN' || activeAlert.type === 'TURN_APPROACHING') {
+                // VirtualWaitingRoom removed — patients track their live position on the Live Queue page
+                navigate('/queue');
             }
         } catch (err) {
             console.error('Error handling alert action:', err);

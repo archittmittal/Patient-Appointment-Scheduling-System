@@ -296,12 +296,11 @@ class FeedbackService {
                 SELECT 
                     d.id,
                     CONCAT(d.first_name, ' ', d.last_name) as name,
-                    dp.specialty,
+                    d.specialty,
                     AVG(f.weighted_score) as avg_score,
                     COUNT(f.id) as review_count
                 FROM appointment_feedback f
                 JOIN doctors d ON f.doctor_id = d.id
-                LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
                 WHERE DATE(f.created_at) BETWEEN DATE(?) AND DATE(?)
                 GROUP BY d.id
                 HAVING review_count >= 5
@@ -314,12 +313,11 @@ class FeedbackService {
                 SELECT 
                     d.id,
                     CONCAT(d.first_name, ' ', d.last_name) as name,
-                    dp.specialty,
+                    d.specialty,
                     AVG(f.weighted_score) as avg_score,
                     COUNT(f.id) as review_count
                 FROM appointment_feedback f
                 JOIN doctors d ON f.doctor_id = d.id
-                LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
                 WHERE DATE(f.created_at) BETWEEN DATE(?) AND DATE(?)
                 GROUP BY d.id
                 HAVING avg_score < 3.5 AND review_count >= 3
@@ -427,10 +425,9 @@ class FeedbackService {
                     a.appointment_date,
                     a.time_slot as appointment_time,
                     CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
-                    dp.specialty
+                    d.specialty
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.id
-                LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
                 LEFT JOIN appointment_feedback f ON a.id = f.appointment_id
                 WHERE a.patient_id = ?
                 AND a.status = 'COMPLETED'
@@ -468,11 +465,10 @@ class FeedbackService {
                     a.appointment_date,
                     a.time_slot as appointment_time,
                     CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
-                    dp.specialty
+                    d.specialty
                 FROM appointment_feedback f
                 JOIN appointments a ON f.appointment_id = a.id
                 JOIN doctors d ON f.doctor_id = d.id
-                LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
                 WHERE f.patient_id = ?
                 ORDER BY f.created_at DESC
                 LIMIT 20
