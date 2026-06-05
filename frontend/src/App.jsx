@@ -21,13 +21,8 @@ import AdminAppointments from './pages/AdminAppointments';
 import Register from './pages/Register';
 import InsurancePortal from './pages/InsurancePortal';
 import NotificationSettings from './pages/NotificationSettings';
-import VirtualWaitingRoom from './pages/VirtualWaitingRoom'; 
 import WalkinRegistration from './pages/WalkinRegistration'; 
-import ExpressCheckin from './pages/ExpressCheckin';
-import BatchAppointments from './pages/BatchAppointments';
-import PrepChecklist from './pages/PrepChecklist';
 import MultiDoctorJourney from './pages/MultiDoctorJourney';
-import LateArrival from './pages/LateArrival';
 import FeedbackAnalytics from './pages/FeedbackAnalytics';
 import PatientInsurance from './pages/PatientInsurance';
 import DoctorAnalytics from './pages/DoctorAnalytics';
@@ -75,14 +70,10 @@ function App() {
               <Route path="/queue" element={<LiveQueue />} />
               <Route path="/profile" element={<PatientProfile />} />
               <Route path="/notifications/settings" element={<NotificationSettings />} />
-              <Route path="/virtual-waiting/:appointmentId" element={<VirtualWaitingRoom />} />
+              {/* /virtual-waiting redirects to live-queue — VirtualWaitingRoom removed, patients track via LiveQueue */}
+              <Route path="/virtual-waiting/:appointmentId" element={<Navigate to="/queue" replace />} />
               <Route path="/walkin" element={<WalkinRegistration />} />
-              <Route path="/express-checkin" element={<ExpressCheckin />} />
-              <Route path="/batch-appointments" element={<BatchAppointments />} />
-              <Route path="/prep-checklist" element={<PrepChecklist />} />
-              <Route path="/prep-checklist/:appointmentId" element={<PrepChecklist />} />
               <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
-              <Route path="/late-arrival" element={<LateArrival />} />
               <Route path="/feedback" element={<FeedbackAnalytics />} />
               <Route path="/insurance" element={<PatientInsurance />} />
               <Route path="/messages" element={<Messages />} />

@@ -70,10 +70,10 @@ const AppointmentCard = ({ apt, navigate, onViewReport }) => {
             </div>
 
             <button 
-                onClick={() => navigate(`/virtual-waiting/${apt.id}`)}
+                onClick={() => navigate('/queue')}
                 className="btn-primary w-full"
             >
-                View Details <ChevronRight size={16} />
+                View in Live Queue <ChevronRight size={16} />
             </button>
         </div>
     );
@@ -177,10 +177,10 @@ const PatientDashboard = () => {
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={() => navigate(`/virtual-waiting/${nextApt.id}`)}
+                                    onClick={() => navigate('/queue')}
                                     className="w-full md:w-auto px-10 py-5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg"
                                 >
-                                    Check In
+                                    Track in Live Queue
                                 </button>
                             </div>
                         ) : (

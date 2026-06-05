@@ -131,10 +131,9 @@ class MultiDoctorService {
                 const [stops] = await db.execute(`
                     SELECT js.*, 
                         CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
-                        dp.specialty, dp.floor_number, dp.building
+                        d.specialty, NULL as floor_number, NULL as building
                     FROM journey_stops js
                     JOIN doctors d ON js.doctor_id = d.id
-                    LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
                     WHERE js.journey_id = ?
                     ORDER BY js.stop_order
                 `, [journey.id]);
@@ -169,10 +168,9 @@ class MultiDoctorService {
         const [stops] = await db.execute(`
             SELECT js.*, 
                 CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
-                dp.specialty, dp.floor_number, dp.building, dp.room_number
+                d.specialty, NULL as floor_number, NULL as building, d.location_room as room_number
             FROM journey_stops js
             JOIN doctors d ON js.doctor_id = d.id
-            LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
             WHERE js.journey_id = ?
             ORDER BY js.stop_order
         `, [journeyId]);
@@ -276,9 +274,8 @@ class MultiDoctorService {
 
         const [doctors] = await db.execute(`
             SELECT d.id, CONCAT(d.first_name, ' ', d.last_name) as name,
-                dp.specialty, dp.floor_number, dp.building
+                d.specialty, NULL as floor_number, NULL as building
             FROM doctors d
-            LEFT JOIN doctor_profiles dp ON d.id = dp.doctor_id
             WHERE d.id IN (${doctorIds.map(() => '?').join(',')})
         `, doctorIds);
 
@@ -386,11 +383,10 @@ class MultiDoctorService {
         // Find available doctors for these specialties
         const [doctors] = await db.execute(`
             SELECT d.id, CONCAT(d.first_name, ' ', d.last_name) as name,
-                dp.specialty, dp.floor_number, dp.building
+                d.specialty, NULL as floor_number, NULL as building
             FROM doctors d
-            JOIN doctor_profiles dp ON d.id = dp.doctor_id
-            WHERE dp.specialty IN (${suggestedSpecialties.map(() => '?').join(',')})
-            ORDER BY dp.specialty, d.first_name
+            WHERE d.specialty IN (${suggestedSpecialties.map(() => '?').join(',')})
+            ORDER BY d.specialty, d.first_name
         `, suggestedSpecialties);
 
         return {
