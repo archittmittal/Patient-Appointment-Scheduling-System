@@ -73,6 +73,6 @@ router.post('/reset-password', authController.resetPassword);
  *     summary: Login with Google
  *     tags: [Auth]
  */
-router.post('/google', authController.googleLogin);
+router.post('/google', validateRequest(Joi.object({ token: Joi.string().min(1).required() })), authController.googleLogin);
 
 module.exports = router;

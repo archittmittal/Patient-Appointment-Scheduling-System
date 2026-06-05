@@ -66,11 +66,23 @@ const Register = () => {
     const handleGoogleSuccess = async (credentialResponse) => {
         setError('');
         setLoading(true);
+        const token = credentialResponse?.credential;
+        if (!token) {
+            setError('Google signup was unsuccessful or canceled.');
+            setLoading(false);
+            return;
+        }
         try {
-            const data = await authService.googleLogin(credentialResponse.credential);
+            const data = await authService.googleLogin(token);
             
             if (data.error || !data.token) {
                 setError(data.message || 'Google registration failed.');
+                return;
+            }
+
+            if (data.role && data.role !== 'PATIENT') {
+                setError('Doctors and Admins must sign in via the Login page.');
+                authService.logout();
                 return;
             }
 

@@ -4,6 +4,16 @@ const db = require('../src/config/db');
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../src/middleware/authenticate');
 
+jest.mock('google-auth-library', () => {
+  return {
+    OAuth2Client: jest.fn().mockImplementation(() => {
+      return {
+        verifyIdToken: jest.fn()
+      };
+    })
+  };
+});
+
 // Mock the database
 const mockConn = {
   query: jest.fn(),
@@ -99,6 +109,24 @@ describe('Auth Endpoints', () => {
           email: 'nonexistent@example.com',
           password: 'wrongpassword'
         });
+      expect(res.statusCode).toEqual(401);
+  describe('POST /api/auth/google', () => {
+    it('should fail with 400 if token is missing', async () => {
+      const res = await request(app)
+        .post('/api/auth/google')
+        .send({});
+      expect(res.statusCode).toEqual(400);
+    });
+
+    it('should fail with 401 for invalid payload', async () => {
+      const { OAuth2Client } = require('google-auth-library');
+      OAuth2Client.prototype.verifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({ email: 'test@example.com' }) // missing sub and email_verified
+      });
+
+      const res = await request(app)
+        .post('/api/auth/google')
+        .send({ token: 'invalid_mock_token' });
       expect(res.statusCode).toEqual(401);
     });
   });
