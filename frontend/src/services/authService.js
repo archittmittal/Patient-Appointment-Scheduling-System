@@ -22,6 +22,25 @@ export const authService = {
     },
 
     /**
+     * Authenticate user with Google SSO
+     */
+    async googleLogin(googleToken) {
+        const data = await apiClient.post('/api/auth/google', { token: googleToken });
+        
+        if (data.token) {
+            localStorage.setItem('hs_token', data.token);
+            const session = {
+                id: data.id,
+                email: data.email,
+                role: data.role
+            };
+            localStorage.setItem('hs_user', JSON.stringify(session));
+        }
+        
+        return data;
+    },
+
+    /**
      * Register new user and auto-login
      */
     async register(userData) {
