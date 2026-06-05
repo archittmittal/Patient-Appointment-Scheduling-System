@@ -37,6 +37,7 @@ jest.mock('../src/config/db', () => ({
 describe('Auth Endpoints', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
   });
 
   describe('GET /api/health', () => {
@@ -110,6 +111,9 @@ describe('Auth Endpoints', () => {
           password: 'wrongpassword'
         });
       expect(res.statusCode).toEqual(401);
+    });
+  });
+
   describe('POST /api/auth/google', () => {
     it('should fail with 400 if token is missing', async () => {
       const res = await request(app)
