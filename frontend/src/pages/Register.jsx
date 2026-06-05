@@ -131,24 +131,28 @@ const Register = () => {
 
                         {step === 1 ? (
                             <form onSubmit={handleStep1} className="space-y-6">
-                                <div className="mb-6 flex justify-center w-full">
-                                    <GoogleLogin
-                                        onSuccess={handleGoogleSuccess}
-                                        onError={() => {
-                                            setError('Google signup was unsuccessful or canceled.');
-                                        }}
-                                        text="signup_with"
-                                        useOneTap
-                                        theme="filled_blue"
-                                        shape="pill"
-                                    />
-                                </div>
-                                
-                                <div className="mb-6 flex items-center justify-center space-x-4">
-                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
-                                    <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
-                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
-                                </div>
+                                {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                                    <>
+                                        <div className="mb-6 flex justify-center w-full">
+                                            <GoogleLogin
+                                                onSuccess={handleGoogleSuccess}
+                                                onError={() => {
+                                                    setError('Google signup was unsuccessful or canceled.');
+                                                }}
+                                                text="signup_with"
+                                                useOneTap
+                                                theme="filled_blue"
+                                                shape="pill"
+                                            />
+                                        </div>
+                                        
+                                        <div className="mb-6 flex items-center justify-center space-x-4">
+                                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                            <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
+                                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                        </div>
+                                    </>
+                                )}
 
                                 <h3 className="text-xl font-bold text-[var(--text-base)] mb-6">Basic Information</h3>
                                 <div className="grid grid-cols-2 gap-4">

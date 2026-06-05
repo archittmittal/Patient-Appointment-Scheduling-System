@@ -163,23 +163,27 @@ const Login = () => {
                             </button>
                         </form>
 
-                        <div className="mt-6 flex items-center justify-center space-x-4">
-                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
-                            <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
-                            <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
-                        </div>
+                        {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                            <>
+                                <div className="mt-6 flex items-center justify-center space-x-4">
+                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                    <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
+                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                </div>
 
-                        <div className="mt-6 flex justify-center w-full">
-                            <GoogleLogin
-                                onSuccess={handleGoogleSuccess}
-                                onError={() => {
-                                    setError('Google login was unsuccessful or canceled.');
-                                }}
-                                useOneTap
-                                theme="filled_blue"
-                                shape="pill"
-                            />
-                        </div>
+                                <div className="mt-6 flex justify-center w-full">
+                                    <GoogleLogin
+                                        onSuccess={handleGoogleSuccess}
+                                        onError={() => {
+                                            setError('Google login was unsuccessful or canceled.');
+                                        }}
+                                        useOneTap
+                                        theme="filled_blue"
+                                        shape="pill"
+                                    />
+                                </div>
+                            </>
+                        )}
 
                         <div className="mt-10 pt-8 border-t border-[var(--border-base)]/30 text-center">
                             <p className="text-sm text-[var(--text-base)]/60">
