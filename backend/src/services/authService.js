@@ -18,6 +18,11 @@ class AuthService {
         }
 
         const user = users[0];
+        if (user.auth_provider === 'GOOGLE' || !user.password_hash) {
+            const error = new Error('This account uses Google Sign-In. Please sign in with Google.');
+            error.status = 401;
+            throw error;
+        }
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
         if (!passwordMatch) {
             const error = new Error('Invalid email or password');
@@ -192,10 +197,17 @@ class AuthService {
         }
 
         const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-        const ticket = await client.verifyIdToken({
-            idToken,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
+        let ticket;
+        try {
+            ticket = await client.verifyIdToken({
+                idToken,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+        } catch (err) {
+            const error = new Error('Invalid Google ID token');
+            error.status = 401;
+            throw error;
+        }
         
         const payload = ticket.getPayload();
         if (!payload?.email || !payload?.sub || payload.email_verified !== true) {
@@ -238,7 +250,20 @@ class AuthService {
         } else {
             // Existing user, link google_id if empty
             if (!user.google_id) {
-                await db.query('UPDATE users SET auth_provider = ?, google_id = ? WHERE id = ?', ['GOOGLE', googleId, user.id]);
+                try {
+                    const [existingGoogleUsers] = await db.query('SELECT id FROM users WHERE google_id = ?', [googleId]);
+                    if (existingGoogleUsers.length > 0 && existingGoogleUsers[0].id !== user.id) {
+                        const error = new Error('Google account mismatch');
+                        error.status = 401;
+                        throw error;
+                    }
+                    await db.query('UPDATE users SET auth_provider = ?, google_id = ? WHERE id = ?', ['GOOGLE', googleId, user.id]);
+                } catch (err) {
+                    if (err.status === 401) throw err;
+                    const error = new Error('Google account mismatch');
+                    error.status = 401;
+                    throw error;
+                }
             } else if (user.google_id !== googleId) {
                 const error = new Error('Google account mismatch');
                 error.status = 401;

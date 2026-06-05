@@ -1,5 +1,5 @@
 ## Issue title
-[FEATURE] [AUTH-001] Integrate Google Authentication for Patients and Doctors
+[FEATURE] [AUTH-001] Integrate Google Authentication for Patients, Doctors, and Admins
 
 ## Labels (comma-separated, lowercase-kebab)
 enhancement, type: feature, phase: 3
@@ -60,5 +60,5 @@ ALTER TABLE users ADD COLUMN google_id VARCHAR(255) UNIQUE;
 4h-6h
 
 ### References
-- **Files to modify**: `backend/src/routes/auth.js`, `backend/src/services/authService.js`, `backend/database/schema.sql`, `frontend/src/contexts/AuthContext.jsx`
+- **Files to modify**: `backend/src/routes/auth.js`, `backend/src/services/authService.js`, `backend/database/schema.sql`, `frontend/src/main.jsx`, `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`, `frontend/src/services/authService.js`
 - **Libraries**: [google-auth-library](https://github.com/googleapis/google-auth-library-nodejs), [@react-oauth/google](https://github.com/MomenSherif/react-oauth)
