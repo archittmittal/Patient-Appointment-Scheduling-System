@@ -1,10 +1,11 @@
 const stripeKey = process.env.STRIPE_SECRET_KEY;
+const logger = require('../config/logger');
 
 if (!stripeKey) {
     if (process.env.NODE_ENV === 'production') {
         throw new Error('FATAL CONFIGURATION ERROR: STRIPE_SECRET_KEY environment variable is missing in production.');
     }
-    console.warn('⚠️ WARNING: STRIPE_SECRET_KEY is not defined. Using sk_test_mock fallback for development.');
+    logger.warn('STRIPE_SECRET_KEY is not defined. Using sk_test_mock fallback for development.');
 }
 
 const stripe = require('stripe')(stripeKey || 'sk_test_mock');
@@ -117,7 +118,7 @@ class PaymentService {
         const appointmentId = intent.metadata?.appointmentId;
 
         if (!appointmentId) {
-            console.warn('Webhook received event without appointmentId in metadata:', event.type);
+            logger.warn('Webhook received event without appointmentId in metadata', { eventType: event.type });
             return;
         }
 
@@ -154,10 +155,10 @@ class PaymentService {
                         date: data.appointment_date,
                         time: data.time_slot
                     });
-                    console.log(`[Stripe Webhook] Payment receipt sent to ${data.email} for appointment ${appointmentId}`);
+                    logger.info('[Stripe Webhook] Payment receipt sent', { email: data.email, appointmentId });
                 }
             } catch (err) {
-                console.error(`[Stripe Webhook] Failed to send receipt for appointment ${appointmentId}:`, err);
+                logger.error('[Stripe Webhook] Failed to send receipt', { appointmentId, error: err });
             }
         } else if (event.type === 'payment_intent.payment_failed') {
             await db.query(

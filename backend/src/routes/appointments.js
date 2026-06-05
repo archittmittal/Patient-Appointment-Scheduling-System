@@ -20,6 +20,30 @@ const sseManager = require('../services/sseManager');
 const virtualCheckinService = require('../services/virtualCheckinService');
 const { DEFAULT_PREDICTED_DURATION, DEFAULT_MAX_PATIENTS_PER_SLOT } = require('../config/constants');
 
+function parseStartHourMinute(timeStr) {
+    if (!timeStr) return null;
+    const rangeParts = timeStr.split(/[–\-—]/);
+    const startPart = rangeParts[0].trim();
+    const ampmMatch = startPart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (ampmMatch) {
+        let hours = parseInt(ampmMatch[1], 10);
+        const minutes = parseInt(ampmMatch[2], 10);
+        const ampm = ampmMatch[3].toUpperCase();
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        return { hours, minutes };
+    }
+    const simpleMatch = startPart.match(/(\d+):(\d+)/);
+    if (simpleMatch) {
+        const hours = parseInt(simpleMatch[1], 10);
+        const minutes = parseInt(simpleMatch[2], 10);
+        if (hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60) {
+            return { hours, minutes };
+        }
+    }
+    return null;
+}
+
 const bookSchema = Joi.object({
     doctorId: Joi.number().required(),
     date: Joi.string().isoDate().required().custom((value, helpers) => {
@@ -96,6 +120,25 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
         const { doctorId, date, timeSlot, symptoms } = req.body;
         const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
 
+        // Validate that if appointment date is today, the slot starting time is in the future
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const bookingDate = new Date(date);
+        bookingDate.setHours(0, 0, 0, 0);
+        
+        const todayStr = today.toISOString().split('T')[0];
+        const bookingDateStr = bookingDate.toISOString().split('T')[0];
+        if (bookingDateStr === todayStr) {
+            const parsedTime = parseStartHourMinute(timeSlot);
+            if (parsedTime) {
+                const slotTime = new Date();
+                slotTime.setHours(parsedTime.hours, parsedTime.minutes, 0, 0);
+                if (slotTime < new Date()) {
+                    return res.status(400).json({ message: 'Cannot book a time slot that has already passed today' });
+                }
+            }
+        }
+
         if (!patientId) {
             return res.status(400).json({ message: 'Patient ID is required' });
         }
@@ -141,7 +184,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             const [slotRows] = await conn.query(
                 `SELECT COUNT(*) AS slot_count 
                  FROM appointments 
-                 WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'cancelled' 
+                 WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED' 
                  FOR UPDATE`,
                 [doctorId, date, timeSlot]
             );
@@ -151,19 +194,19 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
                 return res.status(409).json({ message: 'Time slot is fully booked' });
             }
 
-            // Insert appointment — use lowercase status to match DB ENUM
+            // Insert appointment — use UPPERCASE status
             let result;
             try {
                 [result] = await conn.query(
                     'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed', prediction.predictedDuration, prediction.factors.isFollowUp || false]
+                    [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
                 );
             } catch (fullInsertErr) {
                 // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
                 if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
                     [result] = await conn.query(
                         'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
-                        [patientId, doctorId, date, timeSlot, symptoms || null, 'confirmed']
+                        [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED']
                     );
                 } else {
                     throw fullInsertErr;
@@ -414,8 +457,8 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
             throw new Error('Queue entry not found');
         }
 
-        // SECURITY: Verify this doctor is the one assigned to the appointment
-        if (req.user.id != queueRow.doctor_id) {
+        // [BUG-010] Use strict equality with parseInt() to prevent string/number type mismatch
+        if (parseInt(req.user.id) !== parseInt(queueRow.doctor_id)) {
             if (conn) await conn.rollback();
             return res.status(403).json({ message: 'You are not authorized to manage this queue' });
         }
@@ -477,7 +520,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
             // Update appointment with completion details and actual duration
             await conn.query(
                 `UPDATE appointments
-                    SET status = 'completed',
+                    SET status = 'COMPLETED',
                         consultation_end = NOW(),
                         actual_duration_mins = ?,
                         diagnosis    = COALESCE(?, diagnosis),
@@ -619,9 +662,10 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         `, [queueRow.doctor_id, queueRow.appointment_date]);
 
         for (const p of waitingPatients) {
-            const status = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
-            if (status) {
-                sseManager.broadcastQueueUpdate(p.appointment_id, status);
+            // [DEAD-001] Renamed from 'status' to avoid shadowing outer scope variable
+            const patientStatus = await virtualCheckinService.getWaitingRoomStatus(p.appointment_id, p.patient_id);
+            if (patientStatus) {
+                sseManager.broadcastQueueUpdate(p.appointment_id, patientStatus);
             }
         }
 
@@ -671,14 +715,14 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
         }
 
         // BUG-008: Use LOWER() to normalize before comparison — statuses are stored lowercase
-        if (!['confirmed', 'pending', 'scheduled'].includes(String(appt.status).toLowerCase())) {
+        if (!['CONFIRMED', 'PENDING', 'SCHEDULED'].includes(String(appt.status).toUpperCase())) {
             return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
         }
 
         await conn.beginTransaction();
 
         await conn.query(
-            "UPDATE appointments SET status = 'cancelled' WHERE id = ?",
+            "UPDATE appointments SET status = 'CANCELLED' WHERE id = ?",
             [req.params.id]
         );
 

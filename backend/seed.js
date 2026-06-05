@@ -1,15 +1,24 @@
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const db = require('./src/config/db');
+const authConfig = require('./src/config/auth');
 
-const BCRYPT_ROUNDS = 10;
+const BCRYPT_ROUNDS = authConfig.bcryptRounds || 10;
 
 async function seed() {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+        console.error('❌ ERROR: Seeding is disabled in production unless ALLOW_PRODUCTION_SEED=true is set.');
+        process.exit(1);
+    }
+
     console.log('=== Starting Database Seeding ===');
 
     try {
         // 1. Hash password helper
-        const hashedPassword = await bcrypt.hash('password123', BCRYPT_ROUNDS);
-        const adminPassword = await bcrypt.hash('admin123', BCRYPT_ROUNDS);
+        const patientPassword = process.env.SEED_PATIENT_PASSWORD || 'password123';
+        const adminPasswordVal = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+        const hashedPassword = await bcrypt.hash(patientPassword, BCRYPT_ROUNDS);
+        const adminPassword = await bcrypt.hash(adminPasswordVal, BCRYPT_ROUNDS);
 
         // Helper to check and insert a user
         async function getOrCreateUser(email, passwordHash, role) {

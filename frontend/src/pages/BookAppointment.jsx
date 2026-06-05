@@ -472,20 +472,32 @@ const BookAppointment = () => {
                                     {allSlots.map(s => {
                                         const booked = slotCounts[s.label] || 0;
                                         const isFull = booked >= capacity;
+                                        
+                                        // Disable if today and slot start hour is in the past or current hour
+                                        let isPast = false;
+                                        const localToday = new Date();
+                                        const localTodayStr = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
+                                        if (selectedDate === localTodayStr) {
+                                            if (localToday.getHours() >= s.hour) {
+                                                isPast = true;
+                                            }
+                                        }
+
+                                        const isDisabled = isFull || isPast;
                                         return (
                                             <button
                                                 key={s.label}
-                                                disabled={isFull}
+                                                disabled={isDisabled}
                                                 onClick={() => setSelectedSlot(s.label)}
                                                 className={`p-4 rounded-2xl border transition-all text-center ${
                                                     selectedSlot === s.label ? 'bg-primary text-white border-primary shadow-lg scale-[1.02]' :
-                                                    isFull ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' :
+                                                    isDisabled ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed' :
                                                     'bg-white border-slate-100 hover:border-primary/30 hover:bg-primary-light/30'
                                                 }`}
                                             >
                                                 <div className="text-sm font-bold">{s.label}</div>
                                                 <div className={`text-[10px] mt-1 ${selectedSlot === s.label ? 'text-white/80' : 'text-slate-400'}`}>
-                                                    {isFull ? 'Fully Booked' : `${capacity - booked} slots left`}
+                                                    {isFull ? 'Fully Booked' : isPast ? 'Time Passed' : `${capacity - booked} slots left`}
                                                 </div>
                                             </button>
                                         );

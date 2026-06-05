@@ -139,7 +139,7 @@ class NotificationService {
                     <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                         © 2026 HealthSync Patient Portal. All rights reserved.
                         <br>
-                        <a href="${process.env.APP_URL || 'http://localhost:5173'}/settings/notifications" style="color: #2563eb; text-decoration: none;">Notification Settings</a>
+                        <a href="${process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'}/settings/notifications" style="color: #2563eb; text-decoration: none;">Notification Settings</a>
                     </p>
                 </div>
             </div>

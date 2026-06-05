@@ -131,12 +131,12 @@ class SmartArrivalService {
             SELECT 
                 COUNT(*) as total_appointments,
                 AVG(TIMESTAMPDIFF(MINUTE, 
-                    COALESCE(consultation_start, check_in_time), 
-                    COALESCE(consultation_end, updated_at)
+                    COALESCE(consultation_start, checked_in_at), 
+                    COALESCE(consultation_end, consultation_start)
                 )) as avg_consultation_mins,
                 STDDEV(TIMESTAMPDIFF(MINUTE, 
-                    COALESCE(consultation_start, check_in_time), 
-                    COALESCE(consultation_end, updated_at)
+                    COALESCE(consultation_start, checked_in_at), 
+                    COALESCE(consultation_end, consultation_start)
                 )) as stddev_mins
             FROM appointments 
             WHERE doctor_id = ? 
@@ -203,8 +203,8 @@ class SmartArrivalService {
         const [delaysRows] = await pool.query(`
             SELECT AVG(
                 CASE 
-                    WHEN lq.actual_start_time IS NOT NULL 
-                    THEN TIMESTAMPDIFF(MINUTE, a.time_slot, lq.actual_start_time)
+                    WHEN a.consultation_start IS NOT NULL 
+                    THEN TIMESTAMPDIFF(MINUTE, STR_TO_DATE(a.time_slot, '%H:%i'), a.consultation_start)
                     ELSE 0 
                 END
             ) as avg_delay

@@ -166,6 +166,12 @@ const AdminDashboard = () => {
                 
                 <div className="flex items-center gap-4 w-full md:w-auto">
                     <button 
+                        onClick={() => navigate('/admin-analytics')}
+                        className="flex-1 md:flex-none px-8 py-5 bg-primary text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+                    >
+                        <TrendingUp size={18} strokeWidth={3} /> Intelligence Hub
+                    </button>
+                    <button 
                         onClick={() => setIsEmergencyOpen(true)}
                         className="flex-1 md:flex-none px-8 py-5 bg-rose-500 text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-rose-500/20 hover:shadow-rose-500/40 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
                     >

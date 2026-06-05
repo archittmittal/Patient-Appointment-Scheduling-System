@@ -131,15 +131,15 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
         let whereClause;
         let orderClause;
         if (type === 'past') {
-            // Completed/cancelled OR in the past (support both upper and lowercase ENUM values)
-            whereClause = `a.patient_id = ? AND (a.appointment_date < CURDATE() OR LOWER(a.status) IN ('completed', 'cancelled', 'missed', 'no_show'))`;
+            // Completed/cancelled OR in the past (UPPERCASE ENUM values)
+            whereClause = `a.patient_id = ? AND (a.appointment_date < CURDATE() OR a.status IN ('COMPLETED', 'CANCELLED', 'MISSED', 'NO_SHOW'))`;
             orderClause = 'ORDER BY a.appointment_date DESC';
         } else if (type === 'all') {
             whereClause = `a.patient_id = ?`;
             orderClause = 'ORDER BY a.appointment_date DESC';
         } else {
-            // upcoming: today or future, not cancelled/completed (support both upper and lowercase ENUM values)
-            whereClause = `a.patient_id = ? AND a.appointment_date >= CURDATE() AND LOWER(a.status) IN ('confirmed', 'pending', 'waiting', 'in_progress', 'scheduled', 'checked_in')`;
+            // upcoming: today or future, not cancelled/completed (UPPERCASE ENUM values)
+            whereClause = `a.patient_id = ? AND a.appointment_date >= CURDATE() AND a.status IN ('CONFIRMED', 'PENDING', 'WAITING', 'IN_PROGRESS', 'SCHEDULED', 'CHECKED_IN')`;
             orderClause = 'ORDER BY a.appointment_date ASC';
         }
 
@@ -162,8 +162,6 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
 
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
-
-// ... (existing routes)
 
 // Issue #94: Get patient prescriptions
 router.get('/:id/prescriptions', authenticate, async (req, res) => {

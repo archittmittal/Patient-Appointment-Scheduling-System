@@ -17,9 +17,32 @@ function validateEnv() {
         console.error('\x1b[31m%s\x1b[0m', 'CRITICAL ERROR: Missing required environment variables:');
         missing.forEach(m => console.error('\x1b[31m%s\x1b[0m', `  - ${m}`));
         console.error('\x1b[33m%s\x1b[0m', 'Please check your .env file or environment configuration.');
-        
         process.exit(1);
     } else {
+        // Validate URL formats for APP_URL and FRONTEND_URL if set
+        const urlsToValidate = { APP_URL: process.env.APP_URL, FRONTEND_URL: process.env.FRONTEND_URL };
+        for (const [key, value] of Object.entries(urlsToValidate)) {
+            if (value) {
+                try {
+                    new URL(value);
+                } catch (e) {
+                    console.error('\x1b[31m%s\x1b[0m', `CRITICAL ERROR: Environment variable ${key} contains an invalid URL: "${value}"`);
+                    process.exit(1);
+                }
+            }
+        }
+
+        // Require APP_URL and FRONTEND_URL in production
+        if (process.env.NODE_ENV === 'production') {
+            const prodRequired = ['APP_URL', 'FRONTEND_URL'];
+            const missingProd = prodRequired.filter(v => !process.env[v]);
+            if (missingProd.length > 0) {
+                console.error('\x1b[31m%s\x1b[0m', 'CRITICAL ERROR: Missing required production environment variables:');
+                missingProd.forEach(m => console.error('\x1b[31m%s\x1b[0m', `  - ${m}`));
+                process.exit(1);
+            }
+        }
+
         // Novel: Verify JWT Secret Strength
         const jwtSecret = process.env.JWT_SECRET;
         const isDefaultSecret = jwtSecret === 'hs_jwt_super_secret_change_in_production_2024';

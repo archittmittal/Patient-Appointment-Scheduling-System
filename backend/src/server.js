@@ -15,11 +15,7 @@ const notificationRoutes = require('./routes/notifications');
 const virtualCheckinRoutes = require('./routes/virtualCheckin'); // Issue #39
 const analyticsRoutes = require('./routes/analytics'); // Issue #44
 const walkinRoutes = require('./routes/walkin'); // Issue #42
-const expressCheckinRoutes = require('./routes/expressCheckin'); // Issue #45
-const batchingRoutes = require('./routes/batching');
-const prepChecklistRoutes = require('./routes/prepChecklist');
 const multiDoctorRoutes = require('./routes/multiDoctor');
-const lateArrivalRoutes = require('./routes/lateArrival');
 const feedbackRoutes = require('./routes/feedback');
 const insuranceRoutes = require('./routes/insurance');
 const paymentRoutes = require('./routes/payments');
@@ -27,6 +23,8 @@ const messageRoutes = require('./routes/messages');
 const exportRoutes = require('./routes/export');
 const errorHandler = require('./middleware/errorHandler');
 const { initCronJobs } = require('./jobs/reminderJobs');
+const logger = require('./config/logger');
+const requestLogger = require('./middleware/requestLogger');
 
 const app = express();
 
@@ -38,11 +36,8 @@ app.use((req, res, next) => {
     express.json()(req, res, next);
 });
 
-// Debug Logger
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
+// Structured request logging middleware (Morgan + Winston)
+app.use(requestLogger);
 
 // Root Route (Moved to top for visibility)
 app.get('/', (req, res) => {
@@ -63,7 +58,7 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: 'http://localhost:7860',
+                url: process.env.APP_URL || 'http://localhost:7860',
             },
         ],
         components: {
@@ -111,25 +106,27 @@ const whitelist = new Set([
     ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : [])
 ].map(normalizeOrigin).filter(Boolean));
 
+// [SEC-008] CORS: whitelist-only in production; localhost pass-through in development.
+// Add specific deployment URLs to ALLOWED_ORIGINS env var — never use platform-wide wildcards.
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, Postman)
+        // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
         if (!origin) return callback(null, true);
-        
+
         const normalizedOrigin = normalizeOrigin(origin);
 
-        // 1. Allow whitelisted origins
+        // 1. Allow explicitly whitelisted origins (from env var or APP_URL/FRONTEND_URL)
         if (whitelist.has(normalizedOrigin)) return callback(null, true);
-        
-        // 2. Allow all localhost/127.0.0.1 variants for development
+
+        // 2. In development, allow any localhost / 127.0.0.1 variant
         if (process.env.NODE_ENV !== 'production') {
-            if (/^http:\/\/localhost:\d+$/.test(origin) || /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) {
+            if (
+                /^https?:\/\/localhost:\d+$/.test(origin) ||
+                /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)
+            ) {
                 return callback(null, true);
             }
         }
-        
-        // 3. In development, be permissive if needed
-        if (process.env.NODE_ENV !== 'production') return callback(null, true);
 
         callback(new Error('Not allowed by CORS'));
     },
@@ -138,10 +135,13 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Global Rate Limiter
+const rateLimitWindowMins = parseInt(process.env.RATE_LIMIT_WINDOW_MINS, 10) || 15;
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX, 10) || 100;
+
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again after 15 minutes'
+    windowMs: rateLimitWindowMins * 60 * 1000,
+    max: rateLimitMax,
+    message: `Too many requests from this IP, please try again after ${rateLimitWindowMins} minutes`
 });
 app.use('/api/', globalLimiter);
 
@@ -164,11 +164,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/virtual-checkin', virtualCheckinRoutes); // Issue #39
 app.use('/api/analytics', analyticsRoutes); // Issue #44
 app.use('/api/walkin', walkinRoutes); // Issue #42
-app.use('/api/express-checkin', expressCheckinRoutes); // Issue #45
-app.use('/api/batching', batchingRoutes);
-app.use('/api/prep', prepChecklistRoutes);
 app.use('/api/multi-doctor', multiDoctorRoutes);
-app.use('/api/late-arrival', lateArrivalRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/insurance', insuranceRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -196,6 +192,19 @@ app.get('/api/health', async (req, res) => {
     const { getCronStatus } = require('./jobs/reminderJobs');
     const schedulerStatus = typeof getCronStatus === 'function' ? getCronStatus() : null;
 
+    // Collect process and system performance telemetry
+    const memUsage = process.memoryUsage();
+    const performanceStats = {
+        memory: {
+            rssMb: Math.round((memUsage.rss / 1024 / 1024) * 100) / 100,
+            heapTotalMb: Math.round((memUsage.heapTotal / 1024 / 1024) * 100) / 100,
+            heapUsedMb: Math.round((memUsage.heapUsed / 1024 / 1024) * 100) / 100,
+            externalMb: Math.round((memUsage.external / 1024 / 1024) * 100) / 100
+        },
+        cpu: process.cpuUsage(),
+        nodeVersion: process.version
+    };
+
     res.json({
         status: dbStatus.healthy ? 'ok' : 'error',
         message: 'Hospital API is running',
@@ -205,7 +214,8 @@ app.get('/api/health', async (req, res) => {
             error: dbStatus.error,
             stats: dbStats
         },
-        scheduler: schedulerStatus
+        scheduler: schedulerStatus,
+        performance: performanceStats
     });
 });
 
@@ -216,7 +226,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`Server listening on port ${PORT}`);
+        logger.info(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
         // Initialize Background Jobs
         initCronJobs();
     });

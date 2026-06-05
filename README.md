@@ -14,7 +14,7 @@ A sophisticated, DSA-powered healthcare orchestration engine designed to elimina
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ### High-Level Component Interaction
 ```mermaid
@@ -91,7 +91,7 @@ sequenceDiagram
 
 ---
 
-## 📋 Problem Statement & Solutions
+##  Problem Statement & Solutions
 
 HealthSync Premium addresses critical bottlenecks identified by WHO and NCBI through algorithmic precision.
 
@@ -108,7 +108,7 @@ HealthSync Premium addresses critical bottlenecks identified by WHO and NCBI thr
 
 ---
 
-## ⚙️ Advanced Service Ecosystem
+##  Advanced Service Ecosystem
 
 The system's "Brain" resides in its modular service architecture, designed for high throughput and precision.
 
@@ -128,7 +128,7 @@ The system's "Brain" resides in its modular service architecture, designed for h
 
 ---
 
-## 📈 Algorithm Deep Dive
+## Algorithm Deep Dive
 
 | Feature | Primary Algorithm | Complexity | Purpose |
 |-----------|-----------|------------|------------------|
@@ -157,7 +157,7 @@ The system's "Brain" resides in its modular service architecture, designed for h
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 - **Frontend**: React 18, Vite, Tailwind CSS, Framer Motion, Lucide Icons
 - **Backend**: Node.js, Express.js, JWT, Nodemailer (SMTP)
@@ -167,7 +167,7 @@ The system's "Brain" resides in its modular service architecture, designed for h
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### 1. Prerequisites
 - Node.js (v18+)
@@ -194,7 +194,7 @@ cd frontend && npm run dev
 
 ---
 
-## 👥 Contributors & Academic Context
+##  Contributors & Academic Context
 
 - **Project Lead**: Archit Mittal
 - **Project Members**: Aviral Mittal
@@ -203,7 +203,7 @@ cd frontend && npm run dev
 
 ---
 
-## 📚 References
+##  References
 1. CLRS - *Introduction to Algorithms* (Chapters on Greedy & DP).
 2. WHO Digital Health Framework.
 3. NCBI - *Impact of Wait Times on Patient Outcomes*.
