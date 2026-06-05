@@ -57,7 +57,7 @@ class PeakHoursService {
                 COUNT(*) as count,
                 AVG(TIMESTAMPDIFF(MINUTE, 
                     STR_TO_DATE(time_slot, '%H:%i'), 
-                    IFNULL(actual_start_time, STR_TO_DATE(time_slot, '%H:%i'))
+                    IFNULL(consultation_start, STR_TO_DATE(time_slot, '%H:%i'))
                 )) as avg_delay_mins
             FROM appointments
             WHERE doctor_id = ?
@@ -158,8 +158,8 @@ class PeakHoursService {
                 HOUR(time_slot) as hour,
                 COUNT(*) as total_appointments,
                 AVG(CASE 
-                    WHEN actual_start_time IS NOT NULL 
-                    THEN TIMESTAMPDIFF(MINUTE, STR_TO_DATE(time_slot, '%H:%i'), actual_start_time)
+                    WHEN consultation_start IS NOT NULL 
+                    THEN TIMESTAMPDIFF(MINUTE, STR_TO_DATE(time_slot, '%H:%i'), consultation_start)
                     ELSE 0 
                 END) as avg_wait_mins,
                 SUM(CASE WHEN status = 'NO_SHOW' THEN 1 ELSE 0 END) / COUNT(*) * 100 as no_show_rate
@@ -254,21 +254,114 @@ class PeakHoursService {
             ORDER BY hour
         `, [daysBack]);
 
-        // Per-department stats
+        // Per-department stats (Fixed: join doctors table directly)
         const [deptStats] = await db.query(`
             SELECT 
-                s.name as specialty,
+                d.specialty,
                 COUNT(*) as total_appointments,
                 COUNT(DISTINCT a.doctor_id) as doctors,
                 AVG(CASE WHEN a.status = 'NO_SHOW' THEN 1 ELSE 0 END) * 100 as no_show_rate
             FROM appointments a
-            JOIN users u ON a.doctor_id = u.id
-            JOIN specialties s ON u.specialty_id = s.id
+            JOIN doctors d ON a.doctor_id = d.id
             WHERE a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
               AND a.status NOT IN ('CANCELLED')
-            GROUP BY s.name
+            GROUP BY d.specialty
             ORDER BY total_appointments DESC
         `, [daysBack]);
+
+        // Financial stats - Daily revenue over time
+        const [revenueByDay] = await db.query(`
+            SELECT 
+                DATE_FORMAT(appointment_date, '%Y-%m-%d') as date,
+                SUM(payment_amount) as revenue,
+                COUNT(id) as paid_appointments
+            FROM appointments
+            WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+              AND payment_status = 'PAID'
+            GROUP BY DATE_FORMAT(appointment_date, '%Y-%m-%d')
+            ORDER BY date ASC
+        `, [daysBack]);
+
+        // Financial stats - Revenue breakdown by doctor
+        const [revenueByDoctor] = await db.query(`
+            SELECT 
+                d.id as doctor_id,
+                CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
+                d.specialty,
+                SUM(a.payment_amount) as revenue,
+                COUNT(a.id) as paid_appointments
+            FROM appointments a
+            JOIN doctors d ON a.doctor_id = d.id
+            WHERE a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+              AND a.payment_status = 'PAID'
+            GROUP BY d.id, d.first_name, d.last_name, d.specialty
+            ORDER BY revenue DESC
+        `, [daysBack]);
+
+        // Cancellation daily counts
+        const [cancellationsByDay] = await db.query(`
+            SELECT 
+                DATE_FORMAT(appointment_date, '%Y-%m-%d') as date,
+                COUNT(id) as total_appointments,
+                SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled_appointments
+            FROM appointments
+            WHERE appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            GROUP BY DATE_FORMAT(appointment_date, '%Y-%m-%d')
+            ORDER BY date ASC
+        `, [daysBack]);
+
+        // Overall wait time & duration averages
+        const [timingStats] = await db.query(`
+            SELECT 
+                AVG(CASE 
+                    WHEN a.consultation_start IS NOT NULL AND a.checked_in_at IS NOT NULL
+                    THEN TIMESTAMPDIFF(MINUTE, a.checked_in_at, a.consultation_start)
+                    WHEN a.consultation_start IS NOT NULL 
+                    THEN TIMESTAMPDIFF(MINUTE, STR_TO_DATE(a.time_slot, '%H:%i'), a.consultation_start)
+                    ELSE 0 
+                END) as avg_wait_mins,
+                AVG(CASE 
+                    WHEN a.consultation_start IS NOT NULL AND a.consultation_end IS NOT NULL
+                    THEN TIMESTAMPDIFF(MINUTE, a.consultation_start, a.consultation_end)
+                    ELSE a.predicted_duration_mins
+                END) as avg_actual_duration_mins,
+                AVG(a.predicted_duration_mins) as avg_predicted_duration_mins
+            FROM appointments a
+            WHERE a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+              AND a.status = 'COMPLETED'
+        `, [daysBack]);
+
+        // Doctor utilization & reviews performance metrics
+        const [doctorPerformance] = await db.query(`
+            SELECT 
+                d.id as doctor_id,
+                CONCAT(d.first_name, ' ', d.last_name) as doctor_name,
+                d.specialty,
+                d.rating,
+                COUNT(a.id) as total_appointments,
+                AVG(CASE 
+                    WHEN a.consultation_start IS NOT NULL AND a.checked_in_at IS NOT NULL
+                    THEN TIMESTAMPDIFF(MINUTE, a.checked_in_at, a.consultation_start)
+                    WHEN a.consultation_start IS NOT NULL 
+                    THEN TIMESTAMPDIFF(MINUTE, STR_TO_DATE(a.time_slot, '%H:%i'), a.consultation_start)
+                    ELSE 0 
+                END) as avg_wait_mins,
+                AVG(CASE 
+                    WHEN a.consultation_start IS NOT NULL AND a.consultation_end IS NOT NULL
+                    THEN TIMESTAMPDIFF(MINUTE, a.consultation_start, a.consultation_end)
+                    ELSE a.predicted_duration_mins
+                END) as avg_duration_mins
+            FROM doctors d
+            LEFT JOIN appointments a ON d.id = a.doctor_id AND a.appointment_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND a.status = 'COMPLETED'
+            GROUP BY d.id, d.first_name, d.last_name, d.specialty, d.rating
+            ORDER BY total_appointments DESC
+        `, [daysBack]);
+
+        // Compute summaries
+        const totalRevenue = revenueByDay.reduce((sum, d) => sum + parseFloat(d.revenue || 0), 0);
+        const totalAppointments = cancellationsByDay.reduce((sum, d) => sum + d.total_appointments, 0);
+        const totalCancellations = cancellationsByDay.reduce((sum, d) => sum + d.cancelled_appointments, 0);
+        const cancellationRate = totalAppointments > 0 ? (totalCancellations / totalAppointments) * 100 : 0;
 
         return {
             hourlyStats: hourlyStats.map(h => ({
@@ -276,7 +369,51 @@ class PeakHoursService {
                 total: h.total,
                 doctorsActive: h.doctors_active
             })),
-            departmentStats: deptStats,
+            departmentStats: deptStats.map(d => ({
+                specialty: d.specialty,
+                totalAppointments: d.total_appointments,
+                doctors: d.doctors,
+                noShowRate: Math.round(d.no_show_rate || 0)
+            })),
+            revenueStats: {
+                totalRevenue,
+                revenueByDay: revenueByDay.map(r => ({
+                    date: r.date,
+                    revenue: parseFloat(r.revenue || 0),
+                    paidAppointments: r.paid_appointments
+                })),
+                revenueByDoctor: revenueByDoctor.map(r => ({
+                    doctorId: r.doctor_id,
+                    doctorName: r.doctor_name,
+                    specialty: r.specialty,
+                    revenue: parseFloat(r.revenue || 0),
+                    paidAppointments: r.paid_appointments
+                }))
+            },
+            cancellationStats: {
+                cancellationRate: Math.round(cancellationRate * 10) / 10,
+                totalAppointments,
+                totalCancellations,
+                cancellationsByDay: cancellationsByDay.map(c => ({
+                    date: c.date,
+                    totalAppointments: c.total_appointments,
+                    cancelledAppointments: c.cancelled_appointments
+                }))
+            },
+            utilizationStats: {
+                avgWaitMins: Math.round(timingStats[0]?.avg_wait_mins || 0),
+                avgDurationMins: Math.round(timingStats[0]?.avg_actual_duration_mins || 0),
+                avgPredictedDurationMins: Math.round(timingStats[0]?.avg_predicted_duration_mins || 0),
+                doctorPerformance: doctorPerformance.map(dp => ({
+                    doctorId: dp.doctor_id,
+                    doctorName: dp.doctor_name,
+                    specialty: dp.specialty,
+                    rating: parseFloat(dp.rating || 0),
+                    totalAppointments: dp.total_appointments,
+                    avgWaitMins: Math.round(dp.avg_wait_mins || 0),
+                    avgDurationMins: Math.round(dp.avg_duration_mins || 0)
+                }))
+            },
             summary: {
                 peakHour: hourlyStats.reduce((max, h) => h.total > max.total ? h : max, hourlyStats[0])?.hour,
                 quietHour: hourlyStats.reduce((min, h) => h.total < min.total ? h : min, hourlyStats[0])?.hour,

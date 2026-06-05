@@ -6,6 +6,7 @@
 const cron = require('node-cron');
 const db = require('../config/db');
 const notificationService = require('../services/notificationService');
+const logger = require('../config/logger');
 
 const cronStatus = {
     initialized: false,
@@ -19,7 +20,7 @@ const cronStatus = {
 const initCronJobs = () => {
     cronStatus.initialized = true;
     if (process.env.NODE_ENV === 'test') {
-        console.log('[Cron] Skipping initialization in test environment.');
+        logger.debug('[Cron] Skipping initialization in test environment.');
         return;
     }
 
@@ -27,7 +28,7 @@ const initCronJobs = () => {
     // Runs every day at 8:00 AM
     cron.schedule('0 8 * * *', async () => {
         cronStatus.lastMorningRun = new Date().toISOString();
-        console.log('[Cron] Running Morning Appointment Reminders...');
+        logger.info('[Cron] Running Morning Appointment Reminders...');
         try {
             // Find appointments for today
             const query = `
@@ -35,7 +36,7 @@ const initCronJobs = () => {
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.id
                 WHERE a.appointment_date = CURDATE() 
-                AND a.status = 'confirmed'
+                AND a.status = 'CONFIRMED'
                 -- BUG-005: was 'CONFIRMED' — statuses are stored lowercase at booking time
             `;
 
@@ -48,9 +49,9 @@ const initCronJobs = () => {
                     `today at ${appt.time_slot}`
                 );
             }
-            console.log(`[Cron] Sent ${appointments.length} morning reminders.`);
+            logger.info('[Cron] Morning reminders execution complete', { count: appointments.length });
         } catch (error) {
-            console.error('[Cron Error] Morning reminders failed:', error);
+            logger.error('[Cron Error] Morning reminders failed', { error });
         }
     });
 
@@ -58,7 +59,7 @@ const initCronJobs = () => {
     // Runs every 30 minutes
     cron.schedule('*/30 * * * *', async () => {
         cronStatus.lastProximityRun = new Date().toISOString();
-        console.log('[Cron] Running 1-Hour Proximity Check...');
+        logger.info('[Cron] Running 1-Hour Proximity Check...');
         try {
             const now = new Date();
             const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
@@ -69,7 +70,7 @@ const initCronJobs = () => {
                 FROM appointments a
                 JOIN doctors d ON a.doctor_id = d.id
                 WHERE a.appointment_date = CURDATE()
-                AND a.status = 'confirmed'
+                AND a.status = 'CONFIRMED'
                 -- BUG-005: was 'CONFIRMED' — statuses are stored lowercase at booking time
             `;
 
@@ -111,11 +112,11 @@ const initCronJobs = () => {
                 }
             }
         } catch (error) {
-            console.error('[Cron Error] Proximity check failed:', error);
+            logger.error('[Cron Error] Proximity check failed', { error });
         }
     });
 
-    console.log('✓ Cron Scheduler Initialized');
+    logger.info('Cron Scheduler Initialized successfully');
 };
 
 const getCronStatus = () => cronStatus;

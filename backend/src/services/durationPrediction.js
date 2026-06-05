@@ -135,7 +135,7 @@ class DurationPredictionService {
         try {
             const [resultRows] = await db.query(
                 `SELECT COUNT(*) as visits FROM appointments 
-                 WHERE patient_id = ? AND doctor_id = ? AND LOWER(status) = 'completed'`,
+                 WHERE patient_id = ? AND doctor_id = ? AND status = 'COMPLETED'`,
                 [patientId, doctorId]
             );
             const result = resultRows[0];

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { 
     LayoutDashboard, Users, User, Calendar, Activity, LogOut, 
-    ClipboardList, CalendarDays, Zap, Layers, ClipboardCheck, 
-    Route, AlarmClock, MessageSquare, BarChart3, Pill, LineChart,
+    ClipboardList, CalendarDays,
+    Route, MessageSquare, BarChart3, Pill, LineChart,
     ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -15,13 +15,9 @@ const PATIENT_MENU = [
     { name: 'Medications', icon: Pill, path: '/prescriptions' },
     { name: 'Find Doctors', icon: Search, path: '/doctors' },
     { name: 'Book Visit', icon: Calendar, path: '/book' },
-    { name: 'Insurance', icon: Shield, path: '/insurance' },
-    { name: 'Express Check-in', icon: Zap, path: '/express-checkin' },
-    { name: 'Batch Booking', icon: Layers, path: '/batch-appointments' },
-    { name: 'Prep Checklist', icon: ClipboardCheck, path: '/prep-checklist' },
-    { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
     { name: 'Live Queue', icon: HeartPulse, path: '/queue' },
-    { name: 'Check-in Help', icon: AlarmClock, path: '/late-arrival' },
+    { name: 'Multi-Doctor', icon: Route, path: '/multi-doctor' },
+    { name: 'Insurance', icon: Shield, path: '/insurance' },
     { name: 'Feedback', icon: MessageSquare, path: '/feedback' },
     { name: 'Messages', icon: MessageSquare, path: '/messages' },
     { name: 'My Profile', icon: User, path: '/profile' },

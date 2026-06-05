@@ -1,0 +1,103 @@
+const logger = require('../src/config/logger');
+const { redactObject } = require('../src/middleware/requestLogger');
+const request = require('supertest');
+const app = require('../src/server');
+
+describe('Observability & Monitoring Tests', () => {
+    describe('Winston Logger Configuration', () => {
+        it('should create a logger with the correct level and transport configuration', () => {
+            expect(logger).toBeDefined();
+            expect(logger.transports.length).toBeGreaterThan(0);
+            expect(logger.level).toBeDefined();
+        });
+
+        it('should expose standard logging functions', () => {
+            expect(typeof logger.info).toBe('function');
+            expect(typeof logger.error).toBe('function');
+            expect(typeof logger.warn).toBe('function');
+            expect(typeof logger.debug).toBe('function');
+            expect(typeof logger.http).toBe('function');
+        });
+    });
+
+    describe('Sensitive Field Redaction Utility', () => {
+        it('should redact sensitive fields in a flat object', () => {
+            const input = {
+                email: 'test@example.com',
+                password: 'secretPassword123',
+                otp: '123456',
+                doctorId: 1
+            };
+            const expected = {
+                email: 'test@example.com',
+                password: '[REDACTED]',
+                otp: '[REDACTED]',
+                doctorId: 1
+            };
+            expect(redactObject(input)).toEqual(expected);
+        });
+
+        it('should recursively redact sensitive fields in nested structures', () => {
+            const input = {
+                user: {
+                    email: 'nested@example.com',
+                    credentials: {
+                        password: 'nestedPassword',
+                        token: 'jwt-token-xyz'
+                    }
+                },
+                regularArray: [
+                    { password: '123' },
+                    { nonSensitive: 'abc' }
+                ],
+                nonSensitive: 'ok'
+            };
+            const expected = {
+                user: {
+                    email: 'nested@example.com',
+                    credentials: {
+                        password: '[REDACTED]',
+                        token: '[REDACTED]'
+                    }
+                },
+                regularArray: [
+                    { password: '[REDACTED]' },
+                    { nonSensitive: 'abc' }
+                ],
+                nonSensitive: 'ok'
+            };
+            expect(redactObject(input)).toEqual(expected);
+        });
+
+        it('should return null or undefined if input is null or undefined', () => {
+            expect(redactObject(null)).toBeNull();
+            expect(redactObject(undefined)).toBeUndefined();
+            expect(redactObject('just-a-string')).toBe('just-a-string');
+        });
+    });
+
+    describe('GET /api/health Telemetry Enrichment', () => {
+        it('should return system performance telemetry, memory statistics and database status', async () => {
+            const res = await request(app).get('/api/health');
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toHaveProperty('status');
+            expect(res.body).toHaveProperty('uptime');
+            expect(res.body).toHaveProperty('database');
+            expect(res.body).toHaveProperty('performance');
+            
+            const perf = res.body.performance;
+            expect(perf).toHaveProperty('memory');
+            expect(perf).toHaveProperty('cpu');
+            expect(perf).toHaveProperty('nodeVersion');
+            
+            const mem = perf.memory;
+            expect(mem).toHaveProperty('rssMb');
+            expect(mem).toHaveProperty('heapTotalMb');
+            expect(mem).toHaveProperty('heapUsedMb');
+            expect(mem).toHaveProperty('externalMb');
+            
+            expect(typeof mem.heapUsedMb).toBe('number');
+            expect(typeof perf.nodeVersion).toBe('string');
+        });
+    });
+});

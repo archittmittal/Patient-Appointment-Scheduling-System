@@ -5,8 +5,9 @@ const db = require('../config/db');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const { bcryptRounds } = require('../config/auth');
 
-const BCRYPT_ROUNDS = 10;
+const BCRYPT_ROUNDS = bcryptRounds || 10;
 
 // Validation Schemas
 const addDoctorSchema = Joi.object({
@@ -43,7 +44,7 @@ const usersQuerySchema = Joi.object({
 const appointmentsQuerySchema = Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(20),
-    status: Joi.string().valid('confirmed', 'pending', 'completed', 'cancelled', 'scheduled', 'ALL').default('ALL'),
+    status: Joi.string().valid('CONFIRMED', 'PENDING', 'COMPLETED', 'CANCELLED', 'SCHEDULED', 'ALL').default('ALL'),
     date: Joi.string().isoDate().allow('', null)
 });
 
@@ -544,8 +545,8 @@ router.get('/appointments', validateRequest(appointmentsQuerySchema, 'query'), a
 
         // DB-003: status filter (ALL = no filter)
         if (status && status !== 'ALL') {
-            conditions.push('LOWER(a.status) = ?');
-            filterParams.push(status.toLowerCase());
+            conditions.push('a.status = ?');
+            filterParams.push(status.toUpperCase());
         }
 
         // DB-003: optional exact date filter
@@ -621,10 +622,10 @@ router.get('/stats', async (req, res) => {
                 (SELECT COUNT(*) FROM patients) AS total_patients,
                 (SELECT COUNT(*) FROM appointments) AS total_appointments,
                 COUNT(CASE WHEN appointment_date = CURDATE() THEN 1 END) AS today_total,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'confirmed' THEN 1 END) AS today_confirmed,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'completed' THEN 1 END) AS today_completed,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'pending' THEN 1 END) AS today_pending,
-                COUNT(CASE WHEN appointment_date = CURDATE() AND LOWER(status) = 'cancelled' THEN 1 END) AS today_cancelled
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CONFIRMED' THEN 1 END) AS today_confirmed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'COMPLETED' THEN 1 END) AS today_completed,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'PENDING' THEN 1 END) AS today_pending,
+                COUNT(CASE WHEN appointment_date = CURDATE() AND status = 'CANCELLED' THEN 1 END) AS today_cancelled
             FROM appointments
         `);
         const stats = statsRows[0];
