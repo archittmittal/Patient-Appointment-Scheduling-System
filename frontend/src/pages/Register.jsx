@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield, User, Phone, MapPin, Droplets, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -62,6 +63,44 @@ const Register = () => {
         }
     };
 
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setError('');
+        setLoading(true);
+        const token = credentialResponse?.credential;
+        if (!token) {
+            setError('Google signup was unsuccessful or canceled.');
+            setLoading(false);
+            return;
+        }
+        try {
+            const data = await authService.googleLogin(token);
+            
+            if (data.error || !data.token) {
+                setError(data.message || 'Google registration failed.');
+                return;
+            }
+
+            if (data.role && data.role !== 'PATIENT') {
+                setError('Doctors and Admins must sign in via the Login page.');
+                authService.logout();
+                return;
+            }
+
+            login(data);
+            
+            const pending = localStorage.getItem('pendingBooking');
+            if (pending) {
+                navigate('/book');
+            } else {
+                navigate('/patient-dashboard');
+            }
+        } catch (err) {
+            setError(err.message || 'Unable to connect to Google SSO.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[var(--bg-base)] flex flex-col items-center px-6 pt-6 pb-20 relative overflow-hidden">
             <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse"></div>
@@ -92,6 +131,25 @@ const Register = () => {
 
                         {step === 1 ? (
                             <form onSubmit={handleStep1} className="space-y-6">
+                                <div className="mb-6 flex justify-center w-full">
+                                    <GoogleLogin
+                                        onSuccess={handleGoogleSuccess}
+                                        onError={() => {
+                                            setError('Google signup was unsuccessful or canceled.');
+                                        }}
+                                        text="signup_with"
+                                        useOneTap
+                                        theme="filled_blue"
+                                        shape="pill"
+                                    />
+                                </div>
+                                
+                                <div className="mb-6 flex items-center justify-center space-x-4">
+                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                    <span className="text-xs text-[var(--text-base)]/50 font-medium">OR</span>
+                                    <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
+                                </div>
+
                                 <h3 className="text-xl font-bold text-[var(--text-base)] mb-6">Basic Information</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">

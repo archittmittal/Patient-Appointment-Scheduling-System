@@ -6,8 +6,10 @@ USE hospital_system;
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    password_hash VARCHAR(255) NULL,
     role ENUM('ADMIN', 'PATIENT', 'DOCTOR') NOT NULL,
+    auth_provider VARCHAR(50) DEFAULT 'LOCAL',
+    google_id VARCHAR(255) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
