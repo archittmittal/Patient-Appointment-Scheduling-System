@@ -198,6 +198,11 @@ class AuthService {
         });
         
         const payload = ticket.getPayload();
+        if (!payload?.email || !payload?.sub || payload.email_verified !== true) {
+            const error = new Error('Invalid Google token');
+            error.status = 401;
+            throw error;
+        }
         const { sub: googleId, email, given_name, family_name } = payload;
 
         // Check if user exists
@@ -234,6 +239,10 @@ class AuthService {
             // Existing user, link google_id if empty
             if (!user.google_id) {
                 await db.query('UPDATE users SET auth_provider = ?, google_id = ? WHERE id = ?', ['GOOGLE', googleId, user.id]);
+            } else if (user.google_id !== googleId) {
+                const error = new Error('Google account mismatch');
+                error.status = 401;
+                throw error;
             }
         }
 
