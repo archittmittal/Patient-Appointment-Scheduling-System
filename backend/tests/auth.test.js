@@ -124,9 +124,12 @@ describe('Auth Endpoints', () => {
 
     it('should fail with 401 for invalid payload', async () => {
       const { OAuth2Client } = require('google-auth-library');
-      OAuth2Client.prototype.verifyIdToken.mockResolvedValueOnce({
+      const verifyIdTokenMock = jest.fn().mockResolvedValueOnce({
         getPayload: () => ({ email: 'test@example.com' }) // missing sub and email_verified
       });
+      OAuth2Client.mockImplementation(() => ({
+        verifyIdToken: verifyIdTokenMock
+      }));
 
       const res = await request(app)
         .post('/api/auth/google')
