@@ -5,7 +5,11 @@ import Navbar from './Navbar';
 
 const Layout = () => {
     return (
-        <div className="flex h-screen bg-[#f5f5f7] text-[#1d1d1f] transition-colors duration-300 overflow-hidden font-sans">
+        <div className="flex h-screen bg-[var(--bg-base)] text-[var(--text-base)] transition-colors duration-300 overflow-hidden font-sans relative">
+            {/* Ambient Background Blobs for Glass Effect */}
+            <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[120px] pointer-events-none animate-pulse delay-1000"></div>
+
             <Sidebar />
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <Navbar />
