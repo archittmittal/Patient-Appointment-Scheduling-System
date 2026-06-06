@@ -28,7 +28,7 @@ const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
         onClick={onClick}
         className="flex flex-col items-center gap-3 group transition-all"
     >
-        <div className="w-16 h-16 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-300">
+        <div className="w-16 h-16 rounded-[1.5rem] glass-card border-none shadow-sm flex items-center justify-center group-hover:shadow-md group-hover:-translate-y-1 transition-all duration-300">
             <Icon size={24} className="text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
         </div>
         <span className="text-[13px] font-semibold text-slate-600 tracking-tight">{title}</span>
@@ -163,7 +163,7 @@ const PatientDashboard = () => {
                             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Up Next</h2>
                         </div>
                         {nextApt ? (
-                            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8 flex flex-col md:flex-row gap-8 items-center group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
+                            <div className="glass-modal rounded-[2.5rem] border-none shadow-xl p-8 flex flex-col md:flex-row gap-8 items-center group transition-all duration-500 hover:shadow-2xl hover:shadow-primary/10">
                                 <div className="w-24 h-24 rounded-3xl bg-primary/5 flex flex-col items-center justify-center text-primary group-hover:scale-110 transition-transform duration-500">
                                     <span className="text-[10px] font-black uppercase tracking-widest">{new Date(nextApt.appointment_date).toLocaleDateString('en-US', { month: 'short' })}</span>
                                     <span className="text-4xl font-black">{new Date(nextApt.appointment_date).getDate()}</span>
@@ -184,7 +184,7 @@ const PatientDashboard = () => {
                                 </button>
                             </div>
                         ) : (
-                            <div className="apple-card p-12 text-center border-dashed border-2">
+                            <div className="glass-card p-12 text-center border-dashed border-2">
                                 <CalendarIcon size={48} className="mx-auto text-slate-200 mb-4" />
                                 <p className="text-slate-500 font-semibold ">No upcoming appointments scheduled.</p>
                                 <button onClick={() => navigate('/book')} className="mt-4 text-primary font-bold hover:underline">Book one now</button>
@@ -261,7 +261,7 @@ const PatientDashboard = () => {
                 <div className="lg:col-span-4 space-y-10">
                     
                     {/* Vitals Summary Card */}
-                    <div className="apple-card p-8 bg-white border-slate-100 shadow-xl shadow-slate-200/30 overflow-hidden relative">
+                    <div className="glass-card p-8 border-none shadow-xl overflow-hidden relative">
                         <div className="absolute top-0 right-0 p-8 opacity-5"><Heart size={80} /></div>
                         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-8">Latest Vitals</h2>
                         {latestVitals ? (
@@ -300,7 +300,7 @@ const PatientDashboard = () => {
                     </div>
 
                     {/* Helpful Tips or Notifications */}
-                    <div className="apple-card p-8 bg-primary/5 border-primary/10 shadow-none">
+                    <div className="glass-card p-8 border-none shadow-sm bg-primary/5">
                         <div className="flex items-center gap-3 mb-4">
                             <Sparkles size={18} className="text-primary" />
                             <h3 className="font-bold text-primary">Health Tip</h3>

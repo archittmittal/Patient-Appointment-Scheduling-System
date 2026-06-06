@@ -83,7 +83,7 @@ const Sidebar = () => {
     };
 
     return (
-        <aside className="w-72 h-screen bg-white flex flex-col border-r border-slate-100 flex-shrink-0 z-20 transition-all duration-300">
+        <aside className="w-72 h-screen bg-[var(--glass-bg-val)] backdrop-blur-xl flex flex-col border-r border-[var(--glass-border-val)] flex-shrink-0 z-20 transition-all duration-300">
             {/* Header / Brand */}
             <div className="p-8 pb-4">
                 <div className="flex items-center gap-3 mb-10 group cursor-pointer" onClick={() => navigate('/')}>
@@ -146,9 +146,9 @@ const Sidebar = () => {
             <div className="p-4 mt-auto">
                 {user ? (
                     <>
-                        <div className="p-4 bg-slate-50 rounded-3xl mb-4 border border-slate-100 group transition-all hover:bg-white hover:shadow-xl hover:shadow-slate-200/50">
+                        <div className="p-4 glass-card rounded-3xl mb-4 group transition-all hover:shadow-xl hover:shadow-primary/10">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center border border-slate-100 shadow-sm overflow-hidden">
+                                <div className="w-10 h-10 bg-[var(--bg-base)]/50 backdrop-blur-md rounded-2xl flex items-center justify-center border border-[var(--glass-border-val)] shadow-sm overflow-hidden">
                                     <img 
                                         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.first_name + ' ' + user?.last_name)}&background=ffffff&color=0071e3&bold=true`} 
                                         alt="User" 
