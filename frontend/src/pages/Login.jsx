@@ -105,7 +105,7 @@ const Login = () => {
                     </div>
 
                     {/* Login Form */}
-                    <div className="apple-card p-10 border border-[var(--border-base)]/50 shadow-xl shadow-primary/5">
+                    <div className="glass-modal p-10 border-none shadow-2xl relative overflow-hidden group">
                         {error && (
                             <div className="mb-8 p-4 bg-danger/5 border border-danger/10 text-danger text-sm rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
                                 <Shield size={18} className="shrink-0" />

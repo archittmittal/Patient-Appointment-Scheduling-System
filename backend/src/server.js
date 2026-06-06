@@ -171,6 +171,21 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/export', exportRoutes);
 
+// Temporary Migration Route
+app.get('/api/fix-db', async (req, res) => {
+    let output = '';
+    try {
+        const db = require('./config/db');
+        try { await db.query(`ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL`); output += 'Step 1 done. '; } catch(e) { output += 'Step 1: ' + e.message + '. '; }
+        try { await db.query(`ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'LOCAL'`); output += 'Step 2 done. '; } catch(e) { output += 'Step 2: ' + e.message + '. '; }
+        try { await db.query(`ALTER TABLE users ADD COLUMN google_id VARCHAR(255)`); output += 'Step 3a (add column) done. '; } catch(e) { output += 'Step 3a: ' + e.message + '. '; }
+        try { await db.query(`CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)`); output += 'Step 3b (unique index) done. '; } catch(e) { output += 'Step 3b: ' + e.message + '. '; }
+        res.send('Database fix attempt completed! Details: ' + output);
+    } catch (e) {
+        res.send('Database result (it may have already been fixed): ' + e.message);
+    }
+});
+
 // Health check
 app.get('/api/health', async (req, res) => {
     let dbStatus = { healthy: false, error: null };
