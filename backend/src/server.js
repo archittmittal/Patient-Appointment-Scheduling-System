@@ -172,17 +172,31 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/export', exportRoutes);
 
 // Temporary Migration Route
-app.get('/api/fix-db', async (req, res) => {
+const { authenticate, requireRole } = require('./middleware/authenticate');
+app.post('/api/fix-db', authenticate, requireRole('ADMIN'), async (req, res) => {
+    if (process.env.ENABLE_DB_FIX !== 'true') {
+        return res.status(403).json({ success: false, message: 'Endpoint disabled by configuration' });
+    }
     let output = '';
+    let failed = false;
+    console.log(`[AUDIT] Admin ${req.user.id} initiated /api/fix-db`);
     try {
         const db = require('./config/db');
-        try { await db.query(`ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL`); output += 'Step 1 done. '; } catch(e) { output += 'Step 1: ' + e.message + '. '; }
-        try { await db.query(`ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'LOCAL'`); output += 'Step 2 done. '; } catch(e) { output += 'Step 2: ' + e.message + '. '; }
-        try { await db.query(`ALTER TABLE users ADD COLUMN google_id VARCHAR(255)`); output += 'Step 3a (add column) done. '; } catch(e) { output += 'Step 3a: ' + e.message + '. '; }
-        try { await db.query(`CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)`); output += 'Step 3b (unique index) done. '; } catch(e) { output += 'Step 3b: ' + e.message + '. '; }
-        res.send('Database fix attempt completed! Details: ' + output);
+        try { await db.query(`ALTER TABLE users MODIFY password_hash VARCHAR(255) NULL`); output += 'Step 1 done. '; } catch(e) { failed = true; output += 'Step 1: ' + e.message + '. '; }
+        try { await db.query(`ALTER TABLE users ADD COLUMN auth_provider VARCHAR(50) DEFAULT 'LOCAL'`); output += 'Step 2 done. '; } catch(e) { failed = true; output += 'Step 2: ' + e.message + '. '; }
+        try { await db.query(`ALTER TABLE users ADD COLUMN google_id VARCHAR(255)`); output += 'Step 3a (add column) done. '; } catch(e) { failed = true; output += 'Step 3a: ' + e.message + '. '; }
+        try { await db.query(`CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)`); output += 'Step 3b (unique index) done. '; } catch(e) { failed = true; output += 'Step 3b: ' + e.message + '. '; }
+        
+        console.log(`[AUDIT] /api/fix-db completed by Admin ${req.user.id}. Failed: ${failed}`);
+        
+        if (failed) {
+            return res.status(500).json({ success: false, message: 'Database fix failed', details: output });
+        } else {
+            return res.status(200).json({ success: true, message: 'Database fix completed', details: output });
+        }
     } catch (e) {
-        res.send('Database result (it may have already been fixed): ' + e.message);
+        console.error(`[AUDIT] /api/fix-db outer error: ${e.message}`);
+        return res.status(500).json({ success: false, message: 'Database fix encountered a fatal error', details: e.message });
     }
 });
 
