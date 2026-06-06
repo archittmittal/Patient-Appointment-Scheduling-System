@@ -1,0 +1,24 @@
+name: Sync Backend to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'Dockerfile'
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+      
+      - name: Push to Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git push https://archittmittal:$HF_TOKEN@huggingface.co/spaces/archittmittal/Backend_PatientAppointment main:main -f

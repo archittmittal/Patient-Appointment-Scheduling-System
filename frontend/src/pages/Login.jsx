@@ -169,17 +169,19 @@ const Login = () => {
                             <div className="h-px bg-[var(--border-base)]/30 w-full flex-1"></div>
                         </div>
 
-                        <div className="mt-6 flex justify-center w-full">
-                            <GoogleLogin
-                                onSuccess={handleGoogleSuccess}
-                                onError={() => {
-                                    setError('Google login was unsuccessful or canceled.');
-                                }}
-                                useOneTap
-                                theme="filled_blue"
-                                shape="pill"
-                            />
-                        </div>
+                                <div className="mt-6 flex justify-center w-full">
+                                    <GoogleLogin
+                                        onSuccess={handleGoogleSuccess}
+                                        onError={() => {
+                                            setError('Google login was unsuccessful or canceled.');
+                                        }}
+                                        useOneTap
+                                        theme="filled_blue"
+                                        shape="pill"
+                                    />
+                                </div>
+                            </>
+                        )}
 
                         <div className="mt-10 pt-8 border-t border-(--border-base)/30 text-center">
                             <p className="text-sm text-(--text-base)/60">
