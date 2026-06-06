@@ -21,4 +21,19 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # Remove Git history and screenshots folder to prevent binary file rejection
+          rm -rf .git
+          rm -rf screenshots
+          
+          # Initialize a clean repository
+          git init
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          
+          # Commit the current workspace state (honoring .gitignore)
+          git checkout -b main
+          git add .
+          git commit -m "Deploy clean production release from GitHub Actions"
+          
+          # Force push to Hugging Face Space
           git push https://archittmittal:$HF_TOKEN@huggingface.co/spaces/archittmittal/Backend_PatientAppointment main:main -f
