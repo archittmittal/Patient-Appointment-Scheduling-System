@@ -165,7 +165,7 @@ const Navbar = () => {
                             </button>
 
                             {showNotifications && (
-                                <div className="absolute right-0 mt-4 w-80 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 mt-4 w-80 glass-modal border-none rounded-3xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                                     <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
                                         <h3 className="font-bold text-slate-900">Notifications</h3>
                                         <div className="flex items-center gap-1">
@@ -228,7 +228,7 @@ const Navbar = () => {
                             </button>
 
                             {showUserMenu && (
-                                <div className="absolute right-0 mt-4 w-60 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute right-0 mt-4 w-60 glass-modal border-none rounded-3xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                                     <div className="px-5 py-4 border-b border-slate-100 mb-2 bg-slate-50/50 rounded-2xl mx-1">
                                         <p className="text-sm font-bold text-slate-900 truncate">{fullName}</p>
                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{profile?.email}</p>

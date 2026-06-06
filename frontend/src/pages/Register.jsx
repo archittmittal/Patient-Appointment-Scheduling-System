@@ -121,7 +121,7 @@ const Register = () => {
                         <div className={`h-1.5 w-12 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-primary' : 'bg-[var(--border-base)]/20'}`}></div>
                     </div>
 
-                    <div className="apple-card p-10 border border-[var(--border-base)]/50 shadow-xl shadow-primary/5 relative overflow-hidden">
+                    <div className="glass-modal p-10 border-none shadow-2xl relative overflow-hidden group">
                         {error && (
                             <div className="mb-8 p-4 bg-danger/5 border border-danger/10 text-danger text-sm rounded-xl flex items-center gap-3">
                                 <Shield size={18} className="shrink-0" />
