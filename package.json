@@ -8,6 +8,18 @@
   "scripts": {
     "build": "npm run build --workspace=frontend"
   },
+  "devDependencies": {
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "backend/src/**/*.js": [
+      "npm run test --workspace=backend -- --bail --findRelatedTests"
+    ],
+    "frontend/src/**/*.{js,jsx}": [
+      "npx eslint --config frontend/eslint.config.js --fix",
+      "npm run test --workspace=frontend -- --related"
+    ]
+  },
   "engines": {
     "node": "20.x"
   }
