@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Users, User, Calendar, Activity, LogOut, 
     ClipboardList, CalendarDays,
     Route, MessageSquare, BarChart3, Pill, LineChart,
-    ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield
+    ChevronRight, Sparkles, HeartPulse, FileText, Search, Shield, ArrowRight
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
