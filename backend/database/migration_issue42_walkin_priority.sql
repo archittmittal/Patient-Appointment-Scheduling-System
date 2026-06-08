@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS walkin_queue (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (doctor_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (specialty_id) REFERENCES specialties(id) ON DELETE SET NULL,
+    FOREIGN KEY (specialty_id) REFERENCES departments(id) ON DELETE SET NULL,
     FOREIGN KEY (assigned_appointment_id) REFERENCES appointments(id) ON DELETE SET NULL,
     INDEX idx_walkin_status (status),
     INDEX idx_walkin_urgency (urgency_level),

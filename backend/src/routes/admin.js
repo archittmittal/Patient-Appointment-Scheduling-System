@@ -730,4 +730,150 @@ router.get('/queue-overview', async (req, res) => {
     }
 });
 
+// ============================================
+// DEPARTMENTS MANAGEMENT ROUTES
+// ============================================
+
+const addDepartmentSchema = Joi.object({
+    name: Joi.string().max(100).required(),
+    description: Joi.string().max(1000).allow('', null)
+});
+
+/**
+ * @swagger
+ * /api/admin/departments:
+ *   get:
+ *     summary: Get all departments with doctor stats
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of departments retrieved successfully
+ */
+router.get('/departments', async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT 
+                dep.id, dep.name, dep.description, dep.created_at,
+                COUNT(d.id) AS doctor_count,
+                JSON_ARRAYAGG(
+                    IF(d.id IS NOT NULL, 
+                       JSON_OBJECT('id', d.id, 'name', CONCAT('Dr. ', d.first_name, ' ', d.last_name)), 
+                       NULL)
+                ) AS doctors
+            FROM departments dep
+            LEFT JOIN doctors d ON dep.name = d.specialty
+            GROUP BY dep.id
+            ORDER BY dep.name
+        `);
+        
+        const result = rows.map(r => {
+            let docs = [];
+            try {
+                const parsedDocs = typeof r.doctors === 'string' ? JSON.parse(r.doctors) : r.doctors;
+                docs = Array.isArray(parsedDocs) ? parsedDocs.filter(Boolean) : [];
+            } catch (e) {
+                // If JSON parsing fails or JSON_ARRAYAGG returns something else
+                docs = [];
+            }
+            return {
+                id: r.id,
+                name: r.name,
+                description: r.description,
+                created_at: r.created_at,
+                doctor_count: r.doctor_count,
+                doctors: docs
+            };
+        });
+        
+        res.json(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/departments:
+ *   post:
+ *     summary: Add a new department
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Department added successfully
+ */
+router.post('/departments', validateRequest(addDepartmentSchema), async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        const [result] = await db.query(
+            'INSERT INTO departments (name, description) VALUES (?, ?)',
+            [name, description || null]
+        );
+        res.status(201).json({ id: result.insertId, name, description });
+    } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: 'Department already exists' });
+        }
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/admin/departments/{id}:
+ *   delete:
+ *     summary: Remove a department by ID
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Department removed successfully
+ */
+router.delete('/departments/:id', async (req, res) => {
+    try {
+        const [depRows] = await db.query('SELECT name FROM departments WHERE id = ?', [req.params.id]);
+        if (depRows.length === 0) {
+            return res.status(404).json({ message: 'Department not found' });
+        }
+        const depName = depRows[0].name;
+
+        const [docRows] = await db.query('SELECT id FROM doctors WHERE specialty = ?', [depName]);
+        if (docRows.length > 0) {
+            return res.status(400).json({ message: 'Cannot delete department. There are doctors assigned to it.' });
+        }
+
+        await db.query('DELETE FROM departments WHERE id = ?', [req.params.id]);
+        res.json({ message: 'Department deleted successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 module.exports = router;
+

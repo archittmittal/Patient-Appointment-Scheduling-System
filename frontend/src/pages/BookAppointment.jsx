@@ -170,13 +170,16 @@ const BookAppointment = () => {
             if (Array.isArray(data) && !data.error) {
                 const pruned = data.filter(d => d && typeof d === 'object' && d.id);
                 setDoctors(pruned);
-                
-                // Extract unique specialties
-                const specs = [...new Set(pruned.map(d => d.specialty))].filter(Boolean).sort();
-                setSpecialties(specs);
+            }
+        };
+        const fetchSpecs = async () => {
+            const data = await apiClient.get('/api/departments');
+            if (Array.isArray(data) && !data.error) {
+                setSpecialties(data.map(d => d.name));
             }
         };
         fetchDocs();
+        fetchSpecs();
     }, []);
 
     useEffect(() => {
@@ -362,6 +365,13 @@ const BookAppointment = () => {
                         </div>
                     </button>
                 ))}
+                {filteredDoctors.length === 0 && (
+                    <div className="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-white">
+                        <Users size={36} className="mx-auto text-slate-300 mb-4 animate-pulse" />
+                        <p className="text-sm font-bold text-slate-500">No active specialists available in this department.</p>
+                        <p className="text-xs text-slate-400 mt-1">Please choose another department or check back later.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
