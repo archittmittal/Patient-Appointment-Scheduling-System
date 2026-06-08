@@ -26,8 +26,8 @@ jobs:
 
     - name: Install dependencies
       run: |
+        rm -f package-lock.json
         npm install
-        npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu --no-save
 
     - name: Run Linter
       run: npm run lint --workspace=frontend || echo "Lint warnings/errors detected, bypassing for PR build-and-test"
