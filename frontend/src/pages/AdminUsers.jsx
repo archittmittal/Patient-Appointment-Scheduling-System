@@ -8,7 +8,7 @@ const AdminUsers = () => {
     const [users, setUsers] = useState([]);
     const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, total_pages: 1 });
     const [isLoading, setIsLoading] = useState(true);
-    const [showForm, setShowForm] = useState(null); // 'doctor' | 'patient' | 'edit' | null
+    const [showForm, setShowForm] = useState(null); // 'doctor' | 'patient' | 'edit' | 'department' | null
     const [formData, setFormData] = useState({});
     const [editId, setEditId] = useState(null);
     const [editRole, setEditRole] = useState(null);
@@ -17,6 +17,22 @@ const AdminUsers = () => {
     const [filterRole, setFilterRole] = useState('ALL');
     const [sortBy, setSortBy] = useState('id');
     const [order, setOrder] = useState('ASC');
+    const [departments, setDepartments] = useState([]);
+    const [adminDepartments, setAdminDepartments] = useState([]);
+
+    const fetchDepartments = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const data = await apiClient.get('/api/admin/departments');
+            if (Array.isArray(data)) {
+                setAdminDepartments(data);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     const fetchUsers = useCallback(async (page = 1) => {
         setIsLoading(true);
@@ -42,7 +58,25 @@ const AdminUsers = () => {
         }
     }, [filterRole, sortBy, order]);
 
-    useEffect(() => { fetchUsers(1); }, [fetchUsers]);
+    useEffect(() => {
+        const fetchDeps = async () => {
+            try {
+                const data = await apiClient.get('/api/departments');
+                if (Array.isArray(data)) setDepartments(data);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+        fetchDeps();
+    }, []);
+
+    useEffect(() => {
+        if (filterRole === 'DEPARTMENT') {
+            fetchDepartments();
+        } else {
+            fetchUsers(1);
+        }
+    }, [filterRole, fetchUsers, fetchDepartments]);
 
     const handleDelete = async (id, role) => {
         if (!confirm(`Are you sure you want to remove this ${role.toLowerCase()}? This will also delete all their appointments.`)) return;
@@ -82,6 +116,43 @@ const AdminUsers = () => {
     const handleFormChange = e => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
     const closeModal = () => { setShowForm(null); setFormData({}); setError(''); setEditId(null); setEditRole(null); };
+
+    const handleDeleteDepartment = async (id) => {
+        if (!confirm('Are you sure you want to delete this department?')) return;
+        try {
+            const data = await apiClient.delete(`/api/admin/departments/${id}`);
+            if (data.error) {
+                setError(data.message || 'Failed to delete department');
+            } else {
+                fetchDepartments();
+                const dataDeps = await apiClient.get('/api/departments');
+                if (Array.isArray(dataDeps)) setDepartments(dataDeps);
+            }
+        } catch (err) {
+            setError(err.message || 'Server error');
+        }
+    };
+
+    const handleSubmitDepartment = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSubmitting(true);
+        try {
+            const data = await apiClient.post('/api/admin/departments', formData);
+            if (data.error) {
+                setError(data.message || 'Failed to create department');
+            } else {
+                closeModal();
+                fetchDepartments();
+                const dataDeps = await apiClient.get('/api/departments');
+                if (Array.isArray(dataDeps)) setDepartments(dataDeps);
+            }
+        } catch (err) {
+            setError(err.message || 'Server error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     const handleSubmitDoctor = async (e) => {
         e.preventDefault();
@@ -139,15 +210,23 @@ const AdminUsers = () => {
                     <p className="text-gray-500 mt-1">Add, edit, or remove doctors and patients.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={() => { setShowForm('doctor'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm">
-                        <Plus size={16} /> Add Doctor
-                    </button>
-                    <button onClick={() => { setShowForm('patient'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary-hover transition-colors text-sm">
-                        <Plus size={16} /> Add Patient
-                    </button>
+                    {filterRole === 'DEPARTMENT' ? (
+                        <button onClick={() => { setShowForm('department'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 transition-colors text-sm">
+                            <Plus size={16} /> Add Department
+                        </button>
+                    ) : (
+                        <>
+                            <button onClick={() => { setShowForm('doctor'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm">
+                                <Plus size={16} /> Add Doctor
+                            </button>
+                            <button onClick={() => { setShowForm('patient'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl font-medium hover:bg-primary-hover transition-colors text-sm">
+                                <Plus size={16} /> Add Patient
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
-
+ 
             {/* Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -158,17 +237,23 @@ const AdminUsers = () => {
                         <h2 className="text-xl font-bold text-gray-900 mb-6">
                             {showForm === 'edit'
                                 ? `Edit ${editRole === 'DOCTOR' ? 'Doctor' : 'Patient'}`
-                                : showForm === 'doctor' ? 'Add New Doctor' : 'Add New Patient'}
+                                : showForm === 'doctor' ? 'Add New Doctor' : showForm === 'department' ? 'Add New Department' : 'Add New Patient'}
                         </h2>
                         {error && <p className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</p>}
-
+ 
                         {/* Edit doctor */}
                         {showForm === 'edit' && editRole === 'DOCTOR' && (
                             <form onSubmit={handleSubmitEdit} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">First Name</label><input name="first_name" value={formData.first_name || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label><input name="last_name" value={formData.last_name || ''} onChange={handleFormChange} className={inputClass} /></div>
-                                    <div><label className="block text-xs font-semibold text-gray-600 mb-1">Specialty</label><input name="specialty" value={formData.specialty || ''} onChange={handleFormChange} className={inputClass} /></div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Specialty</label>
+                                        <select name="specialty" required value={formData.specialty || ''} onChange={handleFormChange} className={inputClass}>
+                                            <option value="">Select Specialty</option>
+                                            {departments.map(dep => <option key={dep.id} value={dep.name}>{dep.name}</option>)}
+                                        </select>
+                                    </div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Degree</label><input name="degree" value={formData.degree || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Experience (years)</label><input name="experience_years" type="number" value={formData.experience_years || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Room / Location</label><input name="location_room" value={formData.location_room || ''} onChange={handleFormChange} className={inputClass} /></div>
@@ -176,7 +261,7 @@ const AdminUsers = () => {
                                 <button type="submit" disabled={submitting} className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-60">{submitting ? 'Saving...' : 'Save Changes'}</button>
                             </form>
                         )}
-
+ 
                         {/* Edit patient */}
                         {showForm === 'edit' && editRole === 'PATIENT' && (
                             <form onSubmit={handleSubmitEdit} className="space-y-4">
@@ -196,7 +281,7 @@ const AdminUsers = () => {
                                 <button type="submit" disabled={submitting} className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-60">{submitting ? 'Saving...' : 'Save Changes'}</button>
                             </form>
                         )}
-
+ 
                         {/* Add doctor */}
                         {showForm === 'doctor' && (
                             <form onSubmit={handleSubmitDoctor} className="space-y-4">
@@ -205,7 +290,13 @@ const AdminUsers = () => {
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Last Name</label><input name="last_name" required value={formData.last_name || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div className="col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Email</label><input name="email" type="email" required value={formData.email || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div className="col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Password</label><input name="password" type="password" required value={formData.password || ''} onChange={handleFormChange} className={inputClass} /></div>
-                                    <div><label className="block text-xs font-semibold text-gray-600 mb-1">Specialty</label><input name="specialty" required value={formData.specialty || ''} onChange={handleFormChange} className={inputClass} /></div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Specialty</label>
+                                        <select name="specialty" required value={formData.specialty || ''} onChange={handleFormChange} className={inputClass}>
+                                            <option value="">Select Specialty</option>
+                                            {departments.map(dep => <option key={dep.id} value={dep.name}>{dep.name}</option>)}
+                                        </select>
+                                    </div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Degree</label><input name="degree" value={formData.degree || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Experience (years)</label><input name="experience_years" type="number" value={formData.experience_years || ''} onChange={handleFormChange} className={inputClass} /></div>
                                     <div><label className="block text-xs font-semibold text-gray-600 mb-1">Room / Location</label><input name="location_room" value={formData.location_room || ''} onChange={handleFormChange} className={inputClass} /></div>
@@ -213,7 +304,7 @@ const AdminUsers = () => {
                                 <button type="submit" disabled={submitting} className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-60">{submitting ? 'Adding...' : 'Add Doctor'}</button>
                             </form>
                         )}
-
+ 
                         {/* Add patient */}
                         {showForm === 'patient' && (
                             <form onSubmit={handleSubmitPatient} className="space-y-4">
@@ -236,25 +327,84 @@ const AdminUsers = () => {
                                 <button type="submit" disabled={submitting} className="w-full py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-60">{submitting ? 'Adding...' : 'Add Patient'}</button>
                             </form>
                         )}
+
+                        {/* Add department */}
+                        {showForm === 'department' && (
+                            <form onSubmit={handleSubmitDepartment} className="space-y-4">
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Department Name</label><input name="name" required placeholder="e.g. Neurology" value={formData.name || ''} onChange={handleFormChange} className={inputClass} /></div>
+                                <div><label className="block text-xs font-semibold text-gray-600 mb-1">Description</label><textarea name="description" rows={3} placeholder="Describe the department..." value={formData.description || ''} onChange={handleFormChange} className={inputClass} /></div>
+                                <button type="submit" disabled={submitting} className="w-full py-3 bg-violet-600 text-white font-semibold rounded-xl hover:bg-violet-700 transition-colors disabled:opacity-60">{submitting ? 'Adding...' : 'Add Department'}</button>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
 
             {/* Filter tabs */}
             <div className="flex gap-2">
-                {['ALL', 'DOCTOR', 'PATIENT'].map(r => (
+                {['ALL', 'DOCTOR', 'PATIENT', 'DEPARTMENT'].map(r => (
                     <button key={r} onClick={() => setFilterRole(r)}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filterRole === r ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'}`}>
-                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : 'Patients'}
+                        {r === 'ALL' ? 'All Users' : r === 'DOCTOR' ? 'Doctors' : r === 'PATIENT' ? 'Patients' : 'Departments'}
                     </button>
                 ))}
             </div>
-
+ 
             {/* Users table */}
             {isLoading ? (
                 <div className="text-center text-slate-400 animate-pulse py-20 flex flex-col items-center gap-4">
                     <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                    <span>Loading users...</span>
+                    <span>Loading...</span>
+                </div>
+            ) : filterRole === 'DEPARTMENT' ? (
+                <div className="glass-card rounded-[2rem] overflow-hidden border-none shadow-xl">
+                    <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Department Name</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Doctor Count</th>
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Specialists</th>
+                                <th className="px-6 py-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                            {adminDepartments.map(dep => (
+                                <tr key={dep.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 font-semibold text-gray-900 text-sm">{dep.name}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">{dep.description || 'No description provided.'}</td>
+                                    <td className="px-6 py-4">
+                                        <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
+                                            {dep.doctor_count}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {dep.doctors && dep.doctors.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {dep.doctors.map(doc => (
+                                                    <span key={doc.id} className="px-2 py-0.5 text-xs bg-slate-100 text-slate-700 rounded-md">
+                                                        {doc.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <span className="italic text-gray-400 text-xs">No doctors assigned</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button onClick={() => handleDeleteDepartment(dep.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {adminDepartments.length === 0 && (
+                        <div className="py-12 text-center text-gray-400">No departments found.</div>
+                    )}
                 </div>
             ) : (
                 <div className="glass-card rounded-[2rem] overflow-hidden border-none shadow-xl">
@@ -338,5 +488,5 @@ const AdminUsers = () => {
         </div>
     );
 };
-
+ 
 export default AdminUsers;
