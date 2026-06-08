@@ -196,6 +196,10 @@ const MultiDoctorJourney = () => {
     const [optimalPaths, setOptimalPaths] = useState([]);
     const [selectedPathIndex, setSelectedPathIndex] = useState(null);
 
+    const filteredDoctors = suggestions?.suggestedSpecialties?.length > 0
+        ? doctors.filter(d => suggestions.suggestedSpecialties.includes(d.specialty))
+        : doctors;
+
     useEffect(() => {
         const fetchJourneys = async () => {
             try {

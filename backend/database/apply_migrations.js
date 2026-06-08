@@ -10,7 +10,8 @@ async function applyMigrations() {
         'migration_sprint2_schema_hardening.sql',
         'migrations/migration_sprint3_consultation_fee.sql',
         'migrations/migration_sprint4_otp_hardening.sql',
-        'migrations/migration_sprint10_uppercase_status.sql'
+        'migrations/migration_sprint10_uppercase_status.sql',
+        'migrations/migration_sprint11_symptom_checker.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');
