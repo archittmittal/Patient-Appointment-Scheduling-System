@@ -1,6 +1,5 @@
 const request = require('supertest');
 const app = require('../src/server');
-const db = require('../src/config/db');
 const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../src/config/auth');
 
