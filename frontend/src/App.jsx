@@ -32,6 +32,7 @@ import Messages from './pages/Messages';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AdminAnalytics from './pages/AdminAnalytics';
+import SymptomChecker from './pages/SymptomChecker';
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -76,6 +77,7 @@ function App() {
               <Route path="/multi-doctor" element={<MultiDoctorJourney />} />
               <Route path="/feedback" element={<FeedbackAnalytics />} />
               <Route path="/insurance" element={<PatientInsurance />} />
+              <Route path="/symptom-checker" element={<SymptomChecker />} />
               <Route path="/messages" element={<Messages />} />
             </Route>
 
