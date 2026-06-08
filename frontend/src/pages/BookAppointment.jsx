@@ -70,6 +70,8 @@ const BookAppointment = () => {
     // Data State
     const [doctors, setDoctors] = useState([]);
     const [specialties, setSpecialties] = useState([]);
+    const [specialtiesError, setSpecialtiesError] = useState(false);
+    const [specialtiesLoaded, setSpecialtiesLoaded] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState('');
     const [selectedDoctorId, setSelectedDoctorId] = useState('');
     const [selectedDate, setSelectedDate] = useState(null);
@@ -173,9 +175,15 @@ const BookAppointment = () => {
             }
         };
         const fetchSpecs = async () => {
+            setSpecialtiesError(false);
             const data = await apiClient.get('/api/departments');
             if (Array.isArray(data) && !data.error) {
                 setSpecialties(data.map(d => d.name));
+                setSpecialtiesLoaded(true);
+            } else {
+                setSpecialties([]);
+                setSpecialtiesError(true);
+                setSpecialtiesLoaded(true);
             }
         };
         fetchDocs();
@@ -318,21 +326,33 @@ const BookAppointment = () => {
     const renderStep1 = () => (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-2xl font-semibold mb-8 text-center">Which department do you need?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {specialties.map(spec => (
-                    <button
-                        key={spec}
-                        onClick={() => { setSelectedSpecialty(spec); setStep(2); }}
-                        className={`apple-card p-8 text-left hover:border-primary/50 border border-transparent group transition-all ${selectedSpecialty === spec ? 'ring-2 ring-primary ring-offset-2' : ''}`}
-                    >
-                        <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
-                            <Stethoscope size={24} />
-                        </div>
-                        <h3 className="text-lg font-bold mb-1">{spec}</h3>
-                        <p className="text-sm text-slate-500">View available consultants</p>
-                    </button>
-                ))}
-            </div>
+            {specialtiesLoaded && specialties.length === 0 ? (
+                <div className="py-16 text-center border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-white max-w-2xl mx-auto px-6">
+                    <Users size={36} className="mx-auto text-slate-300 mb-4 animate-pulse" />
+                    <p className="text-sm font-bold text-slate-500">
+                        {specialtiesError ? 'Failed to load medical departments.' : 'No active departments available.'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                        {specialtiesError ? 'Please check your connection and try again.' : 'Please check back later or contact hospital administration.'}
+                    </p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {specialties.map(spec => (
+                        <button
+                            key={spec}
+                            onClick={() => { setSelectedSpecialty(spec); setStep(2); }}
+                            className={`apple-card p-8 text-left hover:border-primary/50 border border-transparent group transition-all ${selectedSpecialty === spec ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                        >
+                            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+                                <Stethoscope size={24} />
+                            </div>
+                            <h3 className="text-lg font-bold mb-1">{spec}</h3>
+                            <p className="text-sm text-slate-500">View available consultants</p>
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
 

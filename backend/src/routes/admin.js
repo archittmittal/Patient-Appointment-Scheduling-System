@@ -870,6 +870,9 @@ router.delete('/departments/:id', async (req, res) => {
         await db.query('DELETE FROM departments WHERE id = ?', [req.params.id]);
         res.json({ message: 'Department deleted successfully' });
     } catch (error) {
+        if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
+            return res.status(400).json({ message: 'Cannot delete department. There are doctors assigned to it.' });
+        }
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
