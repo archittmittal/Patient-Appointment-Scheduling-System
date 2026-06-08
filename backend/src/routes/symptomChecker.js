@@ -38,6 +38,9 @@ function cleanTextWords(text) {
  */
 router.post('/analyze', authenticate, async (req, res) => {
     try {
+        if (req.user.role !== 'PATIENT') {
+            return res.status(403).json({ error: 'Access denied. Only patients can analyze symptoms.' });
+        }
         const { symptoms } = req.body;
         const patientId = req.user.id;
 
@@ -164,7 +167,13 @@ router.get('/admin-stats', authenticate, requireRole('ADMIN'), async (req, res) 
         `);
 
         // 3. Keyword Frequency Extraction
-        const [allLogs] = await db.query('SELECT symptoms_text FROM symptom_checker_logs');
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const [allLogs] = await db.query(
+            'SELECT symptoms_text FROM symptom_checker_logs WHERE created_at >= ? LIMIT 1000',
+            [thirtyDaysAgo]
+        );
         const keywordFreq = {};
 
         allLogs.forEach(log => {

@@ -58,11 +58,10 @@ const SymptomChecker = () => {
         const bookingState = {
             doctorId: doctor.id,
             specialty: doctor.specialty,
-            symptoms: symptomsInput,
             step: 2 // Skip directly to date/time selection step
         };
         localStorage.setItem('pendingBooking', JSON.stringify(bookingState));
-        navigate('/book');
+        navigate('/book', { state: { symptoms: symptomsInput } });
     };
 
     return (
@@ -88,7 +87,9 @@ const SymptomChecker = () => {
                     <div className="glass-card p-8 rounded-[3rem] border border-slate-100/20 shadow-xl relative overflow-hidden">
                         <h2 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-6">Describe Your Symptoms</h2>
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            <label htmlFor="symptoms-input" className="sr-only">Describe your symptoms</label>
                             <textarea
+                                id="symptoms-input"
                                 value={symptomsInput}
                                 onChange={(e) => setSymptomsInput(e.target.value)}
                                 disabled={analyzing}
