@@ -30,7 +30,7 @@ jobs:
         npm install
 
     - name: Run Linter
-      run: npm run lint --workspace=frontend || echo "Lint warnings/errors detected, bypassing for PR build-and-test"
+      run: npm run lint --workspace=frontend
 
     - name: Build Application
       run: npm run build --workspace=frontend

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
@@ -13,6 +13,7 @@ const ROLE_HOME = {
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -42,7 +43,7 @@ const Login = () => {
             const pending = localStorage.getItem('pendingBooking');
             const role = data.role || data.user?.role;
             if (pending && role === 'PATIENT') {
-                navigate('/book');
+                navigate('/book', { state: location.state });
             } else {
                 navigate(ROLE_HOME[role] || '/login');
             }
@@ -76,7 +77,7 @@ const Login = () => {
             const pending = localStorage.getItem('pendingBooking');
             const role = data.role || data.user?.role;
             if (pending && role === 'PATIENT') {
-                navigate('/book');
+                navigate('/book', { state: location.state });
             } else {
                 navigate(ROLE_HOME[role] || '/login');
             }

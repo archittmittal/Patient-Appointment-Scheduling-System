@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Mail, Lock, HeartPulse, ShieldCheck, ArrowRight, Activity, Shield, User, Phone, MapPin, Droplets, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
@@ -7,6 +7,7 @@ import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
@@ -52,7 +53,7 @@ const Register = () => {
             
             const pending = localStorage.getItem('pendingBooking');
             if (pending) {
-                navigate('/book');
+                navigate('/book', { state: location.state });
             } else {
                 navigate('/patient-dashboard');
             }
@@ -90,7 +91,7 @@ const Register = () => {
             
             const pending = localStorage.getItem('pendingBooking');
             if (pending) {
-                navigate('/book');
+                navigate('/book', { state: location.state });
             } else {
                 navigate('/patient-dashboard');
             }

@@ -20,7 +20,8 @@ async function runTests() {
         const adminToken = jwt.sign({ id: 9999, role: 'ADMIN' }, jwtSecret);
 
         // 3. Define Symptom checker test cases
-        const testCases = [
+        const testRunId = Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+        const rawTestCases = [
             {
                 symptoms: "my chest hurts, severe tightness, palpitations, and racing pulse",
                 expectedSpecialty: "Cardiologist"
@@ -38,6 +39,10 @@ async function runTests() {
                 expectedSpecialty: "General Physician" // should fallback to General Physician
             }
         ];
+        const testCases = rawTestCases.map(tc => ({
+            ...tc,
+            symptoms: `${tc.symptoms}\n[symptom_checker_test_${testRunId}]`
+        }));
 
         // 4. Run POST /api/symptom-checker/analyze tests
         for (const tc of testCases) {
@@ -98,7 +103,10 @@ async function runTests() {
 
         // Clean up the created logs in database
         console.log('\nCleaning up verification search logs from database...');
-        await db.query('DELETE FROM symptom_checker_logs WHERE patient_id = ?', [patientId]);
+        await db.query(
+            'DELETE FROM symptom_checker_logs WHERE patient_id = ? AND symptoms_text LIKE ?',
+            [patientId, `%\n[symptom_checker_test_${testRunId}]`]
+        );
         console.log('Clean up complete.');
 
         console.log('\n=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===');
