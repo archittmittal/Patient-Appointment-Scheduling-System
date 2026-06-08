@@ -11,7 +11,8 @@ async function applyMigrations() {
         'migrations/migration_sprint3_consultation_fee.sql',
         'migrations/migration_sprint4_otp_hardening.sql',
         'migrations/migration_sprint10_uppercase_status.sql',
-        'migrations/migration_sprint11_symptom_checker.sql'
+        'migrations/migration_sprint11_symptom_checker.sql',
+        'migrations/migration_sprint11_departments.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');
@@ -37,7 +38,13 @@ async function applyMigrations() {
                 await db.query(statement);
             } catch (error) {
                 // If column already exists or table exists, we might get an error depending on SQL
-                if (error.code === 'ER_DUP_FIELDNAME' || error.code === 'ER_TABLE_EXISTS_ERROR' || error.code === 'ER_DUP_KEYNAME') {
+                if (
+                    error.code === 'ER_DUP_FIELDNAME' || 
+                    error.code === 'ER_TABLE_EXISTS_ERROR' || 
+                    error.code === 'ER_DUP_KEYNAME' ||
+                    error.code === 'ER_FK_DUP_NAME' ||
+                    error.code === 'ER_CANNOT_ADD_FOREIGN_KEY'
+                ) {
                     console.log(`  [Info] Already applied or exists: ${statement.substring(0, 50)}...`);
                 } else {
                     console.error(`  [Error] Failed to execute: ${statement.substring(0, 50)}...`);
