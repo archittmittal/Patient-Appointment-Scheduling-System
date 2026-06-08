@@ -23,7 +23,8 @@ const STATUS_STYLES = {
     NEEDS_RESCHEDULE: 'bg-purple-50 text-purple-600 border-purple-100'
 };
 
-const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
+// eslint-disable-next-line no-unused-vars
+const QuickAction = ({ icon: Icon, title, onClick }) => (
     <button 
         onClick={onClick}
         className="flex flex-col items-center gap-3 group transition-all"
@@ -35,7 +36,7 @@ const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
     </button>
 );
 
-const AppointmentCard = ({ apt, navigate, onViewReport }) => {
+const AppointmentCard = ({ apt, navigate }) => {
     if (!apt) return null;
     const doctor = `Dr. ${apt.doc_first || 'Unknown'} ${apt.doc_last || ''}`;
     const statusLabel = String(apt.status || 'PENDING').toUpperCase();

@@ -105,8 +105,7 @@ const AdminAnalytics = () => {
         departmentStats = [],
         revenueStats = { totalRevenue: 0, revenueByDay: [], revenueByDoctor: [] },
         cancellationStats = { cancellationRate: 0, totalAppointments: 0, totalCancellations: 0, cancellationsByDay: [] },
-        utilizationStats = { avgWaitMins: 0, avgDurationMins: 0, doctorPerformance: [] },
-        summary = { peakHour: 'N/A', quietHour: 'N/A', busiestDept: 'N/A' }
+        utilizationStats = { avgWaitMins: 0, avgDurationMins: 0, doctorPerformance: [] }
     } = analytics || {};
 
     // Colors for the Pie Chart
@@ -708,7 +707,7 @@ const AdminAnalytics = () => {
                                         <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.5em] mb-8">Top Searched Keywords</h3>
                                         {symptomStats.topKeywords?.length > 0 ? (
                                             <div className="flex flex-wrap gap-3">
-                                                {symptomStats.topKeywords.map((item, idx) => (
+                                                {symptomStats.topKeywords.map((item) => (
                                                     <div 
                                                         key={item.keyword} 
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 border border-slate-100 hover:border-primary/20 hover:bg-white transition-all rounded-2xl group cursor-default"
