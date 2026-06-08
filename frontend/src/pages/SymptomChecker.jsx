@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Activity, ChevronRight, Sparkles, Stethoscope, Clock, 
@@ -6,11 +6,9 @@ import {
     UserCheck, DollarSign, RefreshCw, Send, CheckCircle
 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
-import { useAuth } from '../contexts/AuthContext';
 
 const SymptomChecker = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
     const [symptomsInput, setSymptomsInput] = useState('');
     const [analyzing, setAnalyzing] = useState(false);
     const [analysisLog, setAnalysisLog] = useState([]);
