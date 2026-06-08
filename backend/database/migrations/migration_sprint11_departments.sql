@@ -21,10 +21,8 @@ INSERT IGNORE INTO departments (name, description) VALUES
 ('Neurologist', 'Specialized diagnostics and care for neurological disorders.'),
 ('Pediatrician', 'Comprehensive medical care for infants, children, and adolescents.');
 
--- Database self-healing: Clean up any orphaned records before applying constraints
-DELETE FROM doctors WHERE id NOT IN (SELECT id FROM users);
-DELETE FROM patients WHERE id NOT IN (SELECT id FROM users);
-DELETE FROM appointments WHERE doctor_id NOT IN (SELECT id FROM users) OR patient_id NOT IN (SELECT id FROM users);
+-- Database self-healing: Orphaned records cleanup is handled via the separate manual utility script 'backend/scripts/db_cleanup_orphaned.js' to prevent accidental data loss in production.
+
 
 -- Add foreign key constraint to doctors table
 ALTER TABLE doctors
