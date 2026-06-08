@@ -21,6 +21,7 @@ const insuranceRoutes = require('./routes/insurance');
 const paymentRoutes = require('./routes/payments');
 const messageRoutes = require('./routes/messages');
 const exportRoutes = require('./routes/export');
+const symptomCheckerRoutes = require('./routes/symptomChecker');
 const errorHandler = require('./middleware/errorHandler');
 const { initCronJobs } = require('./jobs/reminderJobs');
 const logger = require('./config/logger');
@@ -170,6 +171,7 @@ app.use('/api/insurance', insuranceRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/symptom-checker', symptomCheckerRoutes);
 
 // Temporary Migration Route
 app.get('/api/fix-db', async (req, res) => {

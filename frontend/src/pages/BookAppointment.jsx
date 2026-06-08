@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
     Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
     CheckCircle2, Users, Bell, ArrowRight, Sparkles, AlertCircle,
@@ -28,7 +28,7 @@ const parseAvailability = (av) => {
     if (!av) return null;
     try {
         return typeof av === 'string' ? JSON.parse(av) : av;
-    } catch (e) {
+    } catch {
         return null;
     }
 };
@@ -52,13 +52,14 @@ const generateHourlySlots = (from, to) => {
             });
         }
         return slots;
-    } catch (e) {
+    } catch {
         return [];
     }
 };
 
 const BookAppointment = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     
     // UI State
@@ -135,16 +136,21 @@ const BookAppointment = () => {
                 if (data.specialty) setSelectedSpecialty(data.specialty);
                 if (data.date) setSelectedDate(data.date);
                 if (data.slot) setSelectedSlot(data.slot);
-                if (data.symptoms) setSymptoms(data.symptoms);
                 if (data.step) setStep(data.step);
                 
                 // Clear after loading
                 localStorage.removeItem('pendingBooking');
-            } catch (e) {
+            } catch {
                 console.error('Failed to parse saved booking');
             }
         }
     }, []);
+
+    useEffect(() => {
+        if (location.state?.symptoms) {
+            setSymptoms(location.state.symptoms);
+        }
+    }, [location.state]);
 
     const saveAndRedirect = (target) => {
         const state = {
@@ -152,11 +158,10 @@ const BookAppointment = () => {
             specialty: selectedSpecialty,
             date: selectedDate,
             slot: selectedSlot,
-            symptoms: symptoms,
             step: 5
         };
         localStorage.setItem('pendingBooking', JSON.stringify(state));
-        navigate(target);
+        navigate(target, { state: { symptoms } });
     };
 
     useEffect(() => {

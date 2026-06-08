@@ -9,7 +9,7 @@ import {
     Calendar as CalendarIcon, Clock, MapPin, CheckCircle2, User, 
     ChevronRight, Bell, X, ListPlus, Activity, Zap, ClipboardCheck, 
     AlarmClock, MessageSquare, ArrowRight, Sparkles, Navigation, Lock, Users,
-    Heart, Pill, FileText, Droplets, Thermometer
+    Heart, Pill, FileText, Droplets, Thermometer, Stethoscope
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/apiClient';
@@ -23,7 +23,8 @@ const STATUS_STYLES = {
     NEEDS_RESCHEDULE: 'bg-purple-50 text-purple-600 border-purple-100'
 };
 
-const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
+// eslint-disable-next-line no-unused-vars
+const QuickAction = ({ icon: Icon, title, onClick }) => (
     <button 
         onClick={onClick}
         className="flex flex-col items-center gap-3 group transition-all"
@@ -35,7 +36,7 @@ const QuickAction = ({ icon: Icon, title, onClick, color = 'primary' }) => (
     </button>
 );
 
-const AppointmentCard = ({ apt, navigate, onViewReport }) => {
+const AppointmentCard = ({ apt, navigate }) => {
     if (!apt) return null;
     const doctor = `Dr. ${apt.doc_first || 'Unknown'} ${apt.doc_last || ''}`;
     const statusLabel = String(apt.status || 'PENDING').toUpperCase();
@@ -229,6 +230,7 @@ const PatientDashboard = () => {
                             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Quick Actions</h2>
                         </div>
                         <div className="flex flex-wrap gap-8 md:gap-12">
+                            <QuickAction icon={Stethoscope} title="Symptom Checker" onClick={() => navigate('/symptom-checker')} />
                             <QuickAction icon={Droplets} title="Vitals Hub" onClick={() => navigate('/vitals')} />
                             <QuickAction icon={Pill} title="Medications" onClick={() => navigate('/prescriptions')} />
                             <QuickAction icon={FileText} title="Lab Reports" onClick={() => navigate('/profile')} />
