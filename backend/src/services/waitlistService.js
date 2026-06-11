@@ -4,6 +4,7 @@
  */
 
 const pool = require('../config/db');
+const notificationService = require('./notificationService');
 
 class WaitlistService {
     constructor() {
@@ -130,9 +131,9 @@ class WaitlistService {
      * Process a slot release (cancellation/no-show) and attempt auto-fill
      */
     async handleSlotRelease(appointmentId, releaseType) {
-        // Get appointment details
+        // Get appointment details with doctor's name
         const result = await pool.query(
-            `SELECT a.*, d.id as doctor_id 
+            `SELECT a.*, a.time_slot AS appointment_time, d.id as doctor_id, d.first_name, d.last_name 
              FROM appointments a
              JOIN doctors d ON a.doctor_id = d.id
              WHERE a.id = ?`,
@@ -166,7 +167,16 @@ class WaitlistService {
         }
 
         // Check if slot is too soon (minimum notice)
-        const slotDateTime = new Date(`${appointment_date}T${appointment_time}`);
+        let slotDateStr;
+        if (appointment_date instanceof Date) {
+            const y = appointment_date.getFullYear();
+            const m = String(appointment_date.getMonth() + 1).padStart(2, '0');
+            const d = String(appointment_date.getDate()).padStart(2, '0');
+            slotDateStr = `${y}-${m}-${d}`;
+        } else {
+            slotDateStr = String(appointment_date).slice(0, 10);
+        }
+        const slotDateTime = new Date(`${slotDateStr}T${appointment_time}`);
         const hoursUntilSlot = (slotDateTime - new Date()) / (1000 * 60 * 60);
 
         if (hoursUntilSlot < settings.min_notice_hours) {
@@ -220,7 +230,16 @@ class WaitlistService {
             );
 
             offersSent++;
-            // TODO: Send notification (push/SMS/email) - will integrate with Issue #38
+            
+            // Dispatch notification via preferences
+            const doctorName = `${appointment.first_name} ${appointment.last_name}`;
+            await notificationService.notifyWaitlistOffer(
+                candidate.patient_id,
+                doctorName,
+                appointment_date,
+                appointment_time,
+                settings.offer_window_mins
+            ).catch(err => console.error(`Failed to send waitlist offer notification to user ${candidate.patient_id}:`, err));
         }
 
         await pool.query(
@@ -266,7 +285,7 @@ class WaitlistService {
         // Check if slot is still available
         const [existingRows] = await pool.query(
             `SELECT id FROM appointments 
-             WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? AND status != 'CANCELLED'`,
+             WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED'`,
             [offer.doctor_id, offer.offered_date, offer.offered_time]
         );
         const existingAppointment = existingRows[0];
@@ -278,7 +297,7 @@ class WaitlistService {
 
         // Create new appointment
         const [newAppointment] = await pool.query(
-            `INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, status, reason)
+            `INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, status, symptoms)
              VALUES (?, ?, ?, ?, 'SCHEDULED', 'Waitlist auto-fill')`,
             [patientId, offer.doctor_id, offer.offered_date, offer.offered_time]
         );
