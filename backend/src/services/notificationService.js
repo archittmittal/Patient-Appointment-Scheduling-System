@@ -66,9 +66,12 @@ class NotificationService {
         const pushBody = templateService.processTemplate(template.push_body, templateData);
         const smsText = templateService.processTemplate(template.sms_template, templateData);
         
-        // 5. Get user details for contact info
+        // 5. Get user details for contact info (joining patients for phone number)
         const [userRows] = await pool.query(
-            'SELECT email, phone FROM users WHERE id = ?',
+            `SELECT u.email, p.phone 
+             FROM users u 
+             LEFT JOIN patients p ON u.id = p.id 
+             WHERE u.id = ?`,
             [userId]
         );
         const user = userRows[0];
