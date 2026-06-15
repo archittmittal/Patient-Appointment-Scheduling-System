@@ -9,7 +9,7 @@
     "build": "npm run build --workspace=frontend"
   },
   "devDependencies": {
-    "lint-staged": "^16.4.0"
+    "lint-staged": "^17.0.7"
   },
   "lint-staged": {
     "backend/src/**/*.js": [
