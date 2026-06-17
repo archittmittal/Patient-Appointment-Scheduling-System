@@ -1,7 +1,13 @@
 screenshots/
 node_modules/
+
+# Environment files — NEVER commit real credentials
 .env
 .env.local
+.env.*.local
+.env.production
+.env.staging
+
 dist/
 build/
 *.log
@@ -10,3 +16,7 @@ build/
 # Local helper output and caches
 frontend/build_log*.txt
 graphify-out/
+
+# Backend scratch / one-off test scripts
+backend/scratch/
+backend/test_*.js
