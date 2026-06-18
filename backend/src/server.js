@@ -161,11 +161,16 @@ app.use('/api/', globalLimiter);
 // ── Auth Rate Limiter (Brute-force Protection) ─────────────────────────────────
 // Tighter window specifically for login / register to resist credential stuffing.
 // 10 attempts per hour per IP — legitimate users will never hit this.
+//
+// keyGenerator includes req.path so /login and /register maintain independent
+// counters per IP. Without this, exhausting the /login budget would immediately
+// block /register attempts from the same IP (and vice-versa).
 const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => `${req.ip}::${req.path}`,
     handler: (req, res) => {
         res.status(429).json({
             status: 'fail',

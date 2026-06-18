@@ -3,9 +3,10 @@
  * @description Integration tests for the auth rate limiter on /api/auth/login
  * and /api/auth/register.
  *
- * Strategy: The authLimiter allows max 10 attempts per hour per IP.
- * We fire 11 sequential requests and assert the 11th returns HTTP 429
- * with the expected JSON error body and standard RateLimit-* headers.
+ * Strategy: The authLimiter uses keyGenerator: (req) => `${req.ip}::${req.path}`
+ * so /login and /register maintain INDEPENDENT counters per IP (each endpoint
+ * has its own 10-attempts-per-hour budget). Tests fire 11 sequential requests
+ * per endpoint and assert the 11th returns HTTP 429.
  *
  * The DB is fully mocked so these tests have zero real-DB dependencies.
  */
@@ -65,11 +66,13 @@ async function fireRequests(route, body, n) {
 // ── Test suites ──────────────────────────────────────────────────────────────
 describe('Auth Rate Limiter — /api/auth/login', () => {
     /**
-     * NOTE: express-rate-limit counts per IP in the current process memory.
-     * Each test file gets its own Jest worker, but *within* a file the in-memory
-     * store persists across describe blocks because `app` is required once.
-     * We therefore only check that the 11th request → 429 rather than resetting
-     * the counter between tests (which would require a custom store mock).
+     * The authLimiter keys on IP + path, so /login and /register each have
+     * their own independent counter. These tests exhaust the /login budget
+     * (10 requests) and confirm the 11th returns 429.
+     *
+     * express-rate-limit uses in-process memory, which persists for the
+     * lifetime of the `app` module within this Jest worker. Tests in this
+     * describe block intentionally build on each other's counter state.
      */
 
     it('returns HTTP 429 after exceeding the login rate limit (11th request)', async () => {
@@ -111,10 +114,16 @@ describe('Auth Rate Limiter — /api/auth/login', () => {
     });
 });
 
-describe('Auth Rate Limiter — /api/auth/register', () => {
-    it('returns HTTP 429 after exhausting the register rate limit', async () => {
-        // Use a fresh email each run so DB mock doesn't short-circuit on 409.
-        const body = { ...VALID_REGISTER_BODY, email: `user_${Date.now()}@example.com` };
+describe('Auth Rate Limiter — /api/auth/register (independent counter)', () => {
+    /**
+     * Because keyGenerator keys on IP + path, the /register counter is
+     * completely independent from /login. This test fires 11 /register-only
+     * requests and verifies that /register enforces its own 10-attempt limit.
+     */
+    it('returns HTTP 429 after exhausting the register-specific rate limit (11th request)', async () => {
+        // Use a fixed email — the DB mock always returns an empty result set,
+        // so registration will 500 (no real DB) but the limiter still counts it.
+        const body = { ...VALID_REGISTER_BODY };
         const responses = await fireRequests('/api/auth/register', body, 11);
         const lastRes = responses[responses.length - 1];
 
