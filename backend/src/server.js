@@ -136,22 +136,48 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Global Rate Limiter
+// ── Global Rate Limiter ────────────────────────────────────────────────────────
+// Reads window/max from env so production can be tuned without code changes.
+// standardHeaders: true  → emits RateLimit-Limit / RateLimit-Remaining / Retry-After (RFC 6585)
+// legacyHeaders: false   → suppresses X-RateLimit-* to keep responses uncluttered
 const rateLimitWindowMins = parseInt(process.env.RATE_LIMIT_WINDOW_MINS, 10) || 15;
 const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX, 10) || 100;
 
 const globalLimiter = rateLimit({
     windowMs: rateLimitWindowMins * 60 * 1000,
     max: rateLimitMax,
-    message: `Too many requests from this IP, please try again after ${rateLimitWindowMins} minutes`
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        res.status(429).json({
+            status: 'fail',
+            code: 'TOO_MANY_REQUESTS',
+            message: `Too many requests from this IP — please try again after ${rateLimitWindowMins} minutes.`,
+        });
+    },
 });
 app.use('/api/', globalLimiter);
 
-// Auth Rate Limiter (Sensitive Routes)
+// ── Auth Rate Limiter (Brute-force Protection) ─────────────────────────────────
+// Tighter window specifically for login / register to resist credential stuffing.
+// 10 attempts per hour per IP — legitimate users will never hit this.
+//
+// keyGenerator includes req.path so /login and /register maintain independent
+// counters per IP. Without this, exhausting the /login budget would immediately
+// block /register attempts from the same IP (and vice-versa).
 const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // Limit each IP to 10 login/register requests per hour
-    message: 'Too many authentication attempts, please try again after an hour'
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => `${req.ip}::${req.path}`,
+    handler: (req, res) => {
+        res.status(429).json({
+            status: 'fail',
+            code: 'TOO_MANY_REQUESTS',
+            message: 'Too many authentication attempts — please try again after 1 hour.',
+        });
+    },
 });
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
