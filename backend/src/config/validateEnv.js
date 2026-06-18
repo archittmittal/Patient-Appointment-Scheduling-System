@@ -18,6 +18,28 @@ const ANSI = {
 };
 
 /**
+ * Calculates the Shannon entropy (bits per character) of a string.
+ * A cryptographically secure 64-char hex string scores ~3.8+ bits.
+ * A low-entropy string like 'aaaaaa...' scores ~0 bits.
+ *
+ * @param {string} str
+ * @returns {number} entropy in bits-per-character
+ */
+function calculateShannonEntropy(str) {
+    if (!str || str.length === 0) return 0;
+    const freqs = {};
+    for (let i = 0; i < str.length; i++) {
+        freqs[str[i]] = (freqs[str[i]] || 0) + 1;
+    }
+    let entropy = 0;
+    for (const char in freqs) {
+        const p = freqs[char] / str.length;
+        entropy -= p * Math.log2(p);
+    }
+    return entropy;
+}
+
+/**
  * Vars that must be present for the server to function at all.
  * Missing any one of these = hard crash in ALL environments.
  */
@@ -99,7 +121,24 @@ function validateEnv() {
         console.warn(ANSI.yellow('SECURITY WARNING:\n' + msg));
         hasSecurityWarnings = true;
     } else {
-        console.log(ANSI.green('✓ JWT_SECRET strength: OK'));
+        // ── 4b. Shannon entropy check ──────────────────────────────────────────
+        const MIN_ENTROPY_BITS = 3.0;
+        const secretEntropy = calculateShannonEntropy(jwtSecret);
+        if (secretEntropy < MIN_ENTROPY_BITS) {
+            const msg = [
+                `⚠  JWT_SECRET has low entropy (${secretEntropy.toFixed(2)} bits/char < ${MIN_ENTROPY_BITS} required).`,
+                '   The secret uses too few unique characters — it could be guessed.',
+                '   Generate a strong secret with:  openssl rand -hex 32',
+            ].join('\n');
+            if (isProd) {
+                console.error(ANSI.red(ANSI.bold('FATAL SECURITY: ' + msg)));
+                process.exit(1);
+            }
+            console.warn(ANSI.yellow('SECURITY WARNING:\n' + msg));
+            hasSecurityWarnings = true;
+        } else {
+            console.log(ANSI.green(`✓ JWT_SECRET strength: OK (entropy ${secretEntropy.toFixed(2)} bits/char)`));
+        }
     }
 
     // ── 5. STRIPE_WEBHOOK_SECRET ────────────────────────────────────────────────
