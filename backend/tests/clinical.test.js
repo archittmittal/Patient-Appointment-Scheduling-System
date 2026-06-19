@@ -19,7 +19,7 @@ jest.mock('../src/config/db', () => {
             if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                 return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
             }
-            if (upperSql.includes('FROM USERS') || upperSql.includes('ROLE')) {
+            if (upperSql.includes('SELECT ROLE FROM USERS')) {
                 return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
             }
             return Promise.resolve([[ { id: 1 } ], []]);
@@ -67,7 +67,7 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
                 if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                     return Promise.resolve([[ { id: 101, appointment_id: 101, doctor_id: 2, patient_id: 1, appointment_date: '2026-01-01', consultation_start: new Date().toISOString(), symptoms: 'test', is_follow_up: false, doc_first: 'Dr', doc_last: 'Test', location_room: '101' } ], []]);
                 }
-                if (upperSql.includes('FROM USERS') || upperSql.includes('ROLE')) {
+                if (upperSql.includes('SELECT ROLE FROM USERS')) {
                     return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
                 }
                 return Promise.resolve([[ { id: 1 } ], []]);
@@ -93,7 +93,7 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
                 if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                     return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
                 }
-                if (upperSql.includes('FROM USERS') || upperSql.includes('ROLE')) {
+                if (upperSql.includes('SELECT ROLE FROM USERS')) {
                     return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
                 }
                 return Promise.resolve([[ { id: 1 } ], []]);
