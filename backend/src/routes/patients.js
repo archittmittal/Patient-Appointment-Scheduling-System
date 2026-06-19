@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
+const verifyConsent = require('../middleware/verifyConsent');
 const exportService = require('../services/exportService');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
@@ -164,7 +165,7 @@ const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
 
 // Issue #94: Get patient prescriptions
-router.get('/:id/prescriptions', authenticate, async (req, res) => {
+router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -178,7 +179,7 @@ router.get('/:id/prescriptions', authenticate, async (req, res) => {
 });
 
 // Issue #95: Get patient vitals history
-router.get('/:id/vitals', authenticate, async (req, res) => {
+router.get('/:id/vitals', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -202,7 +203,7 @@ const vitalsSchema = Joi.object({
 }).min(1);
 
 // Issue #95: Log new vitals (now with abnormal alerts)
-router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (req, res) => {
+router.post('/:id/vitals', authenticate, verifyConsent, validateRequest(vitalsSchema), async (req, res) => {
     // Both patients (self-logging) and doctors can log vitals
     if (req.user.role !== 'DOCTOR' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
@@ -217,7 +218,7 @@ router.post('/:id/vitals', authenticate, validateRequest(vitalsSchema), async (r
 });
 
 // Issue #144: Get vitals trends and analytics
-router.get('/:id/vitals/trends', authenticate, validateRequest(trendsQuerySchema, 'query'), async (req, res) => {
+router.get('/:id/vitals/trends', authenticate, verifyConsent, validateRequest(trendsQuerySchema, 'query'), async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -232,7 +233,7 @@ router.get('/:id/vitals/trends', authenticate, validateRequest(trendsQuerySchema
 });
 
 // Issue #110: Export patient vitals as CSV
-router.get('/:id/vitals/export', authenticate, async (req, res) => {
+router.get('/:id/vitals/export', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -245,7 +246,7 @@ router.get('/:id/vitals/export', authenticate, async (req, res) => {
 });
 
 // Issue #144: Get full prescription history (including inactive)
-router.get('/:id/prescriptions/history', authenticate, async (req, res) => {
+router.get('/:id/prescriptions/history', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
         return res.status(403).json({ message: 'Access denied' });
     }
@@ -269,7 +270,7 @@ const prescriptionSchema = Joi.object({
 });
 
 // Issue #144: Create a prescription (doctors only)
-router.post('/:id/prescriptions', authenticate, validateRequest(prescriptionSchema), async (req, res) => {
+router.post('/:id/prescriptions', authenticate, verifyConsent, validateRequest(prescriptionSchema), async (req, res) => {
     if (req.user.role !== 'DOCTOR') {
         return res.status(403).json({ message: 'Only doctors can create prescriptions' });
     }
@@ -289,7 +290,7 @@ router.post('/:id/prescriptions', authenticate, validateRequest(prescriptionSche
 });
 
 // Issue #144: Process a prescription refill (doctors only)
-router.post('/:id/prescriptions/:rxId/refill', authenticate, async (req, res) => {
+router.post('/:id/prescriptions/:rxId/refill', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR') {
         return res.status(403).json({ message: 'Only doctors can process refills' });
     }
@@ -306,7 +307,7 @@ router.post('/:id/prescriptions/:rxId/refill', authenticate, async (req, res) =>
 });
 
 // Issue #144: Deactivate a prescription (doctors only)
-router.patch('/:id/prescriptions/:rxId/deactivate', authenticate, async (req, res) => {
+router.patch('/:id/prescriptions/:rxId/deactivate', authenticate, verifyConsent, async (req, res) => {
     if (req.user.role !== 'DOCTOR') {
         return res.status(403).json({ message: 'Only doctors can deactivate prescriptions' });
     }
@@ -319,6 +320,46 @@ router.patch('/:id/prescriptions/:rxId/deactivate', authenticate, async (req, re
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error deactivating prescription' });
+    }
+});
+
+const consentSchema = Joi.object({
+    doctorId: Joi.number().integer().required(),
+    status: Joi.string().valid('GRANTED', 'REVOKED').required()
+});
+
+// POST /api/patients/:id/consent — grant/revoke consent for a doctor
+router.post('/:id/consent', authenticate, validateRequest(consentSchema), async (req, res) => {
+    // Only the patient themselves or an ADMIN can manage consent
+    if (req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const patientId = req.params.id;
+        const { doctorId, status } = req.body;
+
+        // Verify doctor exists and has role DOCTOR
+        const [docRows] = await db.query('SELECT role FROM users WHERE id = ?', [doctorId]);
+        if (docRows.length === 0 || docRows[0].role !== 'DOCTOR') {
+            return res.status(400).json({ message: 'Invalid doctor ID' });
+        }
+
+        // Insert log entry
+        await db.query(
+            'INSERT INTO consent_logs (patient_id, doctor_id, status) VALUES (?, ?, ?)',
+            [patientId, doctorId, status]
+        );
+
+        res.status(200).json({
+            message: `Consent successfully ${status === 'GRANTED' ? 'granted' : 'revoked'} for doctor.`,
+            patientId,
+            doctorId,
+            status
+        });
+    } catch (error) {
+        console.error('[Log/Revoke Consent Error]', error);
+        res.status(500).json({ message: 'Server error updating consent' });
     }
 });
 
