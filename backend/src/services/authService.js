@@ -54,8 +54,20 @@ class AuthService {
     }
 
     async registerPatient(userData) {
-        const { email, password, first_name, last_name, dob, phone, blood_group, address } = userData;
+        const { email, password, first_name, last_name, dob, phone, blood_group, address, abha_id, abha_number } = userData;
         
+        const abhaService = require('./abhaService');
+        if (abha_id && !abhaService.validateAbhaAddress(abha_id)) {
+            const error = new Error('Invalid ABHA ID format');
+            error.status = 400;
+            throw error;
+        }
+        if (abha_number && !abhaService.validateAbhaNumber(abha_number)) {
+            const error = new Error('Invalid ABHA Number format');
+            error.status = 400;
+            throw error;
+        }
+
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
@@ -76,17 +88,27 @@ class AuthService {
             const newId = userResult.insertId;
 
             await conn.query(
-                'INSERT INTO patients (id, first_name, last_name, dob, phone, blood_group, address) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                [newId, first_name, last_name, dob || null, phone || '', blood_group || '', address || '']
+                'INSERT INTO patients (id, first_name, last_name, dob, phone, blood_group, address, abha_id, abha_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [newId, first_name, last_name, dob || null, phone || '', blood_group || '', address || '', abha_id || null, abha_number || null]
             );
 
             await conn.commit();
 
             const token = sessionService.generateToken({ id: newId, email, role: 'PATIENT' });
 
-            return { id: newId, email, role: 'PATIENT', first_name, last_name, token };
+            return { id: newId, email, role: 'PATIENT', first_name, last_name, token, abha_id: abha_id || null, abha_number: abha_number || null };
         } catch (error) {
             await conn.rollback();
+            if (error.code === 'ER_DUP_ENTRY') {
+                const message = error.message.includes('abha_id') 
+                    ? 'This ABHA ID is already linked to another account'
+                    : error.message.includes('abha_number')
+                    ? 'This ABHA Number is already linked to another account'
+                    : 'An account with these details already exists';
+                const err = new Error(message);
+                err.status = 409;
+                throw err;
+            }
             throw error;
         } finally {
             conn.release();

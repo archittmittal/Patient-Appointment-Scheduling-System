@@ -1,0 +1,5 @@
+USE hospital_system;
+
+ALTER TABLE patients
+ADD COLUMN abha_id VARCHAR(100) NULL UNIQUE,
+ADD COLUMN abha_number VARCHAR(20) NULL UNIQUE;
