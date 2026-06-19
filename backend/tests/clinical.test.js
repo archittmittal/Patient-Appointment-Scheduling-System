@@ -13,8 +13,14 @@ jest.mock('../src/config/db', () => {
             if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
                 return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
             }
+            if (upperSql.includes('CONSENT_LOGS') || upperSql.includes('FROM CONSENT_LOGS')) {
+                return Promise.resolve([[ { status: 'GRANTED' } ], []]);
+            }
             if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                 return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
+            }
+            if (upperSql.includes('SELECT ROLE FROM USERS')) {
+                return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
             }
             return Promise.resolve([[ { id: 1 } ], []]);
         }
@@ -55,8 +61,14 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
                 if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
                     return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
                 }
+                if (upperSql.includes('CONSENT_LOGS') || upperSql.includes('FROM CONSENT_LOGS')) {
+                    return Promise.resolve([[ { status: 'GRANTED' } ], []]);
+                }
                 if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                     return Promise.resolve([[ { id: 101, appointment_id: 101, doctor_id: 2, patient_id: 1, appointment_date: '2026-01-01', consultation_start: new Date().toISOString(), symptoms: 'test', is_follow_up: false, doc_first: 'Dr', doc_last: 'Test', location_room: '101' } ], []]);
+                }
+                if (upperSql.includes('SELECT ROLE FROM USERS')) {
+                    return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
                 }
                 return Promise.resolve([[ { id: 1 } ], []]);
             }
@@ -75,8 +87,14 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
                 if (upperSql.includes('FROM PATIENT_VITALS') || upperSql.includes('FROM PRESCRIPTIONS')) {
                     return Promise.resolve([[ { id: 1, medications: 'Test Med', weight_kg: 70, blood_pressure_sys: 120, blood_pressure_dia: 80, heart_rate: 72, temperature_c: 36.6, spo2: 98, recorded_at: '2026-01-01', date_prescribed: '2026-01-01', doctor_first_name: 'Dr', doctor_last_name: 'Test', specialty: 'General', appointment_id: 101 } ], []]);
                 }
+                if (upperSql.includes('CONSENT_LOGS') || upperSql.includes('FROM CONSENT_LOGS')) {
+                    return Promise.resolve([[ { status: 'GRANTED' } ], []]);
+                }
                 if (upperSql.includes('FROM APPOINTMENTS') || upperSql.includes('FROM LIVE_QUEUE')) {
                     return Promise.resolve([[ { id: 101, appointment_id: 101 } ], []]);
+                }
+                if (upperSql.includes('SELECT ROLE FROM USERS')) {
+                    return Promise.resolve([[ { id: 1, role: 'DOCTOR' } ], []]);
                 }
                 return Promise.resolve([[ { id: 1 } ], []]);
             }
@@ -106,7 +124,13 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
         });
 
         it('should allow a doctor to log vitals for any patient', async () => {
-            db.query.mockResolvedValueOnce([{ insertId: 2 }, []]);
+            db.query.mockImplementation((sql) => {
+                const upperSql = (typeof sql === 'string') ? sql.trim().toUpperCase() : '';
+                if (upperSql.includes('CONSENT_LOGS') || upperSql.includes('FROM CONSENT_LOGS')) {
+                    return Promise.resolve([[ { status: 'GRANTED' } ], []]);
+                }
+                return Promise.resolve([{ insertId: 2, affectedRows: 1 }, []]);
+            });
             const res = await request(app)
                 .post(`/api/patients/${patientId}/vitals`)
                 .set('Authorization', `Bearer ${doctorToken}`)
@@ -604,6 +628,98 @@ describe('Clinical Hub Integration (Vitals & Prescriptions)', () => {
                 .patch(`/api/patients/${patientId}/prescriptions/1/deactivate`);
 
             expect(res.statusCode).toBe(401);
+        });
+    });
+
+    // ──────────── DPDP CONSENT MANAGEMENT TESTS ────────────
+    describe('DPDP Consent Management', () => {
+        it('should allow a patient to log a granted consent for a doctor', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/consent`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({
+                    doctorId: doctorId,
+                    status: 'GRANTED'
+                });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.status).toBe('GRANTED');
+            expect(res.body.doctorId).toBe(doctorId);
+        });
+
+        it('should allow a patient to revoke consent for a doctor', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/consent`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({
+                    doctorId: doctorId,
+                    status: 'REVOKED'
+                });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body.status).toBe('REVOKED');
+        });
+
+        it('should reject consent creation if parameters are invalid', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/consent`)
+                .set('Authorization', `Bearer ${patientToken}`)
+                .send({
+                    doctorId: doctorId,
+                    status: 'INVALID_STATUS'
+                });
+
+            expect(res.statusCode).toBe(400);
+        });
+
+        it('should deny non-authorized users from creating/managing consent', async () => {
+            const res = await request(app)
+                .post(`/api/patients/${patientId}/consent`)
+                .set('Authorization', `Bearer ${otherPatientToken}`)
+                .send({
+                    doctorId: doctorId,
+                    status: 'GRANTED'
+                });
+
+            expect(res.statusCode).toBe(403);
+        });
+
+        it('should deny access to patient vitals for a doctor if consent is revoked/missing', async () => {
+            // Mock connection query to return REVOKED for consent check
+            const mockConn = await db.getConnection();
+            const originalQuery = mockConn.query;
+            
+            mockConn.query = jest.fn().mockImplementation((sql, params) => {
+                const upperSql = (typeof sql === 'string') ? sql.trim().toUpperCase() : '';
+                if (upperSql.includes('CONSENT_LOGS') || upperSql.includes('FROM CONSENT_LOGS')) {
+                    return Promise.resolve([[ { status: 'REVOKED' } ], []]);
+                }
+                return originalQuery(sql, params);
+            });
+
+            // Mock default query too
+            db.query.mockImplementationOnce((sql, params) => {
+                return Promise.resolve([[ { status: 'REVOKED' } ], []]);
+            });
+
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals`)
+                .set('Authorization', `Bearer ${doctorToken}`);
+
+            expect(res.statusCode).toBe(403);
+            expect(res.body.code).toBe('CONSENT_REQUIRED');
+
+            // Restore original mock
+            mockConn.query = originalQuery;
+        });
+
+        it('should allow access to patient vitals for a doctor if consent is granted', async () => {
+            // By default, our updated base mock returns GRANTED
+            const res = await request(app)
+                .get(`/api/patients/${patientId}/vitals`)
+                .set('Authorization', `Bearer ${doctorToken}`);
+
+            expect(res.statusCode).toBe(200);
         });
     });
 });
