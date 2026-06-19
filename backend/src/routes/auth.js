@@ -20,7 +20,9 @@ const registerSchema = Joi.object({
     phone: Joi.string().required(),
     dob: Joi.string().allow('', null),
     blood_group: Joi.string().allow('', null),
-    address: Joi.string().allow('', null)
+    address: Joi.string().allow('', null),
+    abha_id: Joi.string().allow('', null),
+    abha_number: Joi.string().allow('', null)
 });
 
 /**
@@ -74,5 +76,38 @@ router.post('/reset-password', authController.resetPassword);
  *     tags: [Auth]
  */
 router.post('/google', validateRequest(Joi.object({ token: Joi.string().min(1).required() })), authController.googleLogin);
+
+const abhaService = require('../services/abhaService');
+
+const abhaVerifySchema = Joi.object({
+    abhaId: Joi.string().allow('', null),
+    abhaNumber: Joi.string().allow('', null)
+}).or('abhaId', 'abhaNumber');
+
+/**
+ * @swagger
+ * /api/auth/abha/verify:
+ *   post:
+ *     summary: Verify ABHA ID/Number format and mock registry check
+ *     tags: [Auth]
+ */
+router.post('/abha/verify', validateRequest(abhaVerifySchema), async (req, res) => {
+    try {
+        const { abhaId, abhaNumber } = req.body;
+        const result = await abhaService.verifyWithRegistry(abhaId, abhaNumber);
+        
+        if (!result.verified) {
+            return res.status(400).json({ status: 'fail', message: result.error });
+        }
+        
+        res.json({
+            status: 'success',
+            ...result
+        });
+    } catch (error) {
+        console.error('[ABHA Verification Error]', error);
+        res.status(500).json({ message: 'Server error verifying ABHA ID' });
+    }
+});
 
 module.exports = router;

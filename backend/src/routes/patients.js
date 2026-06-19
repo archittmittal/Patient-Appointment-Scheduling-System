@@ -83,7 +83,7 @@ router.get('/:id', authenticate, async (req, res) => {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
+        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, p.abha_id, p.abha_number, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Patient not found' });
         }
@@ -112,7 +112,7 @@ router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async 
              WHERE id = ?`,
             [first_name ?? null, last_name ?? null, phone ?? null, address ?? null, blood_group ?? null, req.params.id]
         );
-        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
+        const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, p.abha_id, p.abha_number, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         res.json(rows[0]);
     } catch (error) {
         console.error(error);
@@ -360,6 +360,62 @@ router.post('/:id/consent', authenticate, validateRequest(consentSchema), async 
     } catch (error) {
         console.error('[Log/Revoke Consent Error]', error);
         res.status(500).json({ message: 'Server error updating consent' });
+    }
+});
+
+const abhaLinkSchema = Joi.object({
+    abhaId: Joi.string().allow('', null),
+    abhaNumber: Joi.string().allow('', null)
+}).or('abhaId', 'abhaNumber');
+
+// POST /api/patients/:id/abha — link/update ABHA details for an existing patient
+router.post('/:id/abha', authenticate, validateRequest(abhaLinkSchema), async (req, res) => {
+    // Only the patient themselves or an ADMIN can manage ABHA linking
+    if (req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const patientId = req.params.id;
+        const { abhaId, abhaNumber } = req.body;
+
+        const abhaService = require('../services/abhaService');
+        if (abhaId && !abhaService.validateAbhaAddress(abhaId)) {
+            return res.status(400).json({ message: 'Invalid ABHA ID format' });
+        }
+        if (abhaNumber && !abhaService.validateAbhaNumber(abhaNumber)) {
+            return res.status(400).json({ message: 'Invalid ABHA Number format' });
+        }
+
+        // Check if patient exists
+        const [patientRows] = await db.query('SELECT id FROM patients WHERE id = ?', [patientId]);
+        if (patientRows.length === 0) {
+            return res.status(404).json({ message: 'Patient not found' });
+        }
+
+        // Update database row
+        await db.query(
+            `UPDATE patients SET 
+                abha_id = COALESCE(?, abha_id),
+                abha_number = COALESCE(?, abha_number)
+             WHERE id = ?`,
+            [abhaId || null, abhaNumber || null, patientId]
+        );
+
+        res.json({
+            message: 'ABHA details linked successfully',
+            abhaId: abhaId || null,
+            abhaNumber: abhaNumber || null
+        });
+    } catch (error) {
+        console.error('[ABHA Linking Error]', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            const message = error.message.includes('abha_id') 
+                ? 'This ABHA ID is already linked to another account'
+                : 'This ABHA Number is already linked to another account';
+            return res.status(409).json({ message });
+        }
+        res.status(500).json({ message: 'Server error updating ABHA details' });
     }
 });
 
