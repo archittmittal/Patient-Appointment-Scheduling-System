@@ -12,7 +12,8 @@ async function applyMigrations() {
         'migrations/migration_sprint4_otp_hardening.sql',
         'migrations/migration_sprint10_uppercase_status.sql',
         'migrations/migration_sprint11_symptom_checker.sql',
-        'migrations/migration_sprint11_departments.sql'
+        'migrations/migration_sprint11_departments.sql',
+        'migrations/migration_sprint13_abha_support.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');

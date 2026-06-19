@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS patients (
     phone VARCHAR(20),
     blood_group VARCHAR(5),
     address TEXT,
+    abha_id VARCHAR(100) NULL UNIQUE,
+    abha_number VARCHAR(20) NULL UNIQUE,
     FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE
 );
 
