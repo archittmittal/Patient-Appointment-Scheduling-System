@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 require('dotenv').config();
 const validateEnv = require('./config/validateEnv');
 validateEnv();
@@ -170,7 +170,7 @@ const authLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => `${req.ip}::${req.path}`,
+    keyGenerator: (req) => `${ipKeyGenerator(req.ip)}::${req.path}`,
     handler: (req, res) => {
         res.status(429).json({
             status: 'fail',
