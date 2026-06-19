@@ -94,6 +94,19 @@ CREATE TABLE IF NOT EXISTS doctor_blocked_dates (
     FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
 );
 
+-- 7. Consent Logs Table (DPDP Act 2023 Compliance)
+CREATE TABLE IF NOT EXISTS consent_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    status ENUM('GRANTED', 'REVOKED') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_consent_patient_doctor (patient_id, doctor_id),
+    FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
+);
+
 -- Insert Mock Users (passwords are bcrypt hashes — plain-text values: patient123, doctor123, admin123)
 INSERT IGNORE INTO users (id, email, password_hash, role) VALUES
 (1,  'patient@example.com',        '$2b$10$pr3yTOhaCSWoCCKx6dh5zuHdBjIb5OiArA8HmGrZY9pS23x3rw17W', 'PATIENT'),
