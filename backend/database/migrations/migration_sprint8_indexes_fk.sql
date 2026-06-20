@@ -14,19 +14,19 @@
 -- -----------------------------------------------------------------------
 
 -- Speeds up: GET /api/doctors/:id/appointments, reminders cron, admin queries
-CREATE INDEX IF NOT EXISTS idx_appointments_doctor_date
+CREATE INDEX idx_appointments_doctor_date
     ON appointments(doctor_id, appointment_date);
 
 -- Speeds up: GET /api/patients/:id/appointments, patient dashboard queries
-CREATE INDEX IF NOT EXISTS idx_appointments_patient_date
+CREATE INDEX idx_appointments_patient_date
     ON appointments(patient_id, appointment_date);
 
 -- Speeds up: status filter queries (confirmed today, cancelled today, etc.)
-CREATE INDEX IF NOT EXISTS idx_appointments_status
+CREATE INDEX idx_appointments_status
     ON appointments(status);
 
 -- Speeds up: live_queue lookups joined to appointments
-CREATE INDEX IF NOT EXISTS idx_live_queue_appointment
+CREATE INDEX idx_live_queue_appointment
     ON live_queue(appointment_id);
 
 -- -----------------------------------------------------------------------
@@ -40,16 +40,16 @@ CREATE INDEX IF NOT EXISTS idx_live_queue_appointment
 -- FK constraints without drop-and-recreate.
 -- -----------------------------------------------------------------------
 
--- Step 1: Remove old implicit FKs (names may vary by MySQL version; use IF EXISTS)
+-- Step 1: Remove old implicit FKs (names may vary by MySQL version)
 ALTER TABLE appointments
-    DROP FOREIGN KEY IF EXISTS fk_appointments_patient;
+    DROP FOREIGN KEY fk_appointments_patient;
 
 ALTER TABLE appointments
-    DROP FOREIGN KEY IF EXISTS fk_appointments_doctor;
+    DROP FOREIGN KEY fk_appointments_doctor;
 
 -- If the FKs were named differently by the schema generator, also try these fallbacks:
--- ALTER TABLE appointments DROP FOREIGN KEY IF EXISTS appointments_ibfk_1;
--- ALTER TABLE appointments DROP FOREIGN KEY IF EXISTS appointments_ibfk_2;
+ALTER TABLE appointments DROP FOREIGN KEY appointments_ibfk_1;
+ALTER TABLE appointments DROP FOREIGN KEY appointments_ibfk_2;
 
 -- Step 2: Re-add with explicit ON DELETE behavior
 ALTER TABLE appointments
@@ -60,4 +60,4 @@ ALTER TABLE appointments
 ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_doctor
         FOREIGN KEY (doctor_id) REFERENCES doctors(id)
-        ON DELETE RESTRICT;
+        ON DELETE CASCADE;
