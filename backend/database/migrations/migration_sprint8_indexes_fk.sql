@@ -60,4 +60,4 @@ ALTER TABLE appointments
 ALTER TABLE appointments
     ADD CONSTRAINT fk_appointments_doctor
         FOREIGN KEY (doctor_id) REFERENCES doctors(id)
-        ON DELETE RESTRICT;
+        ON DELETE CASCADE;

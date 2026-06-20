@@ -46,7 +46,6 @@ async function applyMigrations() {
                     error.code === 'ER_TABLE_EXISTS_ERROR' || 
                     error.code === 'ER_DUP_KEYNAME' ||
                     error.code === 'ER_FK_DUP_NAME' ||
-                    error.code === 'ER_CANNOT_ADD_FOREIGN_KEY' ||
                     error.code === 'ER_CANT_DROP_FIELD_OR_KEY'
                 ) {
                     console.log(`  [Info] Already applied or exists: ${statement.substring(0, 50)}...`);
