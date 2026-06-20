@@ -1,7 +1,7 @@
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "installCommand": "npm install --no-package-lock",
+  "installCommand": "npm install --no-package-lock --legacy-peer-deps",
   "framework": "vite",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
