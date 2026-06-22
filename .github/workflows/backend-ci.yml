@@ -14,6 +14,15 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     defaults:
       run:
         working-directory: backend
@@ -36,7 +45,7 @@ jobs:
       env:
         JWT_SECRET: test_secret
         NODE_ENV: test
-        DB_HOST: localhost
+        DB_HOST: 127.0.0.1
         DB_USER: root
         DB_PASSWORD: password
         DB_NAME: hospital_db
