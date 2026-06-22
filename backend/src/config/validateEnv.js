@@ -154,6 +154,19 @@ function validateEnv() {
         console.log(ANSI.green('✓ STRIPE_WEBHOOK_SECRET: configured'));
     }
 
+    // ── 5b. FRONTEND_URL warning ────────────────────────────────────────────────
+    if (!process.env.FRONTEND_URL) {
+        const msg = '⚠  FRONTEND_URL is not set — email action links will point to localhost!';
+        if (isProd) {
+            console.error(ANSI.red(ANSI.bold('FATAL SECURITY: ' + msg)));
+            process.exit(1);
+        }
+        console.warn(ANSI.yellow('SECURITY WARNING: ' + msg));
+        hasSecurityWarnings = true;
+    } else {
+        console.log(ANSI.green('✓ FRONTEND_URL: configured'));
+    }
+
     // ── 6. BCRYPT_ROUNDS sanity (numeric + safe range) ─────────────────────────
     if (process.env.BCRYPT_ROUNDS !== undefined) {
         const bcryptRounds = parseInt(process.env.BCRYPT_ROUNDS, 10);
