@@ -165,45 +165,61 @@ class WalkinPriorityService {
             params.push(specialtyId);
         }
 
-        // Get all waiting walk-ins sorted by priority
-        const [queue] = await db.query(
-            `SELECT id, registered_at, TIMESTAMPDIFF(MINUTE, registered_at, NOW()) as wait_mins, triage_score
-             FROM walkin_queue 
-             WHERE ${whereClause}
-             ORDER BY triage_score DESC, registered_at ASC`,
-            params
-        );
+        // Wrap SELECT + UPDATE in a transaction so concurrent reorder calls cannot
+        // interleave: without this, two simultaneous calls could each read the same
+        // stale snapshot and then overwrite each other's queue_position values.
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        // DB-007 (Day-7): Replace serial per-row UPDATEs with a single bulk
-        // CASE…WHEN UPDATE, reducing N DB round-trips to exactly 1.
-        // Note: `id` values come from a trusted DB SELECT above, not user input,
-        // so inline interpolation is safe here.
-        if (queue.length > 0) {
-            const positionCases = queue
-                .map((item, i) => `WHEN id = ${item.id} THEN ${i + 1}`)
-                .join(' ');
+            // Read the current queue inside the transaction for a consistent snapshot
+            const [queue] = await conn.query(
+                `SELECT id, registered_at, TIMESTAMPDIFF(MINUTE, registered_at, NOW()) as wait_mins, triage_score
+                 FROM walkin_queue 
+                 WHERE ${whereClause}
+                 ORDER BY triage_score DESC, registered_at ASC`,
+                params
+            );
 
-            const scoreCases = queue
-                .map((item) => {
-                    let adjusted = item.triage_score;
-                    // Boost priority for longer waits (prevents starvation)
-                    if (item.wait_mins > 30) {
-                        adjusted += Math.floor(item.wait_mins / 15) * 5;
-                    }
-                    return `WHEN id = ${item.id} THEN ${Math.min(adjusted, 200)}`;
-                })
-                .join(' ');
+            // DB-007 (Day-7): Replace serial per-row UPDATEs with a single bulk
+            // CASE…WHEN UPDATE, reducing N DB round-trips to exactly 1.
+            // Note: `id` values come from a trusted DB SELECT above, not user input,
+            // so inline interpolation is safe here.
+            if (queue.length > 0) {
+                const positionCases = queue
+                    .map((item, i) => `WHEN id = ${item.id} THEN ${i + 1}`)
+                    .join(' ');
 
-            const ids = queue.map((item) => item.id).join(',');
+                const scoreCases = queue
+                    .map((item) => {
+                        let adjusted = item.triage_score;
+                        // Boost priority for longer waits (prevents starvation)
+                        if (item.wait_mins > 30) {
+                            adjusted += Math.floor(item.wait_mins / 15) * 5;
+                        }
+                        return `WHEN id = ${item.id} THEN ${Math.min(adjusted, 200)}`;
+                    })
+                    .join(' ');
 
-            await db.query(`
-                UPDATE walkin_queue
-                SET queue_position = CASE ${positionCases} END,
-                    triage_score   = CASE ${scoreCases}   END
-                WHERE id IN (${ids})
-            `);
+                const ids = queue.map((item) => item.id).join(',');
+
+                await conn.query(`
+                    UPDATE walkin_queue
+                    SET queue_position = CASE ${positionCases} END,
+                        triage_score   = CASE ${scoreCases}   END
+                    WHERE id IN (${ids})
+                `);
+            }
+
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
     }
+
 
     /**
      * Estimate wait time for a walk-in patient

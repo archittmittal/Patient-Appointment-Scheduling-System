@@ -403,15 +403,18 @@ describe('Admin Patient List — GET /api/admin/patients/list (cursor pagination
     // ----------------------------------------------------------------
     describe('Cursor Behaviour', () => {
         it('nextCursor equals last id when a full page is returned', async () => {
-            // Simulate limit=2 → 2 rows returned → more pages likely
-            const patients = makePatients(2, 10);
+            // Route fetches limit+1 rows (3) to detect further pages.
+            // Mocking 3 rows signals hasMore=true; the route trims to limit=2
+            // and sets nextCursor to the id at index limit-1 (row[1].id = 11).
+            const patients = makePatients(3, 10); // ids 10, 11, 12
             db.query.mockResolvedValueOnce([patients]);
 
             const res = await request(app)
                 .get('/api/admin/patients/list?limit=2&cursor=9')
                 .set('Authorization', `Bearer ${adminToken}`);
 
-            expect(res.body.nextCursor).toBe(11); // last id in the page
+            expect(res.body.nextCursor).toBe(11); // last id before trim (index 1)
+            expect(res.body.data).toHaveLength(2); // trimmed to limit
         });
 
         it('nextCursor is null when fewer rows than limit are returned (last page)', async () => {
@@ -437,17 +440,19 @@ describe('Admin Patient List — GET /api/admin/patients/list (cursor pagination
             expect(res.body.data).toHaveLength(0);
         });
 
-        it('should pass cursor and limit to the SQL query', async () => {
-            db.query.mockResolvedValueOnce([makePatients(5, 6)]);
+        it('should pass cursor and limit+1 to the SQL query', async () => {
+            // Use distinct values (cursor=5, limit=10) so param-order bugs are detectable.
+            // The route passes limit+1=11 to the query to detect further pages.
+            db.query.mockResolvedValueOnce([makePatients(11, 6)]); // 11 rows → hasMore=true
 
             await request(app)
-                .get('/api/admin/patients/list?cursor=5&limit=5')
+                .get('/api/admin/patients/list?cursor=5&limit=10')
                 .set('Authorization', `Bearer ${adminToken}`);
 
             const [sql, params] = db.query.mock.calls[0];
             expect(sql).toContain('WHERE id > ?');
-            expect(params).toContain(5);  // cursor
-            expect(params).toContain(5);  // limit
+            expect(params[0]).toBe(5);  // cursor at index 0
+            expect(params[1]).toBe(11); // limit+1 at index 1
         });
     });
 
@@ -482,7 +487,7 @@ describe('Admin Patient List — GET /api/admin/patients/list (cursor pagination
 
             const [, params] = db.query.mock.calls[0];
             expect(params[0]).toBe(0);  // cursor default
-            expect(params[1]).toBe(50); // limit default
+            expect(params[1]).toBe(51); // route passes limit+1 (50+1) to detect further pages
         });
     });
 
