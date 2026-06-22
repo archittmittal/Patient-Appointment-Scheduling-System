@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --detectOpenHandles",
+    "test:backend": "jest --detectOpenHandles",
     "prepare": "husky",
     "db:check": "node scripts/dbCheck.js",
     "db:migrate": "node database/apply_migrations.js",
