@@ -347,7 +347,7 @@ router.get('/queue/:appointmentId', authenticate, async (req, res) => {
             queueSequence: processedSequence,
             estimatedWaitMins: waitInfo.estimatedWait,
             patientsAhead: waitInfo.patientsAhead,
-            predictedDuration: entry.predicted_duration || entry.predicted_duration_mins || 15
+            predictedDuration: entry.predicted_duration || entry.predicted_duration_mins || DEFAULT_PREDICTED_DURATION
         });
     } catch (error) {
         console.error(error);
@@ -509,7 +509,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
             );
             const consultStart = consultStartRows[0];
             
-            let actualDuration = 15; // Default if no start time
+            let actualDuration = DEFAULT_PREDICTED_DURATION; // Default if no start time
             if (consultStart?.consultation_start) {
                 const startTime = new Date(consultStart.consultation_start);
                 const endTime = new Date();
@@ -813,7 +813,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
         const accuracy = accuracyRows[0];
 
         res.json({
-            averages: avgTimes || { avg_duration_mins: 15, total_consultations: 0 },
+            averages: avgTimes || { avg_duration_mins: DEFAULT_PREDICTED_DURATION, total_consultations: 0 },
             historyStats: historyStats || {},
             dayPatterns: dayPatterns || [],
             hourPatterns: hourPatterns || [],
@@ -1050,7 +1050,7 @@ router.get('/:id/prescription/pdf', authenticate, async (req, res) => {
         const [appt] = await db.query('SELECT patient_id, doctor_id FROM appointments WHERE id = ?', [req.params.id]);
         if (appt.length === 0) return res.status(404).json({ message: 'Appointment not found' });
         
-        if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != appt[0].patient_id) {
+        if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id) !== parseInt(appt[0].patient_id)) {
             return res.status(403).json({ message: 'Access denied' });
         }
 

@@ -9,6 +9,14 @@ const transportService = require('./transportService');
 const preferenceService = require('./preferenceService');
 const historyService = require('./notificationHistoryService');
 
+const FRONTEND_URL = process.env.FRONTEND_URL
+    || process.env.APP_URL
+    || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5173' : null);
+
+if (!FRONTEND_URL && process.env.NODE_ENV === 'production') {
+    throw new Error('FRONTEND_URL must be set in production');
+}
+
 class NotificationService {
     constructor() {
         // Expose preferences and history through this service for convenience
@@ -142,7 +150,7 @@ class NotificationService {
                     <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                         © 2026 HealthSync Patient Portal. All rights reserved.
                         <br>
-                        <a href="${process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:5173'}/settings/notifications" style="color: #2563eb; text-decoration: none;">Notification Settings</a>
+                        <a href="${FRONTEND_URL}/settings/notifications" style="color: #2563eb; text-decoration: none;">Notification Settings</a>
                     </p>
                 </div>
             </div>
