@@ -174,20 +174,34 @@ class WalkinPriorityService {
             params
         );
 
-        // Update positions - also boost priority for long waits
-        for (let i = 0; i < queue.length; i++) {
-            const item = queue[i];
-            let adjustedScore = item.triage_score;
-            
-            // Boost priority for longer waits (prevents starvation)
-            if (item.wait_mins > 30) {
-                adjustedScore += Math.floor(item.wait_mins / 15) * 5;
-            }
+        // DB-007 (Day-7): Replace serial per-row UPDATEs with a single bulk
+        // CASE…WHEN UPDATE, reducing N DB round-trips to exactly 1.
+        // Note: `id` values come from a trusted DB SELECT above, not user input,
+        // so inline interpolation is safe here.
+        if (queue.length > 0) {
+            const positionCases = queue
+                .map((item, i) => `WHEN id = ${item.id} THEN ${i + 1}`)
+                .join(' ');
 
-            await db.query(
-                `UPDATE walkin_queue SET queue_position = ?, triage_score = ? WHERE id = ?`,
-                [i + 1, Math.min(adjustedScore, 200), item.id]
-            );
+            const scoreCases = queue
+                .map((item) => {
+                    let adjusted = item.triage_score;
+                    // Boost priority for longer waits (prevents starvation)
+                    if (item.wait_mins > 30) {
+                        adjusted += Math.floor(item.wait_mins / 15) * 5;
+                    }
+                    return `WHEN id = ${item.id} THEN ${Math.min(adjusted, 200)}`;
+                })
+                .join(' ');
+
+            const ids = queue.map((item) => item.id).join(',');
+
+            await db.query(`
+                UPDATE walkin_queue
+                SET queue_position = CASE ${positionCases} END,
+                    triage_score   = CASE ${scoreCases}   END
+                WHERE id IN (${ids})
+            `);
         }
     }
 
