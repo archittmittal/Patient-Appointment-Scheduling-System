@@ -110,18 +110,23 @@ router.use(requireRole('ADMIN'));
 router.get('/patients/list', validateRequest(patientsListQuerySchema, 'query'), async (req, res) => {
     try {
         const { cursor, limit } = req.query;
+        // Fetch one extra row beyond the requested limit to reliably detect whether
+        // more pages exist.  If rows.length === limit, the final page might also
+        // happen to have exactly `limit` rows — we would wrongly set nextCursor.
+        // Fetching limit+1 removes that ambiguity.
         const [rows] = await db.query(
             `SELECT id, CONCAT(first_name, ' ', last_name) AS name
              FROM patients
              WHERE id > ?
              ORDER BY id ASC
              LIMIT ?`,
-            [cursor, limit]
+            [cursor, limit + 1]
         );
-        // If we got exactly `limit` rows there may be more — provide a cursor.
-        // If fewer rows came back, this is the last page.
-        const nextCursor = rows.length === limit ? rows[rows.length - 1].id : null;
-        res.json({ data: rows, nextCursor });
+        // If the extra row came back there is at least one more page.
+        // Capture its cursor position before trimming the array.
+        const hasMore = rows.length > limit;
+        const nextCursor = hasMore ? rows[limit - 1].id : null;
+        res.json({ data: hasMore ? rows.slice(0, limit) : rows, nextCursor });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
