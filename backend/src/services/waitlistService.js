@@ -6,6 +6,40 @@
 const pool = require('../config/db');
 const notificationService = require('./notificationService');
 
+function convertTo24Hour(timeStr) {
+    if (!timeStr) return '00:00:00';
+    const startPart = timeStr.split(/[–\-—]/)[0].trim();
+    const ampmMatch = startPart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (ampmMatch) {
+        let hours = parseInt(ampmMatch[1], 10);
+        const minutes = parseInt(ampmMatch[2], 10);
+        const ampm = ampmMatch[3].toUpperCase();
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    }
+    const simpleMatch = startPart.match(/(\d+):(\d+)/);
+    if (simpleMatch) {
+        const hours = parseInt(simpleMatch[1], 10);
+        const minutes = parseInt(simpleMatch[2], 10);
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    }
+    return timeStr;
+}
+
+function convertTo12Hour(timeStr) {
+    if (!timeStr) return '';
+    const parts = timeStr.split(':');
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(minutes).padStart(2, '0');
+    return `${hoursStr}:${minutesStr} ${ampm}`;
+}
+
 class WaitlistService {
     constructor() {
         // Ensure methods are bound to this instance
@@ -147,12 +181,13 @@ class WaitlistService {
         }
 
         const { doctor_id, appointment_date, appointment_time } = appointment;
+        const mysqlTime = convertTo24Hour(appointment_time);
 
         // Log the slot release
         await pool.query(
             `INSERT INTO slot_release_log (appointment_id, doctor_id, release_type, slot_date, slot_time)
              VALUES (?, ?, ?, ?, ?)`,
-            [appointmentId, doctor_id, releaseType, appointment_date, appointment_time]
+            [appointmentId, doctor_id, releaseType, appointment_date, mysqlTime]
         );
 
         // Check if auto-fill is enabled for this doctor
@@ -176,7 +211,7 @@ class WaitlistService {
         } else {
             slotDateStr = String(appointment_date).slice(0, 10);
         }
-        const slotDateTime = new Date(`${slotDateStr}T${appointment_time}`);
+        const slotDateTime = new Date(`${slotDateStr}T${mysqlTime}`);
         const hoursUntilSlot = (slotDateTime - new Date()) / (1000 * 60 * 60);
 
         if (hoursUntilSlot < settings.min_notice_hours) {
@@ -184,7 +219,7 @@ class WaitlistService {
         }
 
         // Find eligible waitlist patients
-        const timePreferenceFilter = this.getTimePreference(appointment_time);
+        const timePreferenceFilter = this.getTimePreference(mysqlTime);
         
         const [candidates] = await pool.query(
             `SELECT w.* FROM waitlist w
@@ -220,7 +255,7 @@ class WaitlistService {
             await pool.query(
                 `INSERT INTO slot_offers (waitlist_id, original_appointment_id, offered_date, offered_time, expires_at)
                  VALUES (?, ?, ?, ?, ?)`,
-                [candidate.id, appointmentId, appointment_date, appointment_time, offerExpiry]
+                [candidate.id, appointmentId, appointment_date, mysqlTime, offerExpiry]
             );
 
             // Update waitlist status to OFFERED
@@ -283,10 +318,11 @@ class WaitlistService {
         }
 
         // Check if slot is still available
+        const apptTime12h = convertTo12Hour(offer.offered_time);
         const [existingRows] = await pool.query(
             `SELECT id FROM appointments 
              WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED'`,
-            [offer.doctor_id, offer.offered_date, offer.offered_time]
+            [offer.doctor_id, offer.offered_date, apptTime12h]
         );
         const existingAppointment = existingRows[0];
 
@@ -299,7 +335,7 @@ class WaitlistService {
         const [newAppointment] = await pool.query(
             `INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, status, symptoms)
              VALUES (?, ?, ?, ?, 'SCHEDULED', 'Waitlist auto-fill')`,
-            [patientId, offer.doctor_id, offer.offered_date, offer.offered_time]
+            [patientId, offer.doctor_id, offer.offered_date, apptTime12h]
         );
 
         // Update offer status

@@ -6,7 +6,8 @@
     "backend"
   ],
   "scripts": {
-    "build": "npm run build --workspace=frontend"
+    "build": "npm run build --workspace=frontend",
+    "test:backend": "npm run test --workspace=backend"
   },
   "devDependencies": {
     "lint-staged": "^17.0.7"

@@ -118,12 +118,13 @@ const joinWaitlistSchema = Joi.object({
 router.post('/book', authenticate, validateRequest(bookSchema), async (req, res) => {
     try {
         const { doctorId, date, timeSlot, symptoms } = req.body;
+        const formattedDate = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
         const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
 
         // Validate that if appointment date is today, the slot starting time is in the future
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const bookingDate = new Date(date);
+        const bookingDate = new Date(formattedDate);
         bookingDate.setHours(0, 0, 0, 0);
         
         const todayStr = today.toISOString().split('T')[0];
@@ -186,7 +187,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
                  FROM appointments 
                  WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED' 
                  FOR UPDATE`,
-                [doctorId, date, timeSlot]
+                [doctorId, formattedDate, timeSlot]
             );
 
             if (slotRows[0].slot_count >= maxPatients) {
@@ -199,14 +200,14 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             try {
                 [result] = await conn.query(
                     'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status, predicted_duration_mins, is_follow_up) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
+                    [patientId, doctorId, formattedDate, timeSlot, symptoms || null, 'CONFIRMED', prediction.predictedDuration, prediction.factors.isFollowUp || false]
                 );
             } catch (fullInsertErr) {
                 // If the error is about unknown columns (predicted_duration_mins / is_follow_up), try a simpler INSERT
                 if (fullInsertErr.code === 'ER_BAD_FIELD_ERROR' || (fullInsertErr.message && fullInsertErr.message.includes('Unknown column'))) {
                     [result] = await conn.query(
                         'INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, symptoms, status) VALUES (?, ?, ?, ?, ?, ?)',
-                        [patientId, doctorId, date, timeSlot, symptoms || null, 'CONFIRMED']
+                        [patientId, doctorId, formattedDate, timeSlot, symptoms || null, 'CONFIRMED']
                     );
                 } else {
                     throw fullInsertErr;
