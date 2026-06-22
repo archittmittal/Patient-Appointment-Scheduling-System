@@ -6,6 +6,56 @@
 const pool = require('../config/db');
 const notificationService = require('./notificationService');
 
+function convertTo24Hour(timeStr) {
+    if (!timeStr || typeof timeStr !== 'string') {
+        throw new Error('Invalid time input: must be a non-empty string');
+    }
+    const startPart = timeStr.split(/[–\-—]/)[0].trim();
+    const ampmMatch = startPart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (ampmMatch) {
+        let hours = parseInt(ampmMatch[1], 10);
+        const minutes = parseInt(ampmMatch[2], 10);
+        const ampm = ampmMatch[3].toUpperCase();
+        if (isNaN(hours) || isNaN(minutes) || hours < 1 || hours > 12 || minutes < 0 || minutes > 59) {
+            throw new Error(`Invalid time format: ${timeStr}`);
+        }
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    }
+    const simpleMatch = startPart.match(/(\d+):(\d+)/);
+    if (simpleMatch) {
+        const hours = parseInt(simpleMatch[1], 10);
+        const minutes = parseInt(simpleMatch[2], 10);
+        if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+            throw new Error(`Invalid time format: ${timeStr}`);
+        }
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    }
+    throw new Error(`Invalid time format: ${timeStr}`);
+}
+
+function convertTo12Hour(timeStr) {
+    if (!timeStr || typeof timeStr !== 'string') {
+        throw new Error('Invalid time input: must be a non-empty string');
+    }
+    const parts = timeStr.split(':');
+    if (parts.length < 2) {
+        throw new Error(`Invalid time format: ${timeStr}`);
+    }
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        throw new Error(`Invalid time format: ${timeStr}`);
+    }
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    let displayHours = hours % 12;
+    displayHours = displayHours ? displayHours : 12;
+    const hoursStr = String(displayHours).padStart(2, '0');
+    const minutesStr = String(minutes).padStart(2, '0');
+    return `${hoursStr}:${minutesStr} ${ampm}`;
+}
+
 class WaitlistService {
     constructor() {
         // Ensure methods are bound to this instance
@@ -147,12 +197,13 @@ class WaitlistService {
         }
 
         const { doctor_id, appointment_date, appointment_time } = appointment;
+        const mysqlTime = convertTo24Hour(appointment_time);
 
         // Log the slot release
         await pool.query(
             `INSERT INTO slot_release_log (appointment_id, doctor_id, release_type, slot_date, slot_time)
              VALUES (?, ?, ?, ?, ?)`,
-            [appointmentId, doctor_id, releaseType, appointment_date, appointment_time]
+            [appointmentId, doctor_id, releaseType, appointment_date, mysqlTime]
         );
 
         // Check if auto-fill is enabled for this doctor
@@ -176,7 +227,7 @@ class WaitlistService {
         } else {
             slotDateStr = String(appointment_date).slice(0, 10);
         }
-        const slotDateTime = new Date(`${slotDateStr}T${appointment_time}`);
+        const slotDateTime = new Date(`${slotDateStr}T${mysqlTime}`);
         const hoursUntilSlot = (slotDateTime - new Date()) / (1000 * 60 * 60);
 
         if (hoursUntilSlot < settings.min_notice_hours) {
@@ -184,7 +235,7 @@ class WaitlistService {
         }
 
         // Find eligible waitlist patients
-        const timePreferenceFilter = this.getTimePreference(appointment_time);
+        const timePreferenceFilter = this.getTimePreference(mysqlTime);
         
         const [candidates] = await pool.query(
             `SELECT w.* FROM waitlist w
@@ -220,7 +271,7 @@ class WaitlistService {
             await pool.query(
                 `INSERT INTO slot_offers (waitlist_id, original_appointment_id, offered_date, offered_time, expires_at)
                  VALUES (?, ?, ?, ?, ?)`,
-                [candidate.id, appointmentId, appointment_date, appointment_time, offerExpiry]
+                [candidate.id, appointmentId, appointment_date, mysqlTime, offerExpiry]
             );
 
             // Update waitlist status to OFFERED
@@ -259,93 +310,126 @@ class WaitlistService {
      * Accept a slot offer
      */
     async acceptSlotOffer(offerId, patientId) {
-        // Get offer and verify ownership
-        const [offerRows] = await pool.query(
-            `SELECT so.*, w.patient_id, w.doctor_id
-             FROM slot_offers so
-             JOIN waitlist w ON so.waitlist_id = w.id
-             WHERE so.id = ? AND w.patient_id = ?`,
-            [offerId, patientId]
-        );
-        const offer = offerRows[0];
+        let conn = null;
+        try {
+            conn = await pool.getConnection();
+            await conn.beginTransaction();
 
-        if (!offer) {
-            return { success: false, error: 'Offer not found' };
+            // Get offer and verify ownership, joining waitlist, appointments (to get original time_slot), and doctors (for capacity check)
+            const [offerRows] = await conn.query(
+                `SELECT so.*, w.patient_id, w.doctor_id, a.time_slot AS original_time_slot, d.max_patients_per_slot
+                 FROM slot_offers so
+                 JOIN waitlist w ON so.waitlist_id = w.id
+                 JOIN appointments a ON so.original_appointment_id = a.id
+                 JOIN doctors d ON w.doctor_id = d.id
+                 WHERE so.id = ? AND w.patient_id = ?
+                 FOR UPDATE`,
+                [offerId, patientId]
+            );
+            const offer = offerRows[0];
+
+            if (!offer) {
+                await conn.rollback();
+                return { success: false, error: 'Offer not found' };
+            }
+
+            if (offer.offer_status !== 'PENDING') {
+                await conn.rollback();
+                return { success: false, error: 'Offer is no longer available' };
+            }
+
+            if (new Date(offer.expires_at) < new Date()) {
+                await conn.query(`UPDATE slot_offers SET offer_status = 'EXPIRED' WHERE id = ?`, [offerId]);
+                await conn.commit();
+                return { success: false, error: 'Offer has expired' };
+            }
+
+            const maxPatients = offer.max_patients_per_slot ?? 15;
+
+            // Check if slot is still available under doctor's capacity limit, locking active appointments FOR UPDATE
+            const [slotRows] = await conn.query(
+                `SELECT COUNT(*) AS slot_count 
+                 FROM appointments 
+                 WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED'
+                 FOR UPDATE`,
+                [offer.doctor_id, offer.offered_date, offer.original_time_slot]
+            );
+            const activeCount = slotRows[0].slot_count;
+
+            if (activeCount >= maxPatients) {
+                await conn.query(`UPDATE slot_offers SET offer_status = 'EXPIRED' WHERE id = ?`, [offerId]);
+                await conn.commit();
+                return { success: false, error: 'Slot has already been filled' };
+            }
+
+            // Create new appointment
+            const [newAppointment] = await conn.query(
+                `INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, status, symptoms)
+                 VALUES (?, ?, ?, ?, 'SCHEDULED', 'Waitlist auto-fill')`,
+                [patientId, offer.doctor_id, offer.offered_date, offer.original_time_slot]
+            );
+
+            // Update offer status
+            await conn.query(
+                `UPDATE slot_offers 
+                 SET offer_status = 'ACCEPTED', responded_at = NOW(), new_appointment_id = ?
+                 WHERE id = ?`,
+                [newAppointment.insertId, offerId]
+            );
+
+            // Update waitlist entry
+            await conn.query(
+                `UPDATE waitlist SET status = 'ACCEPTED' WHERE id = ?`,
+                [offer.waitlist_id]
+            );
+
+            // Expire other offers for same slot
+            await conn.query(
+                `UPDATE slot_offers 
+                 SET offer_status = 'EXPIRED' 
+                 WHERE original_appointment_id = ? AND id != ? AND offer_status = 'PENDING'`,
+                [offer.original_appointment_id, offerId]
+            );
+
+            // Update slot release log
+            await conn.query(
+                `UPDATE slot_release_log 
+                 SET auto_fill_successful = TRUE, filled_by_patient_id = ?
+                 WHERE appointment_id = ?`,
+                [patientId, offer.original_appointment_id]
+            );
+
+            // Restore waitlist status for patients whose offers expired
+            await conn.query(
+                `UPDATE waitlist w
+                 JOIN slot_offers so ON w.id = so.waitlist_id
+                 SET w.status = 'ACTIVE'
+                 WHERE so.original_appointment_id = ? AND so.id != ? AND so.offer_status = 'EXPIRED'`,
+                [offer.original_appointment_id, offerId]
+            );
+
+            await conn.commit();
+
+            return { 
+                success: true, 
+                appointmentId: newAppointment.insertId,
+                message: 'Slot successfully booked!'
+            };
+        } catch (error) {
+            if (conn) {
+                try {
+                    await conn.rollback();
+                } catch (rollbackError) {
+                    console.error('Rollback failed:', rollbackError);
+                }
+            }
+            console.error('acceptSlotOffer error:', error);
+            return { success: false, error: 'Server error accepting slot offer' };
+        } finally {
+            if (conn) {
+                conn.release();
+            }
         }
-
-        if (offer.offer_status !== 'PENDING') {
-            return { success: false, error: 'Offer is no longer available' };
-        }
-
-        if (new Date(offer.expires_at) < new Date()) {
-            await pool.query(`UPDATE slot_offers SET offer_status = 'EXPIRED' WHERE id = ?`, [offerId]);
-            return { success: false, error: 'Offer has expired' };
-        }
-
-        // Check if slot is still available
-        const [existingRows] = await pool.query(
-            `SELECT id FROM appointments 
-             WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != 'CANCELLED'`,
-            [offer.doctor_id, offer.offered_date, offer.offered_time]
-        );
-        const existingAppointment = existingRows[0];
-
-        if (existingAppointment) {
-            await pool.query(`UPDATE slot_offers SET offer_status = 'EXPIRED' WHERE id = ?`, [offerId]);
-            return { success: false, error: 'Slot has already been filled' };
-        }
-
-        // Create new appointment
-        const [newAppointment] = await pool.query(
-            `INSERT INTO appointments (patient_id, doctor_id, appointment_date, time_slot, status, symptoms)
-             VALUES (?, ?, ?, ?, 'SCHEDULED', 'Waitlist auto-fill')`,
-            [patientId, offer.doctor_id, offer.offered_date, offer.offered_time]
-        );
-
-        // Update offer status
-        await pool.query(
-            `UPDATE slot_offers 
-             SET offer_status = 'ACCEPTED', responded_at = NOW(), new_appointment_id = ?
-             WHERE id = ?`,
-            [newAppointment.insertId, offerId]
-        );
-
-        // Update waitlist entry
-        await pool.query(
-            `UPDATE waitlist SET status = 'ACCEPTED' WHERE id = ?`,
-            [offer.waitlist_id]
-        );
-
-        // Expire other offers for same slot
-        await pool.query(
-            `UPDATE slot_offers 
-             SET offer_status = 'EXPIRED' 
-             WHERE original_appointment_id = ? AND id != ? AND offer_status = 'PENDING'`,
-            [offer.original_appointment_id, offerId]
-        );
-
-        // Update slot release log
-        await pool.query(
-            `UPDATE slot_release_log 
-             SET auto_fill_successful = TRUE, filled_by_patient_id = ?
-             WHERE appointment_id = ?`,
-            [patientId, offer.original_appointment_id]
-        );
-
-        // Restore waitlist status for patients whose offers expired
-        await pool.query(
-            `UPDATE waitlist w
-             JOIN slot_offers so ON w.id = so.waitlist_id
-             SET w.status = 'ACTIVE'
-             WHERE so.original_appointment_id = ? AND so.id != ? AND so.offer_status = 'EXPIRED'`,
-            [offer.original_appointment_id, offerId]
-        );
-
-        return { 
-            success: true, 
-            appointmentId: newAppointment.insertId,
-            message: 'Slot successfully booked!'
-        };
     }
 
     /**
