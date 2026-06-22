@@ -5,10 +5,12 @@
 
 const express = require('express');
 const router = express.Router();
+const Joi = require('joi');
 const virtualCheckinService = require('../services/virtualCheckinService');
 const sseManager = require('../services/sseManager');
 const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
 const { safeErrorMessage } = require('../middleware/errorHandler');
+const validateRequest = require('../middleware/validateRequest');
 
 /**
  * @swagger
@@ -124,17 +126,17 @@ router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.post('/:appointmentId/status', authenticate, async (req, res) => {
+const checkinStatusSchema = Joi.object({
+    status: Joi.string().valid('EN_ROUTE', 'ARRIVED', 'RUNNING_LATE').required(),
+    etaMinutes: Joi.number().integer().min(1).max(480).optional(),
+    message: Joi.string().max(200).optional()
+});
+
+router.post('/:appointmentId/status', authenticate, validateRequest(checkinStatusSchema), async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
         const { status, etaMinutes, message } = req.body;
-
-        // [BUG-007] Guard against missing status — status.toUpperCase() would crash
-        // with TypeError if status is undefined (no Joi schema on this endpoint).
-        if (!status) {
-            return res.status(400).json({ error: 'status is required' });
-        }
 
         const result = await virtualCheckinService.updateStatus(
             appointmentId,

@@ -102,6 +102,7 @@ function normalizeOrigin(value) {
 }
 
 const whitelist = new Set([
+    ...(process.env.CORS_ALLOWED_ORIGINS ? process.env.CORS_ALLOWED_ORIGINS.split(',') : []),
     ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
     process.env.APP_URL,
     process.env.FRONTEND_URL,

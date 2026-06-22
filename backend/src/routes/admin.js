@@ -6,6 +6,10 @@ const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const { bcryptRounds } = require('../config/auth');
+const cache = require('../config/memoryCache');
+
+// Cache TTL for the real-time queue overview snapshot (milliseconds).
+const QUEUE_OVERVIEW_CACHE_TTL = 5000;
 
 const BCRYPT_ROUNDS = bcryptRounds || 10;
 
@@ -48,6 +52,13 @@ const appointmentsQuerySchema = Joi.object({
     date: Joi.string().isoDate().allow('', null)
 });
 
+// DB-007 (Day-7): Cursor-based pagination schema for the simple patient list.
+// max 50 rows per page; cursor is the last seen patient id (0 = start from beginning).
+const patientsListQuerySchema = Joi.object({
+    cursor: Joi.number().integer().min(0).default(0),
+    limit: Joi.number().integer().min(1).max(50).default(50)
+});
+
 // All admin routes require authentication + ADMIN role
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
@@ -63,22 +74,59 @@ router.use(requireRole('ADMIN'));
  * @swagger
  * /api/admin/patients/list:
  *   get:
- *     summary: Get a simple list of all patients
+ *     summary: Get a cursor-paginated list of patients (max 50 per page)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: Last seen patient id (0 to start from the beginning)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 50
+ *         description: Number of rows to return (1–50)
  *     responses:
  *       200:
- *         description: Simple list of all patients retrieved successfully
+ *         description: >
+ *           { data: [{id, name}], nextCursor: <number|null> }
+ *           nextCursor is null when there are no more pages.
+ *       400:
+ *         description: Validation error (limit > 50 etc.)
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden (Requires ADMIN role)
  */
-router.get('/patients/list', async (req, res) => {
+// DB-007 (Day-7): Cursor-based pagination — avoids full-table scans on large
+// patient datasets.  Uses keyset pagination on the primary key (id > cursor)
+// which is O(log N) with the PK index, unlike OFFSET which degrades as N grows.
+router.get('/patients/list', validateRequest(patientsListQuerySchema, 'query'), async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT id, CONCAT(first_name, " ", last_name) AS name FROM patients ORDER BY first_name');
-        res.json(rows);
+        const { cursor, limit } = req.query;
+        // Fetch one extra row beyond the requested limit to reliably detect whether
+        // more pages exist.  If rows.length === limit, the final page might also
+        // happen to have exactly `limit` rows — we would wrongly set nextCursor.
+        // Fetching limit+1 removes that ambiguity.
+        const [rows] = await db.query(
+            `SELECT id, CONCAT(first_name, ' ', last_name) AS name
+             FROM patients
+             WHERE id > ?
+             ORDER BY id ASC
+             LIMIT ?`,
+            [cursor, limit + 1]
+        );
+        // If the extra row came back there is at least one more page.
+        // Capture its cursor position before trimming the array.
+        const hasMore = rows.length > limit;
+        const nextCursor = hasMore ? rows[limit - 1].id : null;
+        res.json({ data: hasMore ? rows.slice(0, limit) : rows, nextCursor });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -669,20 +717,40 @@ router.get('/stats', async (req, res) => {
  *         description: Forbidden (Requires ADMIN role)
  */
 router.get('/queue-overview', async (req, res) => {
+    // DB-007 (Day-7): Serve from in-process cache when the snapshot is fresh.
+    // The queue-overview is polled every few seconds by the admin dashboard;
+    // caching for 5 s eliminates redundant DB hits without staling the UX.
+    const CACHE_KEY = 'admin:queue-overview';
+    const cached = cache.get(CACHE_KEY);
+    if (cached) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.json(cached);
+    }
+
     try {
-        // Single query to get all data: Doctors and their Live Queue entries for today
+        // DB-007 (Day-7): Replace the per-doctor correlated subquery with a
+        // pre-aggregated LEFT JOIN so doc_total_today costs one GROUP BY scan
+        // instead of one COUNT(*) subquery per doctor row (N+1 fix).
         const [rows] = await db.query(`
             SELECT 
                 d.id AS doctor_id, d.first_name, d.last_name, d.specialty,
                 lq.id AS queue_id, lq.queue_number, lq.status AS queue_status,
                 CONCAT(p.first_name, ' ', p.last_name) AS patient_name,
                 a.time_slot,
-                (SELECT COUNT(*) FROM appointments WHERE doctor_id = d.id AND appointment_date = CURDATE()) AS doc_total_today
+                COALESCE(agg.total_today, 0) AS doc_total_today
             FROM doctors d
-            LEFT JOIN appointments a ON a.doctor_id = d.id AND a.appointment_date = CURDATE()
+            LEFT JOIN appointments a
+                   ON a.doctor_id = d.id AND a.appointment_date = CURDATE()
             LEFT JOIN live_queue lq ON lq.appointment_id = a.id
             LEFT JOIN patients p ON a.patient_id = p.id
-            WHERE a.id IS NOT NULL OR d.id IN (SELECT DISTINCT doctor_id FROM appointments WHERE appointment_date = CURDATE())
+            LEFT JOIN (
+                SELECT doctor_id, COUNT(*) AS total_today
+                FROM appointments
+                WHERE appointment_date = CURDATE()
+                GROUP BY doctor_id
+            ) agg ON agg.doctor_id = d.id
+            WHERE a.id IS NOT NULL
+               OR d.id IN (SELECT DISTINCT doctor_id FROM appointments WHERE appointment_date = CURDATE())
             ORDER BY d.first_name, lq.queue_number ASC
         `);
 
@@ -705,7 +773,7 @@ router.get('/queue-overview', async (req, res) => {
             }
 
             const doc = doctorMap.get(row.doctor_id);
-            
+
             if (row.queue_id) {
                 doc.queue.push({
                     queue_id: row.queue_id,
@@ -716,14 +784,19 @@ router.get('/queue-overview', async (req, res) => {
                 });
 
                 // Update counters
-                if (row.queue_status === 'WAITING') doc.waiting++;
+                if (row.queue_status === 'WAITING')     doc.waiting++;
                 else if (row.queue_status === 'IN_PROGRESS') doc.in_progress++;
-                else if (row.queue_status === 'COMPLETED') doc.completed++;
-                else if (row.queue_status === 'MISSED') doc.missed++;
+                else if (row.queue_status === 'COMPLETED')   doc.completed++;
+                else if (row.queue_status === 'MISSED')      doc.missed++;
             }
         });
 
-        res.json(Array.from(doctorMap.values()));
+        const result = Array.from(doctorMap.values());
+
+        // Store in cache for QUEUE_OVERVIEW_CACHE_TTL ms before next DB hit.
+        cache.set(CACHE_KEY, result, QUEUE_OVERVIEW_CACHE_TTL);
+        res.setHeader('X-Cache', 'MISS');
+        res.json(result);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });

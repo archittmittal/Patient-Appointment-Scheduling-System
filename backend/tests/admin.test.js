@@ -335,3 +335,175 @@ describe('Admin Users Endpoint — GET /api/admin/users', () => {
         });
     });
 });
+
+// ============================================================
+// Patient List — Cursor Pagination  (DB-007 Day-7)
+// GET /api/admin/patients/list
+// ============================================================
+describe('Admin Patient List — GET /api/admin/patients/list (cursor pagination)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const makePatients = (count, startId = 1) =>
+        Array.from({ length: count }, (_, i) => ({
+            id: startId + i,
+            name: `Patient ${startId + i}`
+        }));
+
+    // ----------------------------------------------------------------
+    //  AUTH & RBAC
+    // ----------------------------------------------------------------
+    describe('Authentication & Authorization', () => {
+        it('should reject unauthenticated requests with 401', async () => {
+            const res = await request(app).get('/api/admin/patients/list');
+            expect(res.statusCode).toBe(401);
+        });
+
+        it('should reject PATIENT role with 403', async () => {
+            const res = await request(app)
+                .get('/api/admin/patients/list')
+                .set('Authorization', `Bearer ${patientToken}`);
+            expect(res.statusCode).toBe(403);
+        });
+    });
+
+    // ----------------------------------------------------------------
+    //  RESPONSE SHAPE
+    // ----------------------------------------------------------------
+    describe('Response Shape', () => {
+        it('should return { data, nextCursor } envelope', async () => {
+            db.query.mockResolvedValueOnce([makePatients(2)]);
+
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=2&cursor=0')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toHaveProperty('data');
+            expect(res.body).toHaveProperty('nextCursor');
+            expect(Array.isArray(res.body.data)).toBe(true);
+        });
+
+        it('each row should have id and name fields', async () => {
+            db.query.mockResolvedValueOnce([makePatients(1)]);
+
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=1&cursor=0')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            const row = res.body.data[0];
+            expect(row).toHaveProperty('id');
+            expect(row).toHaveProperty('name');
+        });
+    });
+
+    // ----------------------------------------------------------------
+    //  CURSOR LOGIC
+    // ----------------------------------------------------------------
+    describe('Cursor Behaviour', () => {
+        it('nextCursor equals last id when a full page is returned', async () => {
+            // Route fetches limit+1 rows (3) to detect further pages.
+            // Mocking 3 rows signals hasMore=true; the route trims to limit=2
+            // and sets nextCursor to the id at index limit-1 (row[1].id = 11).
+            const patients = makePatients(3, 10); // ids 10, 11, 12
+            db.query.mockResolvedValueOnce([patients]);
+
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=2&cursor=9')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.body.nextCursor).toBe(11); // last id before trim (index 1)
+            expect(res.body.data).toHaveLength(2); // trimmed to limit
+        });
+
+        it('nextCursor is null when fewer rows than limit are returned (last page)', async () => {
+            // Simulate limit=50 but only 3 rows exist
+            const patients = makePatients(3, 1);
+            db.query.mockResolvedValueOnce([patients]);
+
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=50&cursor=0')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.body.nextCursor).toBeNull();
+        });
+
+        it('nextCursor is null when zero rows are returned', async () => {
+            db.query.mockResolvedValueOnce([[]]); // empty result set
+
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=50&cursor=999')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.body.nextCursor).toBeNull();
+            expect(res.body.data).toHaveLength(0);
+        });
+
+        it('should pass cursor and limit+1 to the SQL query', async () => {
+            // Use distinct values (cursor=5, limit=10) so param-order bugs are detectable.
+            // The route passes limit+1=11 to the query to detect further pages.
+            db.query.mockResolvedValueOnce([makePatients(11, 6)]); // 11 rows → hasMore=true
+
+            await request(app)
+                .get('/api/admin/patients/list?cursor=5&limit=10')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            const [sql, params] = db.query.mock.calls[0];
+            expect(sql).toContain('WHERE id > ?');
+            expect(params[0]).toBe(5);  // cursor at index 0
+            expect(params[1]).toBe(11); // limit+1 at index 1
+        });
+    });
+
+    // ----------------------------------------------------------------
+    //  VALIDATION
+    // ----------------------------------------------------------------
+    describe('Validation', () => {
+        it('should reject limit > 50 with 400', async () => {
+            const res = await request(app)
+                .get('/api/admin/patients/list?limit=51')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.code).toBe('VALIDATION_ERROR');
+        });
+
+        it('should reject negative cursor with 400', async () => {
+            const res = await request(app)
+                .get('/api/admin/patients/list?cursor=-1')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.statusCode).toBe(400);
+            expect(res.body.code).toBe('VALIDATION_ERROR');
+        });
+
+        it('should default cursor=0 and limit=50 when no params given', async () => {
+            db.query.mockResolvedValueOnce([makePatients(3)]);
+
+            await request(app)
+                .get('/api/admin/patients/list')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            const [, params] = db.query.mock.calls[0];
+            expect(params[0]).toBe(0);  // cursor default
+            expect(params[1]).toBe(51); // route passes limit+1 (50+1) to detect further pages
+        });
+    });
+
+    // ----------------------------------------------------------------
+    //  ERROR HANDLING
+    // ----------------------------------------------------------------
+    describe('Error Handling', () => {
+        it('should return 500 on database error', async () => {
+            db.query.mockRejectedValueOnce(new Error('DB timeout'));
+
+            const res = await request(app)
+                .get('/api/admin/patients/list')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.statusCode).toBe(500);
+            expect(res.body).toHaveProperty('message', 'Server error');
+        });
+    });
+});
