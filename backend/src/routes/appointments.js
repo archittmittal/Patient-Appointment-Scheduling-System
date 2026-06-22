@@ -44,13 +44,32 @@ function parseStartHourMinute(timeStr) {
     return null;
 }
 
+const toDateString = (dateVal) => {
+    if (!dateVal) return '';
+    if (dateVal instanceof Date) {
+        const y = dateVal.getUTCFullYear();
+        const m = String(dateVal.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(dateVal.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    return String(dateVal).split('T')[0].split(' ')[0];
+};
+
+const getTodayDateString = () => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
 const bookSchema = Joi.object({
     doctorId: Joi.number().required(),
+    patientId: Joi.number().integer().positive().optional(),
     date: Joi.string().isoDate().required().custom((value, helpers) => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const inputDate = new Date(value);
-        if (inputDate < today) {
+        const todayStr = getTodayDateString();
+        const inputDateStr = toDateString(value);
+        if (inputDateStr < todayStr) {
             return helpers.message('Cannot book appointments in the past');
         }
         return value;
@@ -118,18 +137,12 @@ const joinWaitlistSchema = Joi.object({
 router.post('/book', authenticate, validateRequest(bookSchema), async (req, res) => {
     try {
         const { doctorId, date, timeSlot, symptoms } = req.body;
-        const formattedDate = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
+        const formattedDate = toDateString(date);
         const patientId = req.user.role === 'PATIENT' ? req.user.id : req.body.patientId;
 
         // Validate that if appointment date is today, the slot starting time is in the future
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const bookingDate = new Date(formattedDate);
-        bookingDate.setHours(0, 0, 0, 0);
-        
-        const todayStr = today.toISOString().split('T')[0];
-        const bookingDateStr = bookingDate.toISOString().split('T')[0];
-        if (bookingDateStr === todayStr) {
+        const todayStr = getTodayDateString();
+        if (formattedDate === todayStr) {
             const parsedTime = parseStartHourMinute(timeSlot);
             if (parsedTime) {
                 const slotTime = new Date();
@@ -706,11 +719,9 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
 
         // BUG-003: Patients may not cancel past appointments
         if (req.user.role === 'PATIENT') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const apptDate = new Date(appt.appointment_date);
-            apptDate.setHours(0, 0, 0, 0);
-            if (apptDate < today) {
+            const todayStr = getTodayDateString();
+            const apptDateStr = toDateString(appt.appointment_date);
+            if (apptDateStr < todayStr) {
                 return res.status(400).json({ message: 'Cannot cancel a past appointment' });
             }
         }
@@ -727,8 +738,8 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
             [req.params.id]
         );
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const aptDate = String(appt.appointment_date).split('T')[0];
+        const todayStr = getTodayDateString();
+        const aptDate = toDateString(appt.appointment_date);
         if (aptDate === todayStr) {
             await conn.query(
                 "UPDATE live_queue SET status = 'MISSED' WHERE appointment_id = ? AND status IN ('WAITING', 'IN_PROGRESS')",
