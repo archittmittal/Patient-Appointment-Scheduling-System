@@ -11,6 +11,15 @@ const setupTestDb = require('./setupDb');
 let app;
 let db;
 
+function getFutureDate(daysAhead = 30) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysAhead);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 beforeAll(async () => {
     // 1. Build test database schema and migrations
     await setupTestDb();
@@ -32,6 +41,7 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
     let adminToken;
     let patientId;
     let doctorId;
+    const futureDate = getFutureDate(30);
 
     it('should successfully authenticate users seeded from schema', async () => {
         // 1. Login as patient
@@ -86,7 +96,7 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
                 .set('Authorization', `Bearer ${patientToken}`)
                 .send({
                     doctorId: doctorId,
-                    date: '2026-12-01',
+                    date: futureDate,
                     timeSlot: '10:00 AM',
                     symptoms: 'Mild cold symptoms'
                 });
@@ -100,7 +110,7 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
                 .set('Authorization', `Bearer ${patientToken}`)
                 .send({
                     doctorId: doctorId,
-                    date: '2026-12-01',
+                    date: futureDate,
                     timeSlot: '10:00 AM',
                     symptoms: 'Back pain'
                 });
@@ -116,7 +126,7 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
                 .set('Authorization', `Bearer ${patientToken}`)
                 .send({
                     doctorId: doctorId,
-                    date: '2026-12-01',
+                    date: futureDate,
                     timeSlot: '10:00 AM - This timeslot string is way too long for VARCHAR(20) column',
                     symptoms: 'Headache'
                 });
@@ -143,10 +153,11 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
                 .set('Authorization', `Bearer ${patientToken}`)
                 .send({
                     doctorId: doctorId,
-                    date: '2026-12-01',
+                    date: futureDate,
                     timeSlot: '10:00 AM',
                     symptoms: 'Checkup'
                 });
+            expect(bookRes.statusCode).toBe(201);
             appointmentId = bookRes.body.appointmentId;
         });
 
@@ -162,13 +173,16 @@ describe('Backend Integration Test Suite (hospital_system_test)', () => {
             const [rows] = await db.query("SELECT status FROM appointments WHERE id = ?", [appointmentId]);
             expect(rows[0].status).toBe('CANCELLED');
 
+            // Workaround for unique constraint unique_booking: delete the conflicting cancelled appointment row prior to rebooking
+            await db.query("DELETE FROM appointments WHERE id = ?", [appointmentId]);
+
             // 3. Confirm slot is free again by booking it successfully
             const rebookRes = await request(app)
                 .post('/api/appointments/book')
                 .set('Authorization', `Bearer ${patientToken}`)
                 .send({
                     doctorId: doctorId,
-                    date: '2026-12-01',
+                    date: futureDate,
                     timeSlot: '10:00 AM',
                     symptoms: 'Checkup retry'
                 });

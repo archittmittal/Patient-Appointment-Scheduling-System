@@ -100,113 +100,111 @@ async function setupTestDb() {
 
     // 1. Temporary connection to create/recreate database
     const conn = await mysql.createConnection({ host, user, password, port });
-    await conn.query(`DROP DATABASE IF EXISTS ${database}`);
-    await conn.query(`CREATE DATABASE ${database}`);
-    await conn.end();
+    try {
+        await conn.query(`DROP DATABASE IF EXISTS ${database}`);
+        await conn.query(`CREATE DATABASE ${database}`);
+    } finally {
+        await conn.end();
+    }
 
     // 2. Connect directly to hospital_system_test
     const testDb = await mysql.createConnection({ host, user, password, port, database });
+    try {
+        console.log(`[Test DB Setup] Database ${database} created. Disabling foreign key checks and initializing schema...`);
+        await testDb.query('SET FOREIGN_KEY_CHECKS = 0');
 
-    console.log(`[Test DB Setup] Database ${database} created. Disabling foreign key checks and initializing schema...`);
-    await testDb.query('SET FOREIGN_KEY_CHECKS = 0');
+        // 3. Read and apply schema.sql
+        const schemaPath = path.join(__dirname, '../database/schema.sql');
+        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+        
+        const schemaStatements = splitSQL(schemaSql).filter(s => {
+            const lower = s.toLowerCase();
+            return !lower.startsWith('create database') && !lower.startsWith('use ');
+        });
 
-    // 3. Read and apply schema.sql
-    const schemaPath = path.join(__dirname, '../database/schema.sql');
-    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-    
-    const schemaStatements = splitSQL(schemaSql).filter(s => {
-        const lower = s.toLowerCase();
-        return !lower.startsWith('create database') && !lower.startsWith('use ');
-    });
-
-    for (const statement of schemaStatements) {
-        await testDb.query(statement);
-    }
-
-    console.log(`[Test DB Setup] Schema applied. Applying migrations...`);
-
-    // 4. Apply migrations in order
-    const migrationsDir = path.join(__dirname, '../database');
-    const migrationFiles = [
-        'migration_issue38_notifications.sql',
-        'migration_issue39_virtual_checkin.sql',
-        'migration_issue40_delay_propagation.sql',
-        'migration_issue41_noshow_autofill.sql',
-        'migration_issue42_walkin_priority.sql',
-        'migration_fix_profiles.sql',
-        'migration_issue43_multi_doctor.sql',
-        'migration_issue45_express_checkin.sql',
-        'migration_issue46_prep_checklist.sql',
-        'migration_issue47_late_arrival.sql',
-        'migration_issue48_duration_prediction.sql',
-        'migration_issue49_batching.sql',
-        'migration_issue50_feedback_analytics.sql',
-        'fix_appointment_issues.sql',
-        'migration_week4_billing.sql',
-        'migration_week4_messaging.sql',
-        'migration_sprint2_schema_hardening.sql',
-        'migrations/migration_sprint3_consultation_fee.sql',
-        'migrations/migration_sprint4_otp_hardening.sql',
-        'migrations/migration_sprint8_indexes_fk.sql',
-        'migrations/migration_sprint10_uppercase_status.sql',
-        'migrations/migration_sprint11_symptom_checker.sql',
-        'migrations/migration_sprint11_departments.sql',
-        'migrations/migration_sprint12_consent_logs.sql',
-        'migrations/migration_sprint13_abha_support.sql'
-    ];
-
-    for (const file of migrationFiles) {
-        const filePath = path.join(migrationsDir, file);
-        if (!fs.existsSync(filePath)) {
-            console.warn(`[Warning] Migration file not found: ${file}`);
-            continue;
+        for (const statement of schemaStatements) {
+            await testDb.query(statement);
         }
 
-        const sql = fs.readFileSync(filePath, 'utf8');
-        const statements = splitSQL(sql).filter(s => {
-            const lower = s.toLowerCase().trim();
-            return !lower.startsWith('use ');
-        });
-        console.log(`[Test DB Setup] File: ${file}, Statements: ${statements.length}`);
+        console.log(`[Test DB Setup] Schema applied. Applying migrations...`);
 
-        for (const statement of statements) {
-            const preprocessed = preprocessSQL(statement);
-            try {
-                await testDb.query(preprocessed);
-            } catch (error) {
-                const isDuplicate = 
-                    error.code === 'ER_DUP_FIELDNAME' || 
-                    error.code === 'ER_TABLE_EXISTS_ERROR' || 
-                    error.code === 'ER_DUP_KEYNAME' ||
-                    error.code === 'ER_FK_DUP_NAME' ||
-                    error.code === 'ER_CANT_DROP_FIELD_OR_KEY' ||
-                    error.code === 'ER_DUP_ENTRY' ||
-                    error.errno === 1062 ||
-                    (error.message && error.message.includes('Duplicate entry'));
+        // 4. Apply migrations in order
+        const migrationsDir = path.join(__dirname, '../database');
+        const migrationFiles = [
+            'migration_issue38_notifications.sql',
+            'migration_issue39_virtual_checkin.sql',
+            'migration_issue40_delay_propagation.sql',
+            'migration_issue41_noshow_autofill.sql',
+            'migration_issue42_walkin_priority.sql',
+            'migration_fix_profiles.sql',
+            'migration_issue43_multi_doctor.sql',
+            'migration_issue45_express_checkin.sql',
+            'migration_issue46_prep_checklist.sql',
+            'migration_issue47_late_arrival.sql',
+            'migration_issue48_duration_prediction.sql',
+            'migration_issue49_batching.sql',
+            'migration_issue50_feedback_analytics.sql',
+            'fix_appointment_issues.sql',
+            'migration_week4_billing.sql',
+            'migration_week4_messaging.sql',
+            'migration_sprint2_schema_hardening.sql',
+            'migrations/migration_sprint3_consultation_fee.sql',
+            'migrations/migration_sprint4_otp_hardening.sql',
+            'migrations/migration_sprint8_indexes_fk.sql',
+            'migrations/migration_sprint10_uppercase_status.sql',
+            'migrations/migration_sprint11_symptom_checker.sql',
+            'migrations/migration_sprint11_departments.sql',
+            'migrations/migration_sprint12_consent_logs.sql',
+            'migrations/migration_sprint13_abha_support.sql'
+        ];
 
-                if (isDuplicate) {
-                    console.log(`[Test DB Setup] Suppressed duplicate error in ${file}: ${error.code} - ${error.message.substring(0, 100)}`);
-                } else {
-                    console.error(`[Test DB Setup Error] Failed to execute statement in ${file}: ${preprocessed.substring(0, 100)}...`);
-                    console.error(`[Reason] ${error.message} (Code: ${error.code}, Errno: ${error.errno})`);
-                    throw error;
+        for (const file of migrationFiles) {
+            const filePath = path.join(migrationsDir, file);
+            if (!fs.existsSync(filePath)) {
+                throw new Error(`[Test DB Setup Error] Required migration file not found: ${file}`);
+            }
+
+            const sql = fs.readFileSync(filePath, 'utf8');
+            const statements = splitSQL(sql).filter(s => {
+                const lower = s.toLowerCase().trim();
+                return !lower.startsWith('use ');
+            });
+            console.log(`[Test DB Setup] File: ${file}, Statements: ${statements.length}`);
+
+            for (const statement of statements) {
+                const preprocessed = preprocessSQL(statement);
+                try {
+                    await testDb.query(preprocessed);
+                } catch (error) {
+                    const isDuplicate = 
+                        error.code === 'ER_DUP_FIELDNAME' || 
+                        error.code === 'ER_TABLE_EXISTS_ERROR' || 
+                        error.code === 'ER_DUP_KEYNAME' ||
+                        error.code === 'ER_FK_DUP_NAME' ||
+                        error.code === 'ER_CANT_DROP_FIELD_OR_KEY' ||
+                        error.code === 'ER_DUP_ENTRY' ||
+                        error.errno === 1062 ||
+                        (error.message && error.message.includes('Duplicate entry'));
+
+                    if (isDuplicate) {
+                        console.log(`[Test DB Setup] Suppressed duplicate error in ${file}: ${error.code} - ${error.message.substring(0, 100)}`);
+                    } else {
+                        console.error(`[Test DB Setup Error] Failed to execute statement in ${file}: ${preprocessed.substring(0, 100)}...`);
+                        console.error(`[Reason] ${error.message} (Code: ${error.code}, Errno: ${error.errno})`);
+                        throw error;
+                    }
                 }
             }
         }
+    } finally {
+        console.log(`[Test DB Setup] Re-enabling foreign key checks...`);
+        try {
+            await testDb.query('SET FOREIGN_KEY_CHECKS = 1');
+        } catch (err) {
+            console.error('[Test DB Setup] Failed to re-enable foreign key checks:', err.message);
+        }
+        await testDb.end();
     }
-
-    console.log(`[Test DB Setup] Dropping unique_booking constraint to allow rebooking of cancelled slots...`);
-    try {
-        await testDb.query('ALTER TABLE appointments DROP INDEX unique_booking');
-    } catch (err) {
-        console.log(`[Test DB Setup] Did not drop unique_booking index: ${err.message}`);
-    }
-
-    console.log(`[Test DB Setup] Re-enabling foreign key checks...`);
-    await testDb.query('SET FOREIGN_KEY_CHECKS = 1');
-
-    console.log(`[Test DB Setup] Migrations complete. Test database ready.`);
-    await testDb.end();
 }
 
 module.exports = setupTestDb;
