@@ -10,7 +10,7 @@
     "test:backend": "npm run test --workspace=backend"
   },
   "devDependencies": {
-    "lint-staged": "^17.0.7"
+    "lint-staged": "^17.0.8"
   },
   "lint-staged": {
     "backend/src/**/*.js": [
