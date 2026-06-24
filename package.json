@@ -18,7 +18,7 @@
     ],
     "frontend/src/**/*.{js,jsx}": [
       "npx eslint --config frontend/eslint.config.js --fix",
-      "npm run test --workspace=frontend -- --related"
+      "npm run test --workspace=frontend -- related"
     ]
   },
   "engines": {
