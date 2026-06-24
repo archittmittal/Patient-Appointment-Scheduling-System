@@ -177,33 +177,41 @@ describe('BookAppointment Page Component', () => {
   });
 
   it('handles waitlist joining when no slots are available', async () => {
+    localStorage.setItem('pendingBooking', JSON.stringify({
+      doctorId: 10,
+      specialty: 'Cardiology',
+      date: '2026-06-23', // a Tuesday (which has tuesday: { open: false } in mockDoctors)
+      step: 3
+    }));
+
     apiClient.post.mockResolvedValue({ success: true });
 
     await act(async () => {
       render(<BookAppointment />);
     });
 
-    // Select Cardiology department
+    // Expect to be on Step 3: Choose Date & Time
+    expect(screen.getByText('Choose Date & Time')).toBeInTheDocument();
+
+    // The waitlist prompt should be visible since Tuesday is closed
+    expect(screen.getByText('No slots available on this date.')).toBeInTheDocument();
+
+    // Click "Join Priority Waitlist"
+    const joinButton = screen.getByRole('button', { name: 'Join Priority Waitlist' });
     await act(async () => {
-      fireEvent.click(screen.getByText('Cardiology'));
+      fireEvent.click(joinButton);
     });
 
-    // Select Doctor
-    await act(async () => {
-      fireEvent.click(screen.getByText('Dr. Sarah Connor'));
+    // Verify API call
+    expect(apiClient.post).toHaveBeenCalledWith('/api/appointments/waitlist/join', {
+      doctorId: 10,
+      preferredDate: '2026-06-23',
+      timePreference: 'ANY',
+      maxNoticeHours: 24,
+      reason: 'Patient requested earlier availability',
     });
 
-    // Select a Tuesday which is closed (open = false) to show the waitlist block
-    // Find a Tuesday on the calendar. Or since it's hard to dynamically target calendar buttons,
-    // let's click on any disabled button or mock a selectedDate that falls on Tuesday (e.g. 2026-06-23)
-    // We can simulate state or find a date button.
-    // Instead of clicking date, let's just make Tuesday the current selectedDate directly by mocking its state,
-    // or we can click on one of the active dates on the calendar.
-    // Let's inspect the calendar buttons. They render numbers 1-30.
-    // Let's find a Tuesday date button.
-    const dateButtons = screen.getAllByRole('button');
-    // Find date button for day which is Tuesday (open: false)
-    // To make it easy, let's mock all slots count as empty or no slots available.
-    // Let's trigger waitlist join
+    // Expect the UI to show the waitlist joined state
+    expect(screen.getByText("You're on the waitlist!")).toBeInTheDocument();
   });
 });
