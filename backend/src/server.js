@@ -23,6 +23,7 @@ const messageRoutes = require('./routes/messages');
 const exportRoutes = require('./routes/export');
 const symptomCheckerRoutes = require('./routes/symptomChecker');
 const departmentRoutes = require('./routes/departments');
+const prescriptionRoutes = require('./routes/prescriptions');
 const errorHandler = require('./middleware/errorHandler');
 const { initCronJobs } = require('./jobs/reminderJobs');
 const logger = require('./config/logger');
@@ -201,6 +202,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/symptom-checker', symptomCheckerRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
 
 // Temporary Migration Route
 app.get('/api/fix-db', async (req, res) => {

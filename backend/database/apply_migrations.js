@@ -15,7 +15,9 @@ async function applyMigrations() {
         'migrations/migration_sprint11_symptom_checker.sql',
         'migrations/migration_sprint11_departments.sql',
         'migrations/migration_sprint12_consent_logs.sql',
-        'migrations/migration_sprint13_abha_support.sql'
+        'migrations/migration_sprint13_abha_support.sql',
+        'migration_advanced_portal.sql',
+        'migration_issue144_medical_data.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');
@@ -36,7 +38,14 @@ async function applyMigrations() {
             .map(s => s.trim())
             .filter(s => s.length > 0);
 
-        for (const statement of statements) {
+        for (let statement of statements) {
+            // Preprocess standard MySQL incompatible IF NOT EXISTS clauses
+            statement = statement
+                .replace(/ADD\s+COLUMN\s+IF\s+NOT\s+EXISTS/gi, 'ADD COLUMN')
+                .replace(/ADD\s+IF\s+NOT\s+EXISTS/gi, 'ADD')
+                .replace(/CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS/gi, 'CREATE INDEX')
+                .replace(/DROP\s+INDEX\s+IF\s+EXISTS/gi, 'DROP INDEX');
+
             try {
                 await db.query(statement);
             } catch (error) {
