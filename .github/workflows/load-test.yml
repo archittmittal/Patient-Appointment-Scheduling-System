@@ -1,0 +1,116 @@
+name: Load Test (Dry-Run Gate)
+
+# Runs on every merge to main — acts as a performance regression gate.
+# Uses a lightweight 10-VU / 30s variant to avoid saturating CI runners.
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'backend/**'
+      - 'load-tests/**'
+
+jobs:
+  load-test:
+    name: K6 Dry-Run (10 VUs)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: hospital_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u root -ppassword --silent 2>/dev/null; then
+              echo "MySQL ready"; break
+            fi
+            echo "Waiting for MySQL... ($i)"; sleep 2
+          done
+
+      - name: Create database schema
+        run: |
+          mysql -h 127.0.0.1 -u root -ppassword hospital_db < backend/database/schema.sql || true
+        continue-on-error: true
+
+      - name: Start backend server
+        working-directory: backend
+        env:
+          PORT: 7860
+          NODE_ENV: test
+          JWT_SECRET: ci_load_test_secret_32chars_minimum
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: password
+          DB_NAME: hospital_db
+          DB_PORT: 3306
+          STRIPE_SECRET_KEY: sk_test_placeholder
+          EMAIL_USER: test@example.com
+          EMAIL_PASS: placeholder
+        run: |
+          npm start &
+          # Wait for server health check
+          for i in {1..20}; do
+            if curl -sf http://localhost:7860/ > /dev/null 2>&1; then
+              echo "Backend ready on :7860"; break
+            fi
+            echo "Waiting for backend... ($i)"; sleep 3
+          done
+
+      - name: Install K6
+        run: |
+          sudo apt-get install -y gnupg software-properties-common
+          curl -s https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update && sudo apt-get install -y k6
+          k6 version
+
+      - name: Run K6 dry-run (10 VUs / 30s — CI variant)
+        env:
+          BASE_URL: http://localhost:7860
+          TEST_EMAIL: patient@test.com
+          TEST_PASSWORD: Test@1234
+          TEST_DOCTOR_ID: "1"
+        run: |
+          # Override stages with CLI flags for CI: 10 VUs, 30 s flat
+          k6 run \
+            --vus 10 \
+            --duration 30s \
+            -e BASE_URL=$BASE_URL \
+            -e TEST_EMAIL=$TEST_EMAIL \
+            -e TEST_PASSWORD=$TEST_PASSWORD \
+            -e TEST_DOCTOR_ID=$TEST_DOCTOR_ID \
+            load-tests/k6/dry-run.js
+
+      - name: Upload K6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-dry-run-summary
+          path: load-tests/results/dry-run-summary.json
+          if-no-files-found: ignore

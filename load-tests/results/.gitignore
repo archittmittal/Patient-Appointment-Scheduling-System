@@ -1,0 +1,2 @@
+# Ignore generated K6 result files — keep only the .gitkeep
+*.json
