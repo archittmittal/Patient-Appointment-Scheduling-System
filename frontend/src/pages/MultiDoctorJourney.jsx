@@ -197,7 +197,7 @@ const MultiDoctorJourney = () => {
     const [selectedPathIndex, setSelectedPathIndex] = useState(null);
 
     const filteredDoctors = suggestions?.suggestedSpecialties?.length > 0
-        ? doctors.filter(d => suggestions.suggestedSpecialties.includes(d.specialty))
+        ? doctors.filter(d => suggestions.suggestedSpecialties.some(s => s?.trim().toLowerCase() === d.specialty?.trim().toLowerCase()))
         : doctors;
 
     useEffect(() => {

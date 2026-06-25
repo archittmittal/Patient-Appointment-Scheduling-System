@@ -301,7 +301,7 @@ const BookAppointment = () => {
     const capacity = selectedDoctor?.max_patients_per_slot || 15;
 
     const filteredDoctors = selectedSpecialty 
-        ? doctors.filter(d => d.specialty === selectedSpecialty)
+        ? doctors.filter(d => d.specialty?.trim().toLowerCase() === selectedSpecialty?.trim().toLowerCase())
         : doctors;
 
     // Helper: Step Progress

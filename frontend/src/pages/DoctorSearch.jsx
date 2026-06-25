@@ -119,7 +119,7 @@ const DoctorSearch = () => {
     const specialties = ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))];
 
     const filtered = doctors.filter(doc => {
-        const matchFilter = activeFilter === 'All' || doc.specialty === activeFilter;
+        const matchFilter = activeFilter === 'All' || doc.specialty?.trim().toLowerCase() === activeFilter?.trim().toLowerCase();
         const matchSearch = searchQuery === '' ||
             doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
