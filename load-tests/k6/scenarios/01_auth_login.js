@@ -18,6 +18,12 @@ import { Trend, Rate } from 'k6/metrics';
 
 import { BASE_URL } from '../shared/auth.js';
 
+// Treat 2xx and 429 (rate-limited) as expected responses.
+// Without this, the built-in http_req_failed metric counts every 429 as a
+// failure, causing the http_req_failed threshold to trip even though rate
+// limiting is intentional behaviour in this scenario.
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }, 429));
+
 // Custom metrics
 const loginDuration = new Trend('login_req_duration', true);
 const loginErrors   = new Rate('login_errors');
