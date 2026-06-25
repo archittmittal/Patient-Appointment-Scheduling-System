@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "build": "npm run build --workspace=frontend",
-    "test:backend": "npm run test --workspace=backend"
+    "test:backend": "npm run test --workspace=backend",
+    "load-test:dry": "bash load-tests/run-dry-run.sh",
+    "load-test:full": "k6 run load-tests/k6/full-profile.js"
   },
   "devDependencies": {
     "lint-staged": "^17.0.8"
