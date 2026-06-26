@@ -40,6 +40,7 @@ class NotificationService {
         this.notifyCancellation = this.notifyCancellation.bind(this);
         this.notifyMissed = this.notifyMissed.bind(this);
         this.notifyEmergency = this.notifyEmergency.bind(this);
+        this.notifyAppointmentBooked = this.notifyAppointmentBooked.bind(this);
     }
 
     /**
@@ -73,6 +74,11 @@ class NotificationService {
         const pushTitle = templateService.processTemplate(template.push_title, templateData);
         const pushBody = templateService.processTemplate(template.push_body, templateData);
         const smsText = templateService.processTemplate(template.sms_template, templateData);
+        // Use dedicated WhatsApp template when available, fall back to SMS template
+        const whatsappText = templateService.processTemplate(
+            template.whatsapp_template || template.sms_template,
+            templateData
+        );
         
         // 5. Get user details for contact info (joining patients for phone number)
         const [userRows] = await pool.query(
@@ -93,10 +99,11 @@ class NotificationService {
         const channels = forceChannels || {
             push: prefs.push_enabled,
             sms: prefs.sms_enabled,
-            email: prefs.email_enabled
+            email: prefs.email_enabled,
+            whatsapp: prefs.whatsapp_enabled !== false // default true if column missing
         };
         
-        const results = { notificationId, push: false, sms: false, email: false };
+        const results = { notificationId, push: false, sms: false, email: false, whatsapp: false };
         const updates = {};
         
         // 8. Send via each enabled channel
@@ -119,6 +126,12 @@ class NotificationService {
             const htmlBody = this._generateEmailHtml(title, message);
             results.email = await transportService.sendEmail(user.email, title, htmlBody);
             updates.email_sent = results.email;
+        }
+
+        // WhatsApp channel — send to patient's registered phone
+        if (channels.whatsapp && user?.phone && whatsappText) {
+            results.whatsapp = await transportService.sendWhatsApp(user.phone, whatsappText);
+            updates.whatsapp_sent = results.whatsapp;
         }
 
         // 9. Batch update transport status and finalize
@@ -193,6 +206,24 @@ class NotificationService {
 
     async notifyEmergency(doctorId, patientName, reason) {
         return this.sendNotification(doctorId, 'EMERGENCY_ALERT', { patient_name: patientName, reason: reason || 'Urgent attention required' }, { priority: 'URGENT' });
+    }
+
+    /**
+     * Notify a patient that their appointment has been confirmed.
+     * Triggered immediately after a successful booking — primarily for WhatsApp.
+     *
+     * @param {number} userId     Patient's user ID
+     * @param {string} doctorName Doctor's display name (e.g. "Dr. Sharma")
+     * @param {string} date       Appointment date string (YYYY-MM-DD)
+     * @param {string} timeSlot   Appointment time slot string
+     */
+    async notifyAppointmentBooked(userId, doctorName, date, timeSlot) {
+        return this.sendNotification(
+            userId,
+            'APPOINTMENT_BOOKED',
+            { doctor_name: doctorName, date, time_slot: timeSlot },
+            { priority: 'HIGH' }
+        );
     }
 }
 
