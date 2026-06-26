@@ -448,11 +448,50 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 7860;
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         logger.info(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
         // Initialize Background Jobs
         initCronJobs();
     });
+
+    // ── Graceful Shutdown ──────────────────────────────────────────────────────
+    // On SIGTERM (container orchestrators) / SIGINT (Ctrl-C), stop accepting new
+    // connections, drain the MySQL pool, and exit cleanly so in-flight requests
+    // are not dropped on deploys / restarts.
+    let shuttingDown = false;
+    async function shutdown(signal) {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        logger.info(`Received ${signal} — shutting down gracefully`);
+
+        // Force-exit if cleanup takes longer than the timeout
+        const forceExit = setTimeout(() => {
+            logger.error('Graceful shutdown timed out — forcing exit');
+            process.exit(1);
+        }, 10000);
+        forceExit.unref();
+
+        server.close((err) => {
+            if (err) logger.error('Error closing HTTP server:', err);
+
+            try {
+                const db = require('./config/db');
+                db.end().then(() => {
+                    logger.info('Database pool closed');
+                    process.exit(err ? 1 : 0);
+                }).catch((dbErr) => {
+                    logger.error('Error closing database pool:', dbErr);
+                    process.exit(1);
+                });
+            } catch {
+                // DB module not loaded — exit once HTTP server is closed
+                process.exit(err ? 1 : 0);
+            }
+        });
+    }
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 module.exports = app;
