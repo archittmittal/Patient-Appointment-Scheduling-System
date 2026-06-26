@@ -78,6 +78,9 @@ describe('Observability & Monitoring Tests', () => {
 
     describe('GET /api/health Telemetry Enrichment', () => {
         it('should return system performance telemetry, memory statistics and database status', async () => {
+            const db = require('../src/config/db');
+            jest.spyOn(db, 'query').mockResolvedValueOnce([[]]);
+
             const res = await request(app).get('/api/health');
             expect(res.statusCode).toBe(200);
             expect(res.body).toHaveProperty('status');
@@ -110,6 +113,9 @@ describe('Observability & Monitoring Tests', () => {
         });
 
         it('should return 200 healthy when DB is up and Redis is not configured', async () => {
+            const db = require('../src/config/db');
+            jest.spyOn(db, 'query').mockResolvedValueOnce([[]]);
+
             const res = await request(app).get('/healthz');
             expect(res.statusCode).toBe(200);
             expect(res.body.status).toBe('ok');
@@ -119,6 +125,9 @@ describe('Observability & Monitoring Tests', () => {
         });
 
         it('should return 200 healthy via /api/healthz alias', async () => {
+            const db = require('../src/config/db');
+            jest.spyOn(db, 'query').mockResolvedValueOnce([[]]);
+
             const res = await request(app).get('/api/healthz');
             expect(res.statusCode).toBe(200);
             expect(res.body.status).toBe('ok');
