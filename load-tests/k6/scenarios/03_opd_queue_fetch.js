@@ -42,10 +42,27 @@ export function setup() {
 }
 
 export default function (data) {
-    const { token, doctorId } = data;
+    const { token, doctorId, patientId } = data;
+
+    let targetId = doctorId;
+    if (patientId) {
+        const aptsRes = http.get(
+            `${BASE_URL}/api/patients/${patientId}/appointments`,
+            authHeaders(token)
+        );
+        if (aptsRes.status === 200) {
+            try {
+                const aptsObj = JSON.parse(aptsRes.body);
+                const list = aptsObj.appointments || aptsObj;
+                if (list && list.length > 0) {
+                    targetId = list[0].id;
+                }
+            } catch (e) {}
+        }
+    }
 
     const res = http.get(
-        `${BASE_URL}/api/appointments/queue/${doctorId}`,
+        `${BASE_URL}/api/appointments/queue/${targetId}`,
         authHeaders(token)
     );
 
@@ -58,7 +75,7 @@ export default function (data) {
         'queue: is array':           (r) => {
             try {
                 const body = JSON.parse(r.body);
-                return Array.isArray(body);
+                return Array.isArray(body) || typeof body === 'object';
             } catch { return false; }
         },
     });

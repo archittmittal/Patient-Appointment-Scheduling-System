@@ -284,6 +284,9 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             if (conn) conn.release();
         }
     } catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ message: 'This time slot has already been booked. Please choose a different slot.' });
+        }
         console.error('BOOKING_ERROR:', error);
         res.status(500).json({ message: 'Server error booking appointment' });
     }
