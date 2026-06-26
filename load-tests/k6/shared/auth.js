@@ -45,10 +45,62 @@ export function login() {
     const body = JSON.parse(res.body);
     const token = body.token || body.accessToken;
 
+    // Dynamically retrieve the first doctor ID if not specified or if default doctor 1 doesn't exist
+    let doctorId = Number(__ENV.TEST_DOCTOR_ID);
+    if (doctorId === 1 || !doctorId) {
+        const docRes = http.get(`${BASE_URL}/api/doctors`);
+        console.log(`[k6-auth-setup] docRes status: ${docRes.status}, body: ${docRes.body}`);
+        if (docRes.status === 200) {
+            try {
+                const docs = JSON.parse(docRes.body);
+                if (docs && docs.length > 0) {
+                    const exists = docs.some(d => d.id === 1);
+                    if (!exists) {
+                        doctorId = docs[0].id;
+                    }
+                }
+            } catch (e) {
+                // Ignore parse error, fallback to 1
+            }
+        }
+    }
+    if (!doctorId) {
+        doctorId = 1;
+    }
+
+    const patientId = body.id || body.user?.id || null;
+    if (patientId) {
+        // Try booking an appointment for today to ensure we have a live queue entry
+        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const nextHour = (now.getHours() + 1) % 24;
+        const slots = [
+            `${String(nextHour).padStart(2, '0')}:00 – ${String((nextHour + 1) % 24).padStart(2, '0')}:00`
+        ];
+        for (const slot of slots) {
+            const bookRes = http.post(
+                `${BASE_URL}/api/appointments/book`,
+                JSON.stringify({
+                    doctorId,
+                    date: todayStr,
+                    timeSlot: slot,
+                    symptoms: 'setup today queue entry',
+                }),
+                authHeaders(token)
+            );
+            if (bookRes.status === 201) {
+                console.log(`[k6-auth-setup] Successfully booked today slot: ${slot} to populate live_queue`);
+                break;
+            } else {
+                console.log(`[k6-auth-setup] Booking today slot ${slot} returned status: ${bookRes.status}`);
+            }
+        }
+    }
+
     return {
         token,
-        doctorId:  Number(__ENV.TEST_DOCTOR_ID)  || 1,
-        patientId: body.user?.id || null,
+        doctorId,
+        patientId,
     };
 }
 

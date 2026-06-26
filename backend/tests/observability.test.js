@@ -100,4 +100,52 @@ describe('Observability & Monitoring Tests', () => {
             expect(typeof perf.nodeVersion).toBe('string');
         });
     });
+
+    describe('GET /healthz and /api/healthz Health Probes', () => {
+        const originalEnv = { ...process.env };
+
+        afterEach(() => {
+            process.env = { ...originalEnv };
+            jest.restoreAllMocks();
+        });
+
+        it('should return 200 healthy when DB is up and Redis is not configured', async () => {
+            const res = await request(app).get('/healthz');
+            expect(res.statusCode).toBe(200);
+            expect(res.body.status).toBe('ok');
+            expect(res.body.database.healthy).toBe(true);
+            expect(res.body.redis.healthy).toBe(true);
+            expect(res.body.redis.status).toBe('disabled');
+        });
+
+        it('should return 200 healthy via /api/healthz alias', async () => {
+            const res = await request(app).get('/api/healthz');
+            expect(res.statusCode).toBe(200);
+            expect(res.body.status).toBe('ok');
+        });
+
+        it('should return 503 unhealthy when DB query fails', async () => {
+            const db = require('../src/config/db');
+            jest.spyOn(db, 'query').mockRejectedValueOnce(new Error('Connection failure'));
+
+            const res = await request(app).get('/healthz');
+            expect(res.statusCode).toBe(503);
+            expect(res.body.status).toBe('error');
+            expect(res.body.database.healthy).toBe(false);
+            expect(res.body.database.error).toBe('Connection failure');
+        });
+
+        it('should return 503 unhealthy when Redis is configured but unreachable', async () => {
+            // Set Redis host to an unreachable address to trigger socket failure
+            process.env.REDIS_HOST = '127.0.0.1';
+            process.env.REDIS_PORT = '9999'; // invalid/closed port
+
+            const res = await request(app).get('/healthz');
+            expect(res.statusCode).toBe(503);
+            expect(res.body.status).toBe('error');
+            expect(res.body.redis.healthy).toBe(false);
+            expect(res.body.redis.status).toBe('error');
+            expect(res.body.redis.error).toBeDefined();
+        });
+    });
 });
