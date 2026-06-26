@@ -71,8 +71,8 @@ class NotificationHistoryService {
 
     /**
      * Update transport status for a notification
-     * @param {number} notificationId 
-     * @param {Object} updates { push_sent, sms_sent, email_sent }
+     * @param {number} notificationId
+     * @param {Object} updates { push_sent, sms_sent, email_sent, whatsapp_sent }
      */
     async updateStatus(notificationId, updates) {
         const fields = [];

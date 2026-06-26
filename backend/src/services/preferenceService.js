@@ -28,6 +28,7 @@ class PreferenceService {
                 push_enabled: true,
                 sms_enabled: false,
                 email_enabled: true,
+                whatsapp_enabled: true,
                 queue_updates: true,
                 appointment_reminders: true,
                 delay_alerts: true,
@@ -80,7 +81,7 @@ class PreferenceService {
      */
     async updatePreferences(userId, preferences) {
         const allowedFields = [
-            'push_enabled', 'sms_enabled', 'email_enabled',
+            'push_enabled', 'sms_enabled', 'email_enabled', 'whatsapp_enabled',
             'queue_updates', 'appointment_reminders', 'delay_alerts',
             'waitlist_offers', 'cancellation_confirm',
             'reminder_24h', 'reminder_1h', 'reminder_30m',

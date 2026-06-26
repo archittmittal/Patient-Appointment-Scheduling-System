@@ -2,6 +2,8 @@
  * Handles actual sending of notifications through various channels
  */
 
+const whatsappService = require('./whatsappService');
+
 // Web Push
 let webpush;
 try {
@@ -34,6 +36,7 @@ class TransportService {
         this.sendPush = this.sendPush.bind(this);
         this.sendSMS = this.sendSMS.bind(this);
         this.sendEmail = this.sendEmail.bind(this);
+        this.sendWhatsApp = this.sendWhatsApp.bind(this);
     }
 
     /**
@@ -95,6 +98,19 @@ class TransportService {
         // Placeholder for nodemailer/SendGrid integration
         console.log('[Email Notification LOG]', { to: email, subject, body: htmlBody.substring(0, 100) + '...' });
         return false;
+    }
+
+    /**
+     * Send WhatsApp notification
+     * Delegates to whatsappService which handles provider selection and fallbacks.
+     *
+     * @param {string} phoneNumber  E.164 or bare 10-digit Indian number
+     * @param {string} message      Message body
+     * @returns {Promise<boolean>}
+     */
+    async sendWhatsApp(phoneNumber, message) {
+        const result = await whatsappService.sendMessage(phoneNumber, message);
+        return result.success;
     }
 }
 
