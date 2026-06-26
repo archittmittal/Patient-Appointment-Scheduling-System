@@ -188,12 +188,13 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             await conn.beginTransaction();
 
             // BUG-001 & DB-004: Slot capacity check with FOR UPDATE lock
-            const [docRows] = await conn.query('SELECT max_patients_per_slot FROM doctors WHERE id = ?', [doctorId]);
+            const [docRows] = await conn.query('SELECT max_patients_per_slot, first_name, last_name FROM doctors WHERE id = ?', [doctorId]);
             if (docRows.length === 0) {
                 await conn.rollback();
                 return res.status(404).json({ message: 'Doctor not found' });
             }
             const maxPatients = docRows[0].max_patients_per_slot ?? DEFAULT_MAX_PATIENTS_PER_SLOT;
+            const doctorName = `Dr. ${docRows[0].first_name} ${docRows[0].last_name}`.trim();
 
             const [slotRows] = await conn.query(
                 `SELECT COUNT(*) AS slot_count 
@@ -271,6 +272,11 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
                 estimatedWait,
                 predictionFactors: prediction.factors
             });
+
+            // Fire-and-forget WhatsApp booking confirmation — never blocks the HTTP response
+            notificationService.notifyAppointmentBooked(
+                patientId, doctorName, formattedDate, timeSlot
+            ).catch(err => console.error('[WhatsApp] Booking notification failed:', err.message));
         } catch (error) {
             if (conn) await conn.rollback();
             throw error;

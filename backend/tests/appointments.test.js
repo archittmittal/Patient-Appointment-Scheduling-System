@@ -40,8 +40,8 @@ describe('Appointment & Queue Endpoints', () => {
     it('should book an appointment successfully', async () => {
       // Mock duration prediction and transaction queries
       const queryMock = jest.fn().mockImplementation((sql) => {
-        if (sql.includes('SELECT max_patients_per_slot FROM doctors')) {
-          return Promise.resolve([[{ max_patients_per_slot: 10 }]]);
+        if (sql.includes('SELECT max_patients_per_slot') && sql.includes('FROM doctors')) {
+          return Promise.resolve([[{ max_patients_per_slot: 10, first_name: 'John', last_name: 'Doe' }]]);
         }
         if (sql.includes('SELECT COUNT(*) AS slot_count')) {
           return Promise.resolve([[{ slot_count: 0 }]]);
@@ -96,7 +96,7 @@ describe('Appointment & Queue Endpoints', () => {
 
     it('should return 404 if the doctor is not found', async () => {
       const queryMock = jest.fn().mockImplementation((sql) => {
-        if (sql.includes('SELECT max_patients_per_slot FROM doctors')) {
+        if (sql.includes('SELECT max_patients_per_slot') && sql.includes('FROM doctors')) {
           return Promise.resolve([[]]); // Doctor not found
         }
         return Promise.resolve([[]]);
