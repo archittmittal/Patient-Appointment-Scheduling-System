@@ -86,8 +86,11 @@ const swaggerOptions = {
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Security Middleware
-app.use(helmet());
+// Security Middleware — baseline Helmet (CSP configured after origins are resolved below)
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false,   // set via a dedicated middleware below once origins are known
+}));
 
 // Response compression (gzip/brotli) — reduces payload 2–5× for JSON-heavy API responses
 app.use(compression());
@@ -141,6 +144,25 @@ const corsOptions = {
     credentials: true
 };
 app.use(cors(corsOptions));
+
+// ── Content Security Policy ───────────────────────────────────────────────────
+// Applied AFTER the CORS whitelist is built so connect-src stays in sync with the
+// allowed origins. The API serves JSON to the SPA; scripts/styles are loaded by
+// the frontend bundle, not here, so directives are intentionally restrictive.
+app.use(helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+        defaultSrc: ["'self'"],
+        // The SPA connects to this API plus any whitelisted deployment origins
+        connectSrc: ["'self'", ...whitelist],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        fontSrc: ["'self'", 'data:'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+    },
+}));
 
 // ── Global Rate Limiter ────────────────────────────────────────────────────────
 // Reads window/max from env so production can be tuned without code changes.
