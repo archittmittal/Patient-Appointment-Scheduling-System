@@ -1,0 +1,47 @@
+# ─── .dockerignore (root) ─────────────────────────────────────────────────────
+# Prevents secrets, build artefacts and heavy dirs from entering the image.
+
+# Version control & metadata
+.git
+.gitignore
+.github
+.dockerignore
+Dockerfile*
+.dockerignore
+
+# Dependencies (rebuilt inside the image)
+**/node_modules
+
+# Secrets & local env — must NEVER be baked into an image
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs & test output
+*.log
+test_output.log
+npm-debug.log*
+
+# Build artefacts
+frontend/dist
+frontend/node_modules
+backend/dist
+**/*.tgz
+
+# Docs & non-runtime dirs
+docs
+*.md
+!README.md
+scratch
+screenshots
+graphify-out
+.agent
+analysis_results.md*
+
+# OS / editor cruft
+.DS_Store
+.idea
+.vscode
+*.swp

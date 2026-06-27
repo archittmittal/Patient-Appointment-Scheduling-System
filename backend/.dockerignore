@@ -1,0 +1,30 @@
+# ─── .dockerignore (backend) ──────────────────────────────────────────────────
+# Prevents secrets, build artefacts and heavy dirs from entering the image.
+
+# Dependencies (rebuilt inside the image)
+node_modules
+
+# Secrets & local env — must NEVER be baked into an image
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs & test output
+*.log
+test_output.log
+coverage
+.coverage
+
+# Tests are not needed at runtime
+__tests__
+*.test.js
+*.spec.js
+fixtures
+
+# OS / editor cruft
+.DS_Store
+.idea
+.vscode
+*.swp
