@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 require('dotenv').config();
 const validateEnv = require('./config/validateEnv');
@@ -36,7 +37,7 @@ app.use((req, res, next) => {
     if (req.originalUrl === '/api/payments/webhook') {
         return next();
     }
-    express.json()(req, res, next);
+    express.json({ limit: '1mb' })(req, res, next);
 });
 
 // Structured request logging middleware (Morgan + Winston)
@@ -87,6 +88,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Security Middleware
 app.use(helmet());
+
+// Response compression (gzip/brotli) — reduces payload 2–5× for JSON-heavy API responses
+app.use(compression());
 
 // Strict CORS
 function normalizeOrigin(value) {
