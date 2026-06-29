@@ -25,9 +25,7 @@ jobs:
         cache-dependency-path: package-lock.json
 
     - name: Install dependencies
-      run: |
-        rm -f package-lock.json
-        npm install --legacy-peer-deps
+      run: npm ci
 
     - name: Run Linter
       run: npm run lint --workspace=frontend
