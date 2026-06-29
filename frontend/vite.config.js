@@ -6,28 +6,19 @@ import tailwindcoords from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcoords()],
   build: {
-    rollupOptions: {
+    // rolldownOptions replaces rollupOptions in Vite 8.1+ (rolldown ≥ 1.1).
+    // manualChunks (object & function forms) is fully removed in rolldown 1.1.x;
+    // use codeSplitting.groups with regex patterns instead.
+    rolldownOptions: {
       output: {
-        // Split heavy vendor libraries into separate chunks so they are loaded
-        // on demand alongside the lazy-loaded route pages that use them.
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react-dom') || id.includes('react/') || id.includes('react-router-dom')) {
-              return 'vendor-react';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
-            if (id.includes('jspdf')) {
-              return 'vendor-pdf';
-            }
-            if (id.includes('tesseract.js')) {
-              return 'vendor-ocr';
-            }
-            if (id.includes('framer-motion')) {
-              return 'vendor-motion';
-            }
-          }
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react',  test: /node_modules[\\/](react|react-dom|react-router-dom)[\\/]/ },
+            { name: 'vendor-charts', test: /node_modules[\\/](recharts|victory|d3)[\\/]/ },
+            { name: 'vendor-pdf',    test: /node_modules[\\/](jspdf|html2canvas)[\\/]/ },
+            { name: 'vendor-ocr',    test: /node_modules[\\/](tesseract\.js)[\\/]/ },
+            { name: 'vendor-motion', test: /node_modules[\\/](framer-motion)[\\/]/ },
+          ],
         },
       },
     },
