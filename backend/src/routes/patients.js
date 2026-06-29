@@ -89,7 +89,7 @@ router.get('/:id', authenticate, async (req, res) => {
         }
         res.json(rows[0]);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -115,7 +115,7 @@ router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async 
         const [rows] = await db.query('SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, p.abha_id, p.abha_number, u.email, u.role FROM patients p JOIN users u ON p.id = u.id WHERE p.id = ?', [req.params.id]);
         res.json(rows[0]);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -156,13 +156,14 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
         const [rows] = await db.query(query, [req.params.id]);
         res.json(rows);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
 
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
+const logger = require('../config/logger');
 
 // Issue #94: Get patient prescriptions
 router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) => {
@@ -173,7 +174,7 @@ router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) =
         const data = await prescriptionService.getPatientPrescriptions(req.params.id);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching prescriptions' });
     }
 });
@@ -187,7 +188,7 @@ router.get('/:id/vitals', authenticate, verifyConsent, async (req, res) => {
         const data = await vitalsService.getPatientVitals(req.params.id);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching vitals' });
     }
 });
@@ -212,7 +213,7 @@ router.post('/:id/vitals', authenticate, verifyConsent, validateRequest(vitalsSc
         const data = await vitalsService.logVitals(req.params.id, req.body, req.user.id);
         res.status(201).json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error logging vitals' });
     }
 });
@@ -227,7 +228,7 @@ router.get('/:id/vitals/trends', authenticate, verifyConsent, validateRequest(tr
         const data = await vitalsService.getVitalsTrends(req.params.id, periodDays);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching vitals trends' });
     }
 });
@@ -240,7 +241,7 @@ router.get('/:id/vitals/export', authenticate, verifyConsent, async (req, res) =
     try {
         await exportService.exportVitalsCSV(req.params.id, res);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error exporting vitals' });
     }
 });
@@ -254,7 +255,7 @@ router.get('/:id/prescriptions/history', authenticate, verifyConsent, async (req
         const data = await prescriptionService.getPrescriptionHistory(req.params.id);
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching prescription history' });
     }
 });
@@ -284,7 +285,7 @@ router.post('/:id/prescriptions', authenticate, verifyConsent, validateRequest(p
         }
         res.status(201).json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error creating prescription' });
     }
 });
@@ -301,7 +302,7 @@ router.post('/:id/prescriptions/:rxId/refill', authenticate, verifyConsent, asyn
         }
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error processing refill' });
     }
 });
@@ -318,7 +319,7 @@ router.patch('/:id/prescriptions/:rxId/deactivate', authenticate, verifyConsent,
         }
         res.json(data);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error deactivating prescription' });
     }
 });
@@ -358,7 +359,7 @@ router.post('/:id/consent', authenticate, validateRequest(consentSchema), async 
             status
         });
     } catch (error) {
-        console.error('[Log/Revoke Consent Error]', error);
+        logger.error('[Log/Revoke Consent Error]', error);
         res.status(500).json({ message: 'Server error updating consent' });
     }
 });
@@ -408,7 +409,7 @@ router.post('/:id/abha', authenticate, validateRequest(abhaLinkSchema), async (r
             abhaNumber: abhaNumber || null
         });
     } catch (error) {
-        console.error('[ABHA Linking Error]', error);
+        logger.error('[ABHA Linking Error]', error);
         if (error.code === 'ER_DUP_ENTRY') {
             const message = error.message.includes('abha_id') 
                 ? 'This ABHA ID is already linked to another account'

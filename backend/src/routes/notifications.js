@@ -9,6 +9,7 @@ const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 const { authenticate } = require('../middleware/authenticate');
 const notificationService = require('../services/notificationService');
+const logger = require('../config/logger');
 
 // Validation Schemas
 const preferencesSchema = Joi.object({
@@ -62,7 +63,7 @@ router.get('/', authenticate, async (req, res) => {
         );
         res.json(notifications);
     } catch (error) {
-        console.error('Get notifications error:', error);
+        logger.error('Get notifications error:', error);
         res.status(500).json({ message: 'Server error fetching notifications' });
     }
 });
@@ -86,7 +87,7 @@ router.get('/unread-count', authenticate, async (req, res) => {
         const count = await notificationService.getUnreadCount(req.user.id);
         res.json({ count });
     } catch (error) {
-        console.error('Get unread count error:', error);
+        logger.error('Get unread count error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -117,7 +118,7 @@ router.post('/:id/read', authenticate, async (req, res) => {
         await notificationService.markAsRead(parseInt(req.params.id), req.user.id);
         res.json({ message: 'Notification marked as read' });
     } catch (error) {
-        console.error('Mark as read error:', error);
+        logger.error('Mark as read error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -145,7 +146,7 @@ router.post('/mark-all-read', authenticate, async (req, res) => {
         );
         res.json({ message: 'All notifications marked as read' });
     } catch (error) {
-        console.error('Mark all read error:', error);
+        logger.error('Mark all read error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -169,7 +170,7 @@ router.get('/preferences', authenticate, async (req, res) => {
         const preferences = await notificationService.getUserPreferences(req.user.id);
         res.json(preferences);
     } catch (error) {
-        console.error('Get preferences error:', error);
+        logger.error('Get preferences error:', error);
         res.status(500).json({ message: 'Server error fetching preferences' });
     }
 });
@@ -220,7 +221,7 @@ router.put('/preferences', authenticate, validateRequest(preferencesSchema), asy
             res.status(400).json({ message: 'No valid preferences provided' });
         }
     } catch (error) {
-        console.error('Update preferences error:', error);
+        logger.error('Update preferences error:', error);
         res.status(500).json({ message: 'Server error updating preferences' });
     }
 });
@@ -263,7 +264,7 @@ router.post('/subscribe-push', authenticate, validateRequest(pushSubscriptionSch
         await notificationService.savePushSubscription(req.user.id, subscription);
         res.json({ message: 'Push subscription saved' });
     } catch (error) {
-        console.error('Save push subscription error:', error);
+        logger.error('Save push subscription error:', error);
         res.status(500).json({ message: 'Server error saving subscription' });
     }
 });
@@ -311,7 +312,7 @@ router.post('/test', authenticate, async (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error('Test notification error:', error);
+        logger.error('Test notification error:', error);
         res.status(500).json({ message: 'Server error sending test notification' });
     }
 });

@@ -8,6 +8,7 @@ const router = express.Router();
 const walkinPriorityService = require('../services/walkinPriorityService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const pool = require('../config/db');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -80,7 +81,7 @@ router.post('/register', authenticate, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Walk-in registration error:', error);
+        logger.error('Walk-in registration error:', error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -111,7 +112,7 @@ router.get('/queue/:doctorId', authenticate, async (req, res) => {
         const queue = await walkinPriorityService.getWalkinQueue(doctorId);
         res.json(queue);
     } catch (error) {
-        console.error('Get queue error:', error);
+        logger.error('Get queue error:', error);
         res.status(500).json({ error: 'Failed to get walk-in queue' });
     }
 });
@@ -142,7 +143,7 @@ router.get('/next/:doctorId', authenticate, async (req, res) => {
         const next = await walkinPriorityService.getNextWalkin(doctorId);
         res.json(next || { message: 'No walk-ins waiting' });
     } catch (error) {
-        console.error('Get next error:', error);
+        logger.error('Get next error:', error);
         res.status(500).json({ error: 'Failed to get next walk-in' });
     }
 });
@@ -191,7 +192,7 @@ router.post('/:walkinId/call', authenticate, requireRole(['DOCTOR', 'ADMIN']), a
         const result = await walkinPriorityService.callWalkin(walkinId, doctorId);
         res.json(result);
     } catch (error) {
-        console.error('Call walk-in error:', error);
+        logger.error('Call walk-in error:', error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -226,7 +227,7 @@ router.post('/:walkinId/complete', authenticate, requireRole(['DOCTOR', 'ADMIN']
         const result = await walkinPriorityService.completeWalkin(walkinId);
         res.json(result);
     } catch (error) {
-        console.error('Complete walk-in error:', error);
+        logger.error('Complete walk-in error:', error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -276,7 +277,7 @@ router.put('/:walkinId/urgency', authenticate, requireRole(['DOCTOR', 'ADMIN']),
         const result = await walkinPriorityService.updateUrgency(walkinId, urgencyLevel, reason);
         res.json(result);
     } catch (error) {
-        console.error('Update urgency error:', error);
+        logger.error('Update urgency error:', error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -308,7 +309,7 @@ router.get('/stats', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req,
         const stats = await walkinPriorityService.getWalkinStats(doctorId);
         res.json(stats);
     } catch (error) {
-        console.error('Get stats error:', error);
+        logger.error('Get stats error:', error);
         res.status(500).json({ error: 'Failed to get statistics' });
     }
 });
@@ -361,7 +362,7 @@ router.delete('/:walkinId', authenticate, async (req, res) => {
         const result = await walkinPriorityService.cancelWalkin(walkinId, reason);
         res.json(result);
     } catch (error) {
-        console.error('Cancel walk-in error:', error);
+        logger.error('Cancel walk-in error:', error);
         res.status(400).json({ error: error.message });
     }
 });
@@ -403,7 +404,7 @@ router.get('/:walkinId/wait-time', authenticate, async (req, res) => {
         const waitTime = await walkinPriorityService.estimateWaitTime(walkinId);
         res.json({ estimatedMinutes: waitTime });
     } catch (error) {
-        console.error('Get wait time error:', error);
+        logger.error('Get wait time error:', error);
         res.status(500).json({ error: 'Failed to estimate wait time' });
     }
 });

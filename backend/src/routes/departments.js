@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -24,7 +25,7 @@ router.get('/', async (req, res) => {
         const [rows] = await db.query('SELECT id, name, description, created_at FROM departments ORDER BY name');
         res.json(rows);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });

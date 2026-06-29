@@ -13,6 +13,7 @@ const {
     getOptimalSequence
 } = require('../services/dailyOptimizerService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const logger = require('../config/logger');
 
 /**
  * GET /api/analytics/doctor/:doctorId/peak-hours
@@ -26,7 +27,7 @@ router.get('/doctor/:doctorId/peak-hours', async (req, res) => {
         const analysis = await peakHoursService.getPeakHoursAnalysis(doctorId, daysBack);
         res.json(analysis);
     } catch (error) {
-        console.error('Peak hours analysis error:', error);
+        logger.error('Peak hours analysis error:', error);
         res.status(500).json({ error: 'Failed to get peak hours analysis' });
     }
 });
@@ -43,7 +44,7 @@ router.get('/doctor/:doctorId/heatmap', async (req, res) => {
         const heatmap = await peakHoursService.getWeeklyHeatmap(doctorId, daysBack);
         res.json(heatmap);
     } catch (error) {
-        console.error('Heatmap error:', error);
+        logger.error('Heatmap error:', error);
         res.status(500).json({ error: 'Failed to get heatmap data' });
     }
 });
@@ -60,7 +61,7 @@ router.get('/doctor/:doctorId/best-times', async (req, res) => {
         const bestTimes = await peakHoursService.getBestBookingTimes(doctorId, daysBack);
         res.json(bestTimes);
     } catch (error) {
-        console.error('Best times error:', error);
+        logger.error('Best times error:', error);
         res.status(500).json({ error: 'Failed to get best booking times' });
     }
 });
@@ -76,7 +77,7 @@ router.get('/doctor/:doctorId/crowd-level', async (req, res) => {
         const crowdLevel = await peakHoursService.getCurrentCrowdLevel(doctorId);
         res.json(crowdLevel);
     } catch (error) {
-        console.error('Crowd level error:', error);
+        logger.error('Crowd level error:', error);
         res.status(500).json({ error: 'Failed to get crowd level' });
     }
 });
@@ -93,7 +94,7 @@ router.get('/doctor/:doctorId/hourly-stats', async (req, res) => {
         const stats = await peakHoursService.getDoctorHourlyStats(doctorId, daysBack);
         res.json(stats);
     } catch (error) {
-        console.error('Hourly stats error:', error);
+        logger.error('Hourly stats error:', error);
         res.status(500).json({ error: 'Failed to get hourly statistics' });
     }
 });
@@ -119,7 +120,7 @@ router.get('/predictions', authenticate, requireRole(['DOCTOR', 'ADMIN']), async
             churnRisk
         });
     } catch (error) {
-        console.error('Predictions error:', error);
+        logger.error('Predictions error:', error);
         res.status(500).json({ error: 'Failed to get predictions' });
     }
 });
@@ -142,7 +143,7 @@ router.get('/clinic', authenticate, requireRole('ADMIN'), async (req, res) => {
         const analytics = await peakHoursService.getClinicWideAnalytics(daysBack);
         res.json(analytics);
     } catch (error) {
-        console.error('Clinic analytics error:', error);
+        logger.error('Clinic analytics error:', error);
         res.status(500).json({ error: 'Failed to get clinic analytics' });
     }
 });
@@ -162,7 +163,7 @@ router.get('/doctor/:doctorId/predictive', authenticate, requireRole(['DOCTOR', 
         const analysis = await predictionService.getDoctorPredictiveAnalytics(doctorId);
         res.json(analysis);
     } catch (error) {
-        console.error('Predictive analytics error:', error);
+        logger.error('Predictive analytics error:', error);
         res.status(500).json({ error: 'Failed to get predictive analytics' });
     }
 });
@@ -177,7 +178,7 @@ router.get('/appointment/:appointmentId/no-show-risk', authenticate, requireRole
         const prediction = await predictionService.predictNoShowProbability(appointmentId);
         res.json(prediction);
     } catch (error) {
-        console.error('No-show prediction error:', error);
+        logger.error('No-show prediction error:', error);
         res.status(500).json({ error: 'Failed to predict no-show risk' });
     }
 });
@@ -192,7 +193,7 @@ router.get('/patient/:patientId/churn-risk', authenticate, requireRole(['DOCTOR'
         const prediction = await predictionService.predictChurnRisk(patientId);
         res.json(prediction);
     } catch (error) {
-        console.error('Churn prediction error:', error);
+        logger.error('Churn prediction error:', error);
         res.status(500).json({ error: 'Failed to predict churn risk' });
     }
 });
@@ -206,7 +207,7 @@ router.get('/optimizer/workloads', authenticate, requireRole(['DOCTOR', 'ADMIN']
         const workloads = await getDoctorWorkloads();
         res.json(workloads);
     } catch (error) {
-        console.error('Error in workload analytics:', error);
+        logger.error('Error in workload analytics:', error);
         res.status(500).json({ error: 'Failed to fetch doctor workloads' });
     }
 });
@@ -223,7 +224,7 @@ router.post('/optimizer/suggest-doctor', authenticate, async (req, res) => {
         const suggestion = await suggestDoctorForWalkin(patientId, symptoms);
         res.json(suggestion);
     } catch (error) {
-        console.error('Error in doctor suggestion:', error);
+        logger.error('Error in doctor suggestion:', error);
         res.status(500).json({ error: 'Failed to suggest doctor' });
     }
 });
@@ -243,7 +244,7 @@ router.get('/optimizer/optimal-sequence/:doctorId', authenticate, requireRole(['
         const result = await getOptimalSequence(doctorId);
         res.json(result);
     } catch (error) {
-        console.error('Error in schedule optimization:', error);
+        logger.error('Error in schedule optimization:', error);
         res.status(500).json({ error: 'Failed to generate optimal sequence' });
     }
 });

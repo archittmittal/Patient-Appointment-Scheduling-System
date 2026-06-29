@@ -175,7 +175,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
                 timeSlot
             });
         } catch (predErr) {
-            console.error('Duration prediction failed, using defaults:', predErr.message);
+            logger.error('Duration prediction failed, using defaults:', predErr.message);
             prediction = {
                 predictedDuration: DEFAULT_PREDICTED_DURATION,
                 factors: { isFollowUp: false, error: 'Prediction unavailable' }
@@ -276,7 +276,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
             // Fire-and-forget WhatsApp booking confirmation — never blocks the HTTP response
             notificationService.notifyAppointmentBooked(
                 patientId, doctorName, formattedDate, timeSlot
-            ).catch(err => console.error('[WhatsApp] Booking notification failed:', err.message));
+            ).catch(err => logger.error('[WhatsApp] Booking notification failed:', err.message));
         } catch (error) {
             if (conn) await conn.rollback();
             throw error;
@@ -287,7 +287,7 @@ router.post('/book', authenticate, validateRequest(bookSchema), async (req, res)
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'This time slot has already been booked. Please choose a different slot.' });
         }
-        console.error('BOOKING_ERROR:', error);
+        logger.error('BOOKING_ERROR:', error);
         res.status(500).json({ message: 'Server error booking appointment' });
     }
 });
@@ -306,7 +306,7 @@ router.get('/predict-duration', authenticate, validateRequest(predictDurationQue
 
         res.json(prediction);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error predicting duration' });
     }
 });
@@ -373,7 +373,7 @@ router.get('/queue/:appointmentId', authenticate, async (req, res) => {
             predictedDuration: entry.predicted_duration || entry.predicted_duration_mins || DEFAULT_PREDICTED_DURATION
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -401,7 +401,7 @@ router.get('/queue/:appointmentId/stream', authenticateSse, async (req, res) => 
         sseManager.addClient(connectionId, res, { appointmentId, doctorId: doctor_id });
 
     } catch (error) {
-        console.error('Queue SSE Error:', error);
+        logger.error('Queue SSE Error:', error);
         if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
     }
 });
@@ -423,12 +423,13 @@ router.get('/stream', authenticateSse, requireRole('DOCTOR'), async (req, res) =
         sseManager.addClient(connectionId, res, { doctorId });
 
     } catch (error) {
-        console.error('Doctor SSE Error:', error);
+        logger.error('Doctor SSE Error:', error);
         if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
     }
 });
 
 const notificationService = require('../services/notificationService');
+const logger = require('../config/logger');
 
 
 const queueUpdateSchema = Joi.object({
@@ -503,7 +504,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                 queueRow.patient_id, 
                 doctorName, 
                 queueRow.location_room
-            ).catch(err => console.error('Your Turn Notification Error:', err));
+            ).catch(err => logger.error('Your Turn Notification Error:', err));
 
             // Notify NEXT patient that the doctor is now seeing the patient before them
             const [nextPatientRows] = await conn.query(`
@@ -521,7 +522,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                     nextPatient.queue_number,
                     doctorName,
                     nextPatient.estimated_time || 0
-                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+                ).catch(err => logger.error('Turn Approaching Notification Error:', err));
             }
 
         } else if (status === 'COMPLETED') {
@@ -604,7 +605,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                     nextPatient.queue_number,
                     doctorName,
                     nextPatient.estimated_time || 0
-                ).catch(err => console.error('Turn Approaching Notification Error:', err));
+                ).catch(err => logger.error('Turn Approaching Notification Error:', err));
             }
 
             // Record duration for AI training (don't await, run in background)
@@ -615,11 +616,11 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                 symptoms: queueRow.symptoms,
                 actualDurationMins: actualDuration,
                 isFollowUp: queueRow.is_follow_up || false
-            }).catch(err => console.error('Failed to record duration:', err));
+            }).catch(err => logger.error('Failed to record duration:', err));
 
             // Recalculate estimates for remaining queue (don't await)
             recalculateQueueEstimates(queueRow.doctor_id, queueRow.appointment_date)
-                .catch(err => console.error('Failed to recalculate estimates:', err));
+                .catch(err => logger.error('Failed to recalculate estimates:', err));
 
         } else if (status === 'MISSED') {
             // Find the maximum queue number for waiting patients
@@ -660,11 +661,11 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
                 doctorName,
                 targetQ,
                 targetQ - queueRow.queue_number
-            ).catch(err => console.error('Missed Notification Error:', err));
+            ).catch(err => logger.error('Missed Notification Error:', err));
 
             // Recalculate estimates for remaining queue
             recalculateQueueEstimates(queueRow.doctor_id, queueRow.appointment_date)
-                .catch(err => console.error('Failed to recalculate estimates:', err));
+                .catch(err => logger.error('Failed to recalculate estimates:', err));
         }
 
         await conn.commit();
@@ -701,7 +702,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         res.json({ message: 'Queue status updated' });
     } catch (error) {
         if (conn) await conn.rollback();
-        console.error('QUEUE_STATUS_ERROR:', error); // Full detail always in server logs
+        logger.error('QUEUE_STATUS_ERROR:', error); // Full detail always in server logs
         // SEC-010: Do not leak raw error.message to clients in production
         res.status(500).json({ message: safeErrorMessage(error, 'Server error updating queue status') });
     } finally {
@@ -760,12 +761,12 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
         
         // Issue #41: Trigger auto-fill for cancellation
         waitlistService.handleSlotRelease(parseInt(req.params.id), 'CANCELLATION')
-            .catch(err => console.error('Auto-fill error:', err));
+            .catch(err => logger.error('Auto-fill error:', err));
         
         res.json({ message: 'Appointment cancelled' });
     } catch (error) {
         if (conn) await conn.rollback();
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {
         conn.release();
@@ -841,7 +842,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
             accuracy: accuracy || { avg_error: null, accuracy_within_5min: null }
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching analytics' });
     }
 });
@@ -854,7 +855,7 @@ router.get('/analytics/symptoms', authenticate, async (req, res) => {
         );
         res.json(symptoms);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching symptoms' });
     }
 });
@@ -890,7 +891,7 @@ router.post('/waitlist/join', authenticate, validateRequest(joinWaitlistSchema),
 
         res.status(201).json(result);
     } catch (error) {
-        console.error('Join waitlist error:', error);
+        logger.error('Join waitlist error:', error);
         res.status(500).json({ message: 'Server error joining waitlist' });
     }
 });
@@ -916,7 +917,7 @@ router.delete('/waitlist/:id', authenticate, async (req, res) => {
 
         res.json({ message: 'Removed from waitlist' });
     } catch (error) {
-        console.error('Leave waitlist error:', error);
+        logger.error('Leave waitlist error:', error);
         res.status(500).json({ message: 'Server error leaving waitlist' });
     }
 });
@@ -937,7 +938,7 @@ router.get('/waitlist/my', authenticate, async (req, res) => {
         const entries = await waitlistService.getPatientWaitlist(patient.id);
         res.json(entries);
     } catch (error) {
-        console.error('Get patient waitlist error:', error);
+        logger.error('Get patient waitlist error:', error);
         res.status(500).json({ message: 'Server error fetching waitlist' });
     }
 });
@@ -958,7 +959,7 @@ router.get('/waitlist/offers', authenticate, async (req, res) => {
         const offers = await waitlistService.getPatientOffers(patient.id);
         res.json(offers);
     } catch (error) {
-        console.error('Get offers error:', error);
+        logger.error('Get offers error:', error);
         res.status(500).json({ message: 'Server error fetching offers' });
     }
 });
@@ -984,7 +985,7 @@ router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Accept offer error:', error);
+        logger.error('Accept offer error:', error);
         res.status(500).json({ message: 'Server error accepting offer' });
     }
 });
@@ -1010,7 +1011,7 @@ router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
 
         res.json({ message: 'Offer declined' });
     } catch (error) {
-        console.error('Decline offer error:', error);
+        logger.error('Decline offer error:', error);
         res.status(500).json({ message: 'Server error declining offer' });
     }
 });
@@ -1021,7 +1022,7 @@ router.post('/waitlist/cleanup', authenticate, requireRole('ADMIN'), async (req,
         const result = await waitlistService.cleanupExpired();
         res.json({ message: 'Cleanup complete', ...result });
     } catch (error) {
-        console.error('Cleanup error:', error);
+        logger.error('Cleanup error:', error);
         res.status(500).json({ message: 'Server error during cleanup' });
     }
 });
@@ -1048,7 +1049,7 @@ router.get('/:id/smart-arrival', authenticate, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Smart arrival error:', error);
+        logger.error('Smart arrival error:', error);
         res.status(500).json({ message: 'Server error calculating arrival time' });
     }
 });
@@ -1059,7 +1060,7 @@ router.get('/doctor/:doctorId/smart-arrivals', authenticate, async (req, res) =>
         const results = await smartArrivalService.getBatchSmartArrivals(parseInt(req.params.doctorId));
         res.json(results);
     } catch (error) {
-        console.error('Batch smart arrivals error:', error);
+        logger.error('Batch smart arrivals error:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -1080,7 +1081,7 @@ router.get('/:id/prescription/pdf', authenticate, async (req, res) => {
         
         await exportService.generatePrescriptionPDF(req.params.id, res);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         if (!res.headersSent) {
             res.status(500).json({ message: 'Server error exporting PDF' });
         }

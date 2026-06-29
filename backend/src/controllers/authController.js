@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const logger = require('../config/logger');
 
 class AuthController {
     async login(req, res) {
@@ -7,7 +8,7 @@ class AuthController {
             const result = await authService.login(email, password);
             res.json(result);
         } catch (error) {
-            console.error('[Login Error]', error);
+            logger.error('[Login Error]', error);
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
@@ -17,7 +18,7 @@ class AuthController {
             const result = await authService.registerPatient(req.body);
             res.status(201).json(result);
         } catch (error) {
-            console.error('[Registration Error]', error);
+            logger.error('[Registration Error]', error);
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
@@ -28,7 +29,7 @@ class AuthController {
             const result = await authService.forgotPassword(email);
             res.json(result);
         } catch (error) {
-            console.error('[Forgot Password Error]', error);
+            logger.error('[Forgot Password Error]', error);
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
@@ -39,7 +40,7 @@ class AuthController {
             const result = await authService.resetPassword(email, otp, newPassword);
             res.json(result);
         } catch (error) {
-            console.error('[Reset Password Error]', error);
+            logger.error('[Reset Password Error]', error);
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
@@ -53,7 +54,7 @@ class AuthController {
             const result = await authService.googleLogin(token);
             res.json(result);
         } catch (error) {
-            console.error('[Google Login Error]', error);
+            logger.error('[Google Login Error]', error);
             res.status(error.status || 500).json({ message: error.message || 'Server error' });
         }
     }
