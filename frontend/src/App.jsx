@@ -1,38 +1,51 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProfileProvider } from './contexts/ProfileContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import PatientDashboard from './pages/PatientDashboard';
-import DoctorSearch from './pages/DoctorSearch';
-import DoctorProfile from './pages/DoctorProfile';
-import BookAppointment from './pages/BookAppointment';
-import LiveQueue from './pages/LiveQueue';
-import PatientProfile from './pages/PatientProfile';
-import DoctorDashboard from './pages/DoctorDashboard';
-import DoctorProfileEdit from './pages/DoctorProfileEdit';
-import DoctorSchedule from './pages/DoctorSchedule';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminUsers from './pages/AdminUsers';
-import AdminAppointments from './pages/AdminAppointments';
-import Register from './pages/Register';
-import InsurancePortal from './pages/InsurancePortal';
-import NotificationSettings from './pages/NotificationSettings';
-import WalkinRegistration from './pages/WalkinRegistration'; 
-import MultiDoctorJourney from './pages/MultiDoctorJourney';
-import FeedbackAnalytics from './pages/FeedbackAnalytics';
-import PatientInsurance from './pages/PatientInsurance';
-import DoctorAnalytics from './pages/DoctorAnalytics';
-import VitalsHub from './pages/VitalsHub'; 
-import PatientPrescriptions from './pages/PatientPrescriptions'; 
-import Messages from './pages/Messages';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import AdminAnalytics from './pages/AdminAnalytics';
-import SymptomChecker from './pages/SymptomChecker';
+import PageLoader from './components/PageLoader';
+
+// ── Lazy-loaded route pages ──────────────────────────────────────────────────
+// Each page is code-split into its own chunk and loaded on demand.  This
+// keeps the initial bundle small (core router + auth + layout only).
+const Login           = React.lazy(() => import('./pages/Login'));
+const Register        = React.lazy(() => import('./pages/Register'));
+const ForgotPassword  = React.lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword   = React.lazy(() => import('./pages/ResetPassword'));
+
+// Public / shared
+const DoctorSearch     = React.lazy(() => import('./pages/DoctorSearch'));
+const DoctorProfile    = React.lazy(() => import('./pages/DoctorProfile'));
+const BookAppointment  = React.lazy(() => import('./pages/BookAppointment'));
+
+// Patient
+const PatientDashboard    = React.lazy(() => import('./pages/PatientDashboard'));
+const VitalsHub            = React.lazy(() => import('./pages/VitalsHub'));
+const PatientPrescriptions = React.lazy(() => import('./pages/PatientPrescriptions'));
+const LiveQueue            = React.lazy(() => import('./pages/LiveQueue'));
+const PatientProfile       = React.lazy(() => import('./pages/PatientProfile'));
+const NotificationSettings = React.lazy(() => import('./pages/NotificationSettings'));
+const WalkinRegistration    = React.lazy(() => import('./pages/WalkinRegistration'));
+const MultiDoctorJourney   = React.lazy(() => import('./pages/MultiDoctorJourney'));
+const FeedbackAnalytics     = React.lazy(() => import('./pages/FeedbackAnalytics'));
+const PatientInsurance     = React.lazy(() => import('./pages/PatientInsurance'));
+const SymptomChecker       = React.lazy(() => import('./pages/SymptomChecker'));
+const Messages             = React.lazy(() => import('./pages/Messages'));
+
+// Doctor
+const DoctorDashboard    = React.lazy(() => import('./pages/DoctorDashboard'));
+const DoctorProfileEdit  = React.lazy(() => import('./pages/DoctorProfileEdit'));
+const DoctorSchedule      = React.lazy(() => import('./pages/DoctorSchedule'));
+const DoctorAnalytics    = React.lazy(() => import('./pages/DoctorAnalytics'));
+
+// Admin
+const AdminDashboard    = React.lazy(() => import('./pages/AdminDashboard'));
+const AdminUsers        = React.lazy(() => import('./pages/AdminUsers'));
+const AdminAppointments = React.lazy(() => import('./pages/AdminAppointments'));
+const InsurancePortal   = React.lazy(() => import('./pages/InsurancePortal'));
+const AdminAnalytics    = React.lazy(() => import('./pages/AdminAnalytics'));
 
 function RootRedirect() {
   const { user } = useAuth();
@@ -49,6 +62,7 @@ function App() {
       <AuthProvider>
         <ProfileProvider>
           <Router>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
@@ -105,6 +119,7 @@ function App() {
             {/* Catch-all redirect to root */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </Router>
         </ProfileProvider>
       </AuthProvider>
