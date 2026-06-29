@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const feedbackService = require('../services/feedbackService');
 const { authenticate } = require('../middleware/authenticate');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -73,7 +74,7 @@ router.post('/submit', authenticate, async (req, res) => {
         );
         res.json(result);
     } catch (err) {
-        console.error('Submit feedback error:', err);
+        logger.error('Submit feedback error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -103,7 +104,7 @@ router.get('/pending', authenticate, async (req, res) => {
         const pending = await feedbackService.getPendingFeedbackRequests(req.user.id);
         res.json(pending);
     } catch (err) {
-        console.error('Get pending feedback error:', err);
+        logger.error('Get pending feedback error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -125,7 +126,7 @@ router.get('/categories', async (req, res) => {
         const categories = feedbackService.getFeedbackCategories();
         res.json(categories);
     } catch (err) {
-        console.error('Get categories error:', err);
+        logger.error('Get categories error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -155,7 +156,7 @@ router.get('/history', authenticate, async (req, res) => {
         const history = await feedbackService.getPatientFeedbackHistory(req.user.id);
         res.json(history);
     } catch (err) {
-        console.error('Get history error:', err);
+        logger.error('Get history error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -198,7 +199,7 @@ router.get('/doctor-analytics', authenticate, async (req, res) => {
         const analytics = await feedbackService.getDoctorFeedbackAnalytics(req.user.id, start, end);
         res.json(analytics);
     } catch (err) {
-        console.error('Get doctor analytics error:', err);
+        logger.error('Get doctor analytics error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -241,7 +242,7 @@ router.get('/system-analytics', authenticate, async (req, res) => {
         const analytics = await feedbackService.getSystemFeedbackAnalytics(start, end);
         res.json(analytics);
     } catch (err) {
-        console.error('Get system analytics error:', err);
+        logger.error('Get system analytics error:', err);
         res.status(500).json({ error: err.message });
     }
 });

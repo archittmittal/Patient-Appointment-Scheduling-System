@@ -14,6 +14,7 @@ const {
 } = require('../services/delayPropagation');
 const waitlistService = require('../services/waitlistService');
 const { DEFAULT_MAX_PATIENTS_PER_SLOT } = require('../config/constants');
+const logger = require('../config/logger');
 
 // Validation Schemas
 const doctorProfileSchema = Joi.object({
@@ -106,7 +107,7 @@ router.get('/', async (req, res) => {
         const [rows] = await db.query(`SELECT ${DOCTOR_LIST_COLUMNS} FROM doctors`);
         res.json(rows);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -123,7 +124,7 @@ router.get('/:id', async (req, res) => {
         if (rows.length === 0) return res.status(404).json({ message: 'Doctor not found' });
         res.json(rows[0]);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -154,7 +155,7 @@ router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctor
         const [rows] = await db.query('SELECT * FROM doctors WHERE id = ?', [req.params.id]);
         res.json(rows[0]);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -174,7 +175,7 @@ router.get('/:id/slot-counts', async (req, res) => {
         rows.forEach(r => { counts[r.time_slot] = Number(r.count); });
         res.json(counts);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -193,7 +194,7 @@ router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validateR
         await db.query('UPDATE doctors SET availability = ? WHERE id = ?', [JSON.stringify(availability), req.params.id]);
         res.json({ message: 'Availability updated', availability });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -223,7 +224,7 @@ router.get('/:id/reviews', async (req, res) => {
 
         res.json(reviews);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching reviews' });
     }
 });
@@ -268,7 +269,7 @@ router.get('/:id/patients', authenticate, requireRole('DOCTOR'), validateRequest
             }
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -293,7 +294,7 @@ router.get('/:id/queue', authenticate, requireRole('DOCTOR'), async (req, res) =
         `, [req.params.id]);
         res.json(rows);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -307,7 +308,7 @@ router.get('/:id/blocked-dates', async (req, res) => {
         );
         res.json(rows);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -330,7 +331,7 @@ router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateR
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'This date is already blocked' });
         }
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -348,7 +349,7 @@ router.delete('/:id/blocked-dates/:dateId', authenticate, requireRole('DOCTOR'),
         );
         res.json({ message: 'Date unblocked' });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -414,7 +415,7 @@ router.get('/:id/weekly-schedule', async (req, res) => {
             appointments,
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -437,7 +438,7 @@ router.get('/:id/delay-status', async (req, res) => {
             ...delayStatus
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching delay status' });
     }
 });
@@ -460,7 +461,7 @@ router.post('/:id/delay', authenticate, requireRole('DOCTOR'), validateRequest(m
             ...result
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error setting delay' });
     }
 });
@@ -475,7 +476,7 @@ router.get('/:id/delay/check', async (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error checking delay' });
     }
 });
@@ -494,7 +495,7 @@ router.get('/:id/delay/analytics', authenticate, requireRole('DOCTOR'), async (r
             ...analytics
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error fetching delay analytics' });
     }
 });
@@ -508,7 +509,7 @@ router.get('/:id/waitlist', authenticate, requireRole('DOCTOR'), async (req, res
         const entries = await waitlistService.getDoctorWaitlist(parseInt(req.params.id), date);
         res.json(entries);
     } catch (error) {
-        console.error('Get doctor waitlist error:', error);
+        logger.error('Get doctor waitlist error:', error);
         res.status(500).json({ message: 'Server error fetching waitlist' });
     }
 });
@@ -519,7 +520,7 @@ router.get('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), async 
         const settings = await waitlistService.getAutoFillSettings(parseInt(req.params.id));
         res.json(settings);
     } catch (error) {
-        console.error('Get autofill settings error:', error);
+        logger.error('Get autofill settings error:', error);
         res.status(500).json({ message: 'Server error fetching settings' });
     }
 });
@@ -539,7 +540,7 @@ router.put('/:id/autofill-settings', authenticate, requireRole('DOCTOR'), valida
         
         res.json({ message: 'Settings updated' });
     } catch (error) {
-        console.error('Update autofill settings error:', error);
+        logger.error('Update autofill settings error:', error);
         res.status(500).json({ message: 'Server error updating settings' });
     }
 });
@@ -554,7 +555,7 @@ router.get('/:id/autofill-analytics', authenticate, requireRole('DOCTOR'), async
         const analytics = await waitlistService.getAutoFillAnalytics(parseInt(req.params.id), start, end);
         res.json(analytics);
     } catch (error) {
-        console.error('Get autofill analytics error:', error);
+        logger.error('Get autofill analytics error:', error);
         res.status(500).json({ message: 'Server error fetching analytics' });
     }
 });

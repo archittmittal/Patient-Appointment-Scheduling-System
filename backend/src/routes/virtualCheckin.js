@@ -11,6 +11,7 @@ const sseManager = require('../services/sseManager');
 const { authenticate, authenticateSse, requireRole } = require('../middleware/authenticate');
 const { safeErrorMessage } = require('../middleware/errorHandler');
 const validateRequest = require('../middleware/validateRequest');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -82,7 +83,7 @@ router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Virtual check-in error:', error);
+        logger.error('Virtual check-in error:', error);
         // SEC-010: Do not surface raw service errors to clients in production
         res.status(400).json({ error: safeErrorMessage(error, 'Check-in failed') });
     }
@@ -160,7 +161,7 @@ router.post('/:appointmentId/status', authenticate, validateRequest(checkinStatu
 
         res.json(result);
     } catch (error) {
-        console.error('Status update error:', error);
+        logger.error('Status update error:', error);
         // SEC-010: Do not surface raw service errors to clients in production
         res.status(400).json({ error: safeErrorMessage(error, 'Status update failed') });
     }
@@ -202,7 +203,7 @@ router.get('/:appointmentId/status', authenticate, async (req, res) => {
 
         res.json(status);
     } catch (error) {
-        console.error('Get status error:', error);
+        logger.error('Get status error:', error);
         res.status(500).json({ error: 'Failed to get waiting room status' });
     }
 });
@@ -250,7 +251,7 @@ router.get('/:appointmentId/stream', authenticateSse, async (req, res) => {
         sseManager.sendToClient(connectionId, 'queue_update', status);
 
     } catch (error) {
-        console.error('SSE connection error:', error);
+        logger.error('SSE connection error:', error);
         if (!res.headersSent) {
             res.status(500).json({ error: 'Failed to establish SSE connection' });
         }
@@ -285,7 +286,7 @@ router.post('/:appointmentId/ping', authenticate, async (req, res) => {
         const result = await virtualCheckinService.pingSession(appointmentId, patientId);
         res.json(result);
     } catch (error) {
-        console.error('Ping error:', error);
+        logger.error('Ping error:', error);
         res.status(500).json({ error: 'Failed to ping session' });
     }
 });
@@ -332,7 +333,7 @@ router.delete('/:appointmentId/checkin', authenticate, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error('Cancel check-in error:', error);
+        logger.error('Cancel check-in error:', error);
         res.status(500).json({ error: 'Failed to cancel check-in' });
     }
 });
@@ -365,7 +366,7 @@ router.get('/doctor/:doctorId/queue', authenticate, requireRole(['DOCTOR', 'ADMI
         const queue = await virtualCheckinService.getVirtualQueueForDoctor(doctorId);
         res.json(queue);
     } catch (error) {
-        console.error('Get doctor queue error:', error);
+        logger.error('Get doctor queue error:', error);
         res.status(500).json({ error: 'Failed to get virtual queue' });
     }
 });
@@ -398,7 +399,7 @@ router.get('/notifications', authenticate, requireRole(['DOCTOR', 'ADMIN']), asy
         const notifications = await virtualCheckinService.getPendingNotifications(doctorId);
         res.json(notifications);
     } catch (error) {
-        console.error('Get notifications error:', error);
+        logger.error('Get notifications error:', error);
         res.status(500).json({ error: 'Failed to get notifications' });
     }
 });
@@ -431,7 +432,7 @@ router.post('/notifications/:notificationId/acknowledge', authenticate, async (r
         const result = await virtualCheckinService.acknowledgeNotification(notificationId, userId);
         res.json(result);
     } catch (error) {
-        console.error('Acknowledge error:', error);
+        logger.error('Acknowledge error:', error);
         res.status(500).json({ error: 'Failed to acknowledge notification' });
     }
 });

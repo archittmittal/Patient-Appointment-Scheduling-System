@@ -78,6 +78,7 @@ router.post('/reset-password', authController.resetPassword);
 router.post('/google', validateRequest(Joi.object({ token: Joi.string().min(1).required() })), authController.googleLogin);
 
 const abhaService = require('../services/abhaService');
+const logger = require('../config/logger');
 
 const abhaVerifySchema = Joi.object({
     abhaId: Joi.string().allow('', null),
@@ -105,7 +106,7 @@ router.post('/abha/verify', validateRequest(abhaVerifySchema), async (req, res) 
             ...result
         });
     } catch (error) {
-        console.error('[ABHA Verification Error]', error);
+        logger.error('[ABHA Verification Error]', error);
         res.status(500).json({ message: 'Server error verifying ABHA ID' });
     }
 });

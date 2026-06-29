@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const dailyOptimizerService = require('../services/dailyOptimizerService');
+const logger = require('../config/logger');
 
 // Keyword Mapping Rules for Specialties
 const SPECIALTY_MAPPINGS = {
@@ -137,7 +138,7 @@ router.post('/analyze', authenticate, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Symptom analysis error:', error);
+        logger.error('Symptom analysis error:', error);
         res.status(500).json({ error: 'Failed to analyze symptoms' });
     }
 });
@@ -199,7 +200,7 @@ router.get('/admin-stats', authenticate, requireRole('ADMIN'), async (req, res) 
         });
 
     } catch (error) {
-        console.error('Failed to get symptom checker admin stats:', error);
+        logger.error('Failed to get symptom checker admin stats:', error);
         res.status(500).json({ error: 'Failed to fetch admin statistics' });
     }
 });
