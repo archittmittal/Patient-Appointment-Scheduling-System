@@ -8,7 +8,10 @@ import { Loader2 } from 'lucide-react';
 export default function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <div role="status" aria-live="polite" className="flex flex-col items-center gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" aria-hidden="true" />
+        <span className="sr-only">Loading page...</span>
+      </div>
     </div>
   );
 }

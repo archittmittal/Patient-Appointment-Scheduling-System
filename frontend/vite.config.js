@@ -10,12 +10,24 @@ export default defineConfig({
       output: {
         // Split heavy vendor libraries into separate chunks so they are loaded
         // on demand alongside the lazy-loaded route pages that use them.
-        manualChunks: {
-          'vendor-react':     ['react', 'react-dom', 'react-router-dom'],
-          'vendor-charts':    ['recharts'],
-          'vendor-pdf':       ['jspdf'],
-          'vendor-ocr':       ['tesseract.js'],
-          'vendor-motion':    ['framer-motion'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom') || id.includes('react/') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('jspdf')) {
+              return 'vendor-pdf';
+            }
+            if (id.includes('tesseract.js')) {
+              return 'vendor-ocr';
+            }
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
+          }
         },
       },
     },
