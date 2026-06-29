@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const exportService = require('../services/exportService');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -42,7 +43,7 @@ router.get('/appointments/csv', async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename=appointments_${req.user.id}.csv`);
         res.send(csv);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Failed to export CSV' });
     }
 });
@@ -73,7 +74,7 @@ router.get('/medical-record/pdf', async (req, res) => {
         
         await exportService.exportMedicalRecordPDF(req.user.id, res);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         if (!res.headersSent) {
             res.status(500).json({ message: 'Failed to generate PDF' });
         }

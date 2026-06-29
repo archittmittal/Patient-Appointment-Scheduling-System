@@ -3,6 +3,7 @@ const router = express.Router();
 const paymentService = require('../services/paymentService');
 const { authenticate } = require('../middleware/authenticate');
 const { safeErrorMessage } = require('../middleware/errorHandler');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -100,16 +101,16 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
             event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
         } catch (err) {
-            console.error(`⛔ Webhook signature verification failed: ${err.message}`);
+            logger.error(`⛔ Webhook signature verification failed: ${err.message}`);
             return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
         }
     } else if (process.env.NODE_ENV === 'production') {
         // In production, webhook secret MUST be set
-        console.error('⛔ STRIPE_WEBHOOK_SECRET is not configured. Rejecting unverified webhook in production.');
+        logger.error('⛔ STRIPE_WEBHOOK_SECRET is not configured. Rejecting unverified webhook in production.');
         return res.status(400).json({ error: 'Webhook secret not configured. Cannot process unverified webhooks in production.' });
     } else {
         // Development fallback: parse body directly (no signature check)
-        console.warn('⚠️ STRIPE_WEBHOOK_SECRET not set — processing unverified webhook in development mode.');
+        logger.warn('STRIPE_WEBHOOK_SECRET not set — processing unverified webhook in development mode.');
         try {
             event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         } catch (parseErr) {
@@ -121,7 +122,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         await paymentService.handleWebhook(event);
         res.json({ received: true });
     } catch (error) {
-        console.error('Webhook processing error:', error);
+        logger.error('Webhook processing error:', error);
         // SEC-010: Do not surface internal webhook error detail in production
         res.status(400).json({ error: safeErrorMessage(error, 'Webhook processing error') });
     }

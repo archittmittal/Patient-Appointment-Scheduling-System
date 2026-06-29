@@ -4,6 +4,7 @@ const insuranceService = require('../services/insuranceService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const db = require('../config/db');
 const { safeErrorMessage } = require('../middleware/errorHandler');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -46,7 +47,7 @@ router.get('/providers', authenticate, async (req, res) => {
         const providers = await insuranceService.getProviders();
         res.json(providers);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error fetching providers' });
     }
 });
@@ -87,7 +88,7 @@ router.get('/my', authenticate, requireRole('PATIENT'), async (req, res) => {
         const insurance = await insuranceService.getPatientInsurance(req.user.id);
         res.json(insurance);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error fetching your insurance' });
     }
 });
@@ -150,7 +151,7 @@ router.post('/save', authenticate, async (req, res) => {
         const result = await insuranceService.saveInsurance(patientId, req.body);
         res.status(result.action === 'CREATED' ? 201 : 200).json(result);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         // SEC-010: Do not leak internal error detail to clients in production
         res.status(500).json({ message: safeErrorMessage(error, 'Error saving insurance') });
     }
@@ -202,7 +203,7 @@ router.post('/verify/:id', authenticate, async (req, res) => {
         const result = await insuranceService.verifyEligibility(id);
         res.json(result);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         // SEC-010: Do not leak internal error detail to clients in production
         res.status(500).json({ message: safeErrorMessage(error, 'Error verifying eligibility') });
     }
@@ -245,7 +246,7 @@ router.get('/patient/:id', authenticate, async (req, res) => {
         const insurance = await insuranceService.getPatientInsurance(id);
         res.json(insurance);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error fetching patient insurance' });
     }
 });
@@ -273,7 +274,7 @@ router.get('/all', authenticate, requireRole('ADMIN'), async (req, res) => {
         const policies = await insuranceService.getAllPolicies();
         res.json(policies);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error fetching all policies' });
     }
 });
@@ -301,7 +302,7 @@ router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
         const stats = await insuranceService.getAdminStats();
         res.json(stats);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error fetching insurance stats' });
     }
 });
@@ -349,7 +350,7 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res) => {
         await db.query('DELETE FROM patient_insurance WHERE id = ?', [id]);
         res.json({ message: 'Insurance record deleted successfully' });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Error deleting insurance record' });
     }
 });

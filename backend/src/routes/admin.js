@@ -7,6 +7,7 @@ const validateRequest = require('../middleware/validateRequest');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 const { bcryptRounds } = require('../config/auth');
 const cache = require('../config/memoryCache');
+const logger = require('../config/logger');
 
 // Cache TTL for the real-time queue overview snapshot (milliseconds).
 const QUEUE_OVERVIEW_CACHE_TTL = 5000;
@@ -128,7 +129,7 @@ router.get('/patients/list', validateRequest(patientsListQuerySchema, 'query'), 
         const nextCursor = hasMore ? rows[limit - 1].id : null;
         res.json({ data: hasMore ? rows.slice(0, limit) : rows, nextCursor });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -345,7 +346,7 @@ router.post('/doctors', validateRequest(addDoctorSchema), async (req, res) => {
         res.status(201).json({ message: 'Doctor added successfully', id: newId });
     } catch (error) {
         await conn.rollback();
-        console.error(error);
+        logger.error(error);
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'Email already exists' });
         }
@@ -382,7 +383,7 @@ router.delete('/doctors/:id', async (req, res) => {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'DOCTOR']);
         res.json({ message: 'Doctor removed' });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -459,7 +460,7 @@ router.post('/patients', validateRequest(addPatientSchema), async (req, res) => 
         res.status(201).json({ message: 'Patient added successfully', id: newId });
     } catch (error) {
         await conn.rollback();
-        console.error(error);
+        logger.error(error);
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'Email already exists' });
         }
@@ -496,7 +497,7 @@ router.delete('/patients/:id', async (req, res) => {
         await db.query('DELETE FROM users WHERE id = ? AND role = ?', [req.params.id, 'PATIENT']);
         res.json({ message: 'Patient removed' });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -539,7 +540,7 @@ router.get('/patients/search', async (req, res) => {
 
         res.json(patients);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -641,7 +642,7 @@ router.get('/appointments', validateRequest(appointmentsQuerySchema, 'query'), a
             }
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -695,7 +696,7 @@ router.get('/stats', async (req, res) => {
             top_doctors_today,
         });
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -798,7 +799,7 @@ router.get('/queue-overview', async (req, res) => {
         res.setHeader('X-Cache', 'MISS');
         res.json(result);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -862,7 +863,7 @@ router.get('/departments', async (req, res) => {
         
         res.json(result);
     } catch (error) {
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -904,7 +905,7 @@ router.post('/departments', validateRequest(addDepartmentSchema), async (req, re
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'Department already exists' });
         }
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });
@@ -946,7 +947,7 @@ router.delete('/departments/:id', async (req, res) => {
         if (error.code === 'ER_ROW_IS_REFERENCED_2' || error.code === 'ER_ROW_IS_REFERENCED') {
             return res.status(400).json({ message: 'Cannot delete department. There are doctors assigned to it.' });
         }
-        console.error(error);
+        logger.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 });

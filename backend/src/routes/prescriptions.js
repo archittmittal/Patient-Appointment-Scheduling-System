@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/db');
 const { authenticate } = require('../middleware/authenticate');
 const fhirService = require('../services/fhirService');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -103,7 +104,7 @@ router.get('/:id/fhir', authenticate, async (req, res) => {
 
         return res.json(fhirBundle);
     } catch (error) {
-        console.error('[FHIR Export Route Error]', error);
+        logger.error('[FHIR Export Route Error]', error);
         return res.status(500).json({ message: 'Server error generating FHIR bundle' });
     }
 });

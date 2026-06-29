@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/authenticate');
 const multiDoctorService = require('../services/multiDoctorService');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -71,7 +72,7 @@ router.post('/journey', authenticate, async (req, res) => {
         );
         res.status(201).json(journey);
     } catch (err) {
-        console.error('Create journey error:', err);
+        logger.error('Create journey error:', err);
         res.status(400).json({ error: err.message });
     }
 });
@@ -101,7 +102,7 @@ router.get('/journeys', authenticate, async (req, res) => {
         const journeys = await multiDoctorService.getPatientJourneys(req.user.id);
         res.json(journeys);
     } catch (err) {
-        console.error('Get journeys error:', err);
+        logger.error('Get journeys error:', err);
         res.status(500).json({ error: 'Failed to get journeys' });
     }
 });
@@ -134,7 +135,7 @@ router.get('/journey/:journeyId', authenticate, async (req, res) => {
         );
         res.json(journey);
     } catch (err) {
-        console.error('Get journey details error:', err);
+        logger.error('Get journey details error:', err);
         res.status(400).json({ error: err.message });
     }
 });
@@ -188,7 +189,7 @@ router.patch('/stop/:stopId/status', authenticate, async (req, res) => {
         );
         res.json(result);
     } catch (err) {
-        console.error('Update stop status error:', err);
+        logger.error('Update stop status error:', err);
         res.status(400).json({ error: err.message });
     }
 });
@@ -227,7 +228,7 @@ router.post('/optimize', authenticate, async (req, res) => {
         );
         res.json(optimization);
     } catch (err) {
-        console.error('Optimize route error:', err);
+        logger.error('Optimize route error:', err);
         res.status(500).json({ error: 'Failed to optimize route' });
     }
 });
@@ -264,7 +265,7 @@ router.get('/suggestions', authenticate, async (req, res) => {
         const suggestions = await multiDoctorService.getSuggestedCombinations(symptom);
         res.json(suggestions);
     } catch (err) {
-        console.error('Get suggestions error:', err);
+        logger.error('Get suggestions error:', err);
         res.status(500).json({ error: 'Failed to get suggestions' });
     }
 });
@@ -311,7 +312,7 @@ router.post('/coordinate-slots', authenticate, async (req, res) => {
         const paths = await multiDoctorService.getOptimalSlotPaths(doctorIds, date);
         res.json(paths);
     } catch (err) {
-        console.error('Coordinate slots error:', err);
+        logger.error('Coordinate slots error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -354,7 +355,7 @@ router.get('/analytics', authenticate, async (req, res) => {
         const analytics = await multiDoctorService.getJourneyAnalytics(start, end);
         res.json(analytics);
     } catch (err) {
-        console.error('Get analytics error:', err);
+        logger.error('Get analytics error:', err);
         res.status(500).json({ error: 'Failed to get analytics' });
     }
 });
