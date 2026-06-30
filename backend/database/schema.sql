@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     predicted_duration_mins INT DEFAULT 15,
     is_follow_up BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_booking (doctor_id, appointment_date, time_slot),
+    INDEX idx_appointments_doctor_date_slot (doctor_id, appointment_date, time_slot),
     INDEX idx_appointments_doctor_date (doctor_id, appointment_date),
     INDEX idx_appointments_patient_date (patient_id, appointment_date),
     INDEX idx_appointments_status (status),
