@@ -79,7 +79,7 @@ const trendsQuerySchema = Joi.object({
 // Get a patient's simple profile
 router.get('/:id', authenticate, async (req, res) => {
     // Check if the user is authorized to view this profile
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -97,7 +97,7 @@ router.get('/:id', authenticate, async (req, res) => {
 // PATCH /api/patients/:id — update editable profile fields
 router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async (req, res) => {
     // Only the patient themselves can update their profile
-    if (req.user.id != req.params.id) {
+    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -123,7 +123,7 @@ router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async 
 // Get a patient's appointments — supports ?type=upcoming|past (default: upcoming)
 router.get('/:id/appointments', authenticate, validateRequest(appointmentsQuerySchema, 'query'), async (req, res) => {
     // Check authorization: doctors/admins or the patient themselves
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -167,7 +167,7 @@ const logger = require('../config/logger');
 
 // Issue #94: Get patient prescriptions
 router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) => {
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -181,7 +181,7 @@ router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) =
 
 // Issue #95: Get patient vitals history
 router.get('/:id/vitals', authenticate, verifyConsent, async (req, res) => {
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -206,7 +206,7 @@ const vitalsSchema = Joi.object({
 // Issue #95: Log new vitals (now with abnormal alerts)
 router.post('/:id/vitals', authenticate, verifyConsent, validateRequest(vitalsSchema), async (req, res) => {
     // Both patients (self-logging) and doctors can log vitals
-    if (req.user.role !== 'DOCTOR' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -220,7 +220,7 @@ router.post('/:id/vitals', authenticate, verifyConsent, validateRequest(vitalsSc
 
 // Issue #144: Get vitals trends and analytics
 router.get('/:id/vitals/trends', authenticate, verifyConsent, validateRequest(trendsQuerySchema, 'query'), async (req, res) => {
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -235,7 +235,7 @@ router.get('/:id/vitals/trends', authenticate, verifyConsent, validateRequest(tr
 
 // Issue #110: Export patient vitals as CSV
 router.get('/:id/vitals/export', authenticate, verifyConsent, async (req, res) => {
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -248,7 +248,7 @@ router.get('/:id/vitals/export', authenticate, verifyConsent, async (req, res) =
 
 // Issue #144: Get full prescription history (including inactive)
 router.get('/:id/prescriptions/history', authenticate, verifyConsent, async (req, res) => {
-    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -332,7 +332,7 @@ const consentSchema = Joi.object({
 // POST /api/patients/:id/consent — grant/revoke consent for a doctor
 router.post('/:id/consent', authenticate, validateRequest(consentSchema), async (req, res) => {
     // Only the patient themselves or an ADMIN can manage consent
-    if (req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -372,7 +372,7 @@ const abhaLinkSchema = Joi.object({
 // POST /api/patients/:id/abha — link/update ABHA details for an existing patient
 router.post('/:id/abha', authenticate, validateRequest(abhaLinkSchema), async (req, res) => {
     // Only the patient themselves or an ADMIN can manage ABHA linking
-    if (req.user.role !== 'ADMIN' && req.user.id != req.params.id) {
+    if (req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
 

@@ -84,7 +84,9 @@ const swaggerOptions = {
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (process.env.NODE_ENV !== 'production') {
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // Security Middleware — baseline Helmet (CSP configured after origins are resolved below)
 app.use(helmet({
@@ -211,6 +213,7 @@ if (process.env.DISABLE_RATE_LIMITER !== 'true') {
     app.use('/api/', globalLimiter);
     app.use('/api/auth/login', authLimiter);
     app.use('/api/auth/register', authLimiter);
+    app.use('/api/auth/forgot-password', authLimiter);
 }
 
 // Routes
