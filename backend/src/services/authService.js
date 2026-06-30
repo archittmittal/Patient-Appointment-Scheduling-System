@@ -135,11 +135,12 @@ class AuthService {
                     // instead of the predictable Math.random()
                     const otp = crypto.randomInt(100000, 1000000).toString();
                     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+                    const hashedOtp = await bcrypt.hash(otp, bcryptRounds);
 
                     // Reset failed attempts on new OTP generation
                     await db.query(
                         'UPDATE users SET otp_code = ?, otp_expiry = ?, failed_otp_attempts = 0 WHERE email = ?',
-                        [otp, expiry, email]
+                        [hashedOtp, expiry, email]
                     );
 
                     await sendOTP(email, otp);
@@ -166,11 +167,16 @@ class AuthService {
         }
 
         const [users] = await db.query(
-            'SELECT * FROM users WHERE email = ? AND otp_code = ? AND otp_expiry > NOW()',
-            [email, otp]
+            'SELECT id, otp_code, otp_expiry FROM users WHERE email = ?',
+            [email]
         );
 
-        if (users.length === 0) {
+        let otpValid = false;
+        if (users.length > 0 && users[0].otp_code && users[0].otp_expiry && new Date(users[0].otp_expiry) > new Date()) {
+            otpValid = await bcrypt.compare(otp, users[0].otp_code);
+        }
+
+        if (!otpValid) {
             // [SEC-007] Increment failed attempt counter and lock after 5 failures
             const MAX_OTP_ATTEMPTS = 5;
             const LOCKOUT_MINUTES = 15;

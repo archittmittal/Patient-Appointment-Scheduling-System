@@ -64,7 +64,7 @@ function authenticateSse(req, res, next) {
 
 function verifyToken(token, req, res, next) {
     try {
-        req.user = jwt.verify(token, jwtSecret);
+        req.user = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
         return next();
     } catch {
         return res.status(401).json({ message: 'Invalid or expired token' });
