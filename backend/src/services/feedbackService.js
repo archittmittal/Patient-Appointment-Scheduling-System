@@ -71,8 +71,10 @@ class FeedbackService {
         const sentiment = this.analyzeSentiment(comment || '');
 
         // Save feedback
+        const conn = await db.getConnection();
         try {
-            const [result] = await db.execute(`
+            await conn.beginTransaction();
+            const [result] = await conn.execute(`
                 INSERT INTO appointment_feedback 
                 (appointment_id, patient_id, doctor_id, ratings_json, comment, 
                  would_recommend, improvements, weighted_score, sentiment_score, created_at)
@@ -89,8 +91,10 @@ class FeedbackService {
                 sentiment.score
             ]);
 
-            // Update doctor's aggregated rating
-            await this.updateDoctorAggregateRating(apt.doctor_id);
+            // Update doctor's aggregated rating on same connection
+            await this.updateDoctorAggregateRating(apt.doctor_id, conn);
+
+            await conn.commit();
 
             return {
                 success: true,
@@ -100,8 +104,11 @@ class FeedbackService {
                 message: 'Thank you for your feedback!'
             };
         } catch (err) {
+            await conn.rollback();
             console.log('Feedback save note:', err.message);
             return { success: true, message: 'Feedback recorded', weightedScore };
+        } finally {
+            conn.release();
         }
     }
 
@@ -133,9 +140,9 @@ class FeedbackService {
     /**
      * Update doctor's aggregated rating
      */
-    async updateDoctorAggregateRating(doctorId) {
+    async updateDoctorAggregateRating(doctorId, connection = db) {
         try {
-            const [stats] = await db.execute(`
+            const [stats] = await connection.execute(`
                 SELECT 
                     AVG(weighted_score) as avg_score,
                     COUNT(*) as total_reviews,
@@ -145,7 +152,7 @@ class FeedbackService {
             `, [doctorId]);
 
             if (stats[0].total_reviews > 0) {
-                await db.execute(`
+                await connection.execute(`
                     INSERT INTO doctor_ratings 
                     (doctor_id, avg_score, total_reviews, recommend_rate, updated_at)
                     VALUES (?, ?, ?, ?, NOW())
