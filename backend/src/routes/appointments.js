@@ -774,9 +774,13 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/analytics/doctor/:doctorId — get prediction analytics for a doctor
-router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
+router.get('/analytics/doctor/:doctorId', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const doctorId = req.params.doctorId;
+
+        if (req.user.role === 'DOCTOR' && parseInt(req.user.id) !== parseInt(doctorId)) {
+            return res.status(403).json({ message: 'Access denied: You can only view your own analytics' });
+        }
 
         // Get doctor's average times
         const [avgTimesRows] = await db.query(
@@ -848,7 +852,7 @@ router.get('/analytics/doctor/:doctorId', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/analytics/symptoms — get symptom complexity data
-router.get('/analytics/symptoms', authenticate, async (req, res) => {
+router.get('/analytics/symptoms', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
         const [symptoms] = await db.query(
             `SELECT keyword, complexity_score, avg_extra_mins FROM symptom_complexity ORDER BY complexity_score DESC`
@@ -1055,9 +1059,13 @@ router.get('/:id/smart-arrival', authenticate, async (req, res) => {
 });
 
 // GET /api/appointments/doctor/:doctorId/smart-arrivals - Get all smart arrivals for a doctor today
-router.get('/doctor/:doctorId/smart-arrivals', authenticate, async (req, res) => {
+router.get('/doctor/:doctorId/smart-arrivals', authenticate, requireRole(['DOCTOR', 'ADMIN']), async (req, res) => {
     try {
-        const results = await smartArrivalService.getBatchSmartArrivals(parseInt(req.params.doctorId));
+        const doctorId = parseInt(req.params.doctorId);
+        if (req.user.role === 'DOCTOR' && parseInt(req.user.id) !== doctorId) {
+            return res.status(403).json({ message: 'Access denied: You can only view your own smart arrivals' });
+        }
+        const results = await smartArrivalService.getBatchSmartArrivals(doctorId);
         res.json(results);
     } catch (error) {
         logger.error('Batch smart arrivals error:', error);
