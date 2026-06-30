@@ -1,14 +1,14 @@
 const jwt = require('jsonwebtoken');
-const { jwtSecret } = require('../middleware/authenticate');
+const { jwtSecret, jwtExpiresIn } = require('../config/auth');
 
 class SessionService {
     /**
      * Generate a new JWT token for a user
      * @param {Object} user User object containing id, email, role
-     * @param {string} expiresIn Token expiry time (default 8h)
+     * @param {string} expiresIn Token expiry time (default config-driven)
      * @returns {string} JWT token
      */
-    generateToken(user, expiresIn = '8h') {
+    generateToken(user, expiresIn = jwtExpiresIn) {
         return jwt.sign(
             { id: user.id, email: user.email, role: user.role },
             jwtSecret,
@@ -23,7 +23,7 @@ class SessionService {
      */
     verifyToken(token) {
         try {
-            return jwt.verify(token, jwtSecret);
+            return jwt.verify(token, jwtSecret, { algorithms: ['HS256'] });
         } catch (error) {
             return null;
         }
