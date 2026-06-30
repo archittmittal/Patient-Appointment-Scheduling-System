@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { bcryptRounds } = require('../config/auth');
 const sessionService = require('./sessionService');
 const { sendOTP } = require('./emailService');
+const logger = require('../config/logger');
 const GENERIC_OTP_MESSAGE = 'If an account with that email exists, an OTP has been sent';
 
 class AuthService {
@@ -145,7 +146,7 @@ class AuthService {
 
                     await sendOTP(email, otp);
                 } catch (error) {
-                    console.error('Forgot password side effect error:', error);
+                    logger.error('[authService] Forgot password side effect error:', { error });
                 }
             });
         }

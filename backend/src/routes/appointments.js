@@ -714,34 +714,50 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
 router.patch('/:id/cancel', authenticate, async (req, res) => {
     const conn = await db.getConnection();
     try {
-        const [apptRows] = await conn.query(
+        // --- Pre-flight validation read (no transaction yet) ---
+        const [preRows] = await conn.query(
             'SELECT status, appointment_date, patient_id FROM appointments WHERE id = ?',
             [req.params.id]
         );
-        const appt = apptRows[0];
+        const preAppt = preRows[0];
 
-        if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+        if (!preAppt) {
+            return res.status(404).json({ message: 'Appointment not found' });
+        }
 
         // SECURITY: Verify patient owns appointment
-        if (req.user.role === 'PATIENT' && req.user.id !== appt.patient_id) {
+        if (req.user.role === 'PATIENT' && req.user.id !== preAppt.patient_id) {
             return res.status(403).json({ message: 'Access denied' });
         }
 
         // BUG-003: Patients may not cancel past appointments
         if (req.user.role === 'PATIENT') {
             const todayStr = getTodayDateString();
-            const apptDateStr = toDateString(appt.appointment_date);
+            const apptDateStr = toDateString(preAppt.appointment_date);
             if (apptDateStr < todayStr) {
                 return res.status(400).json({ message: 'Cannot cancel a past appointment' });
             }
         }
 
-        // BUG-008: Use LOWER() to normalize before comparison — statuses are stored lowercase
-        if (!['CONFIRMED', 'PENDING', 'SCHEDULED'].includes(String(appt.status).toUpperCase())) {
-            return res.status(400).json({ message: `Cannot cancel appointment with status ${appt.status}` });
+        if (!['CONFIRMED', 'PENDING', 'SCHEDULED'].includes(String(preAppt.status).toUpperCase())) {
+            return res.status(400).json({ message: `Cannot cancel appointment with status ${preAppt.status}` });
         }
 
+        // --- Transactional write path (only reached after all guards pass) ---
         await conn.beginTransaction();
+
+        // Re-read with FOR UPDATE lock to guard against concurrent modifications
+        const [apptRows] = await conn.query(
+            'SELECT status, appointment_date FROM appointments WHERE id = ? FOR UPDATE',
+            [req.params.id]
+        );
+        const appt = apptRows[0];
+
+        // Double-check status under lock (may have changed between pre-flight and now)
+        if (!appt || !['CONFIRMED', 'PENDING', 'SCHEDULED'].includes(String(appt.status).toUpperCase())) {
+            await conn.rollback();
+            return res.status(400).json({ message: 'Appointment cannot be cancelled (status changed)' });
+        }
 
         await conn.query(
             "UPDATE appointments SET status = 'CANCELLED' WHERE id = ?",
@@ -759,13 +775,13 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
 
         await conn.commit();
         
-        // Issue #41: Trigger auto-fill for cancellation
+        // Issue #41: Trigger auto-fill for cancellation (fire-and-forget)
         waitlistService.handleSlotRelease(parseInt(req.params.id), 'CANCELLATION')
             .catch(err => logger.error('Auto-fill error:', err));
         
         res.json({ message: 'Appointment cancelled' });
     } catch (error) {
-        if (conn) await conn.rollback();
+        try { await conn.rollback(); } catch (_) { /* ignore rollback errors */ }
         logger.error(error);
         res.status(500).json({ message: 'Server error cancelling appointment' });
     } finally {

@@ -181,129 +181,145 @@ class WaitlistService {
      * Process a slot release (cancellation/no-show) and attempt auto-fill
      */
     async handleSlotRelease(appointmentId, releaseType) {
-        // Get appointment details with doctor's name
-        const result = await pool.query(
-            `SELECT a.*, a.time_slot AS appointment_time, d.id as doctor_id, d.first_name, d.last_name 
-             FROM appointments a
-             JOIN doctors d ON a.doctor_id = d.id
-             WHERE a.id = ?`,
-            [appointmentId]
-        );
-        
-        const appointment = (result && Array.isArray(result[0])) ? result[0][0] : undefined;
+        const conn = await pool.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        if (!appointment) {
-            return { success: false, error: 'Appointment not found' };
-        }
+            // Get appointment details with doctor's name
+            const result = await conn.query(
+                `SELECT a.*, a.time_slot AS appointment_time, d.id as doctor_id, d.first_name, d.last_name 
+                 FROM appointments a
+                 JOIN doctors d ON a.doctor_id = d.id
+                 WHERE a.id = ?`,
+                [appointmentId]
+            );
+            
+            const appointment = (result && Array.isArray(result[0])) ? result[0][0] : undefined;
 
-        const { doctor_id, appointment_date, appointment_time } = appointment;
-        const mysqlTime = convertTo24Hour(appointment_time);
+            if (!appointment) {
+                await conn.rollback();
+                return { success: false, error: 'Appointment not found' };
+            }
 
-        // Log the slot release
-        await pool.query(
-            `INSERT INTO slot_release_log (appointment_id, doctor_id, release_type, slot_date, slot_time)
-             VALUES (?, ?, ?, ?, ?)`,
-            [appointmentId, doctor_id, releaseType, appointment_date, mysqlTime]
-        );
+            const { doctor_id, appointment_date, appointment_time } = appointment;
+            const mysqlTime = convertTo24Hour(appointment_time);
 
-        // Check if auto-fill is enabled for this doctor
-        const [settingsRows] = await pool.query(
-            `SELECT * FROM autofill_settings WHERE doctor_id = ?`,
-            [doctor_id]
-        );
-        const settings = settingsRows[0];
+            // Log the slot release
+            await conn.query(
+                `INSERT INTO slot_release_log (appointment_id, doctor_id, release_type, slot_date, slot_time)
+                 VALUES (?, ?, ?, ?, ?)`,
+                [appointmentId, doctor_id, releaseType, appointment_date, mysqlTime]
+            );
 
-        if (!settings || !settings.enabled) {
-            return { success: true, autoFillAttempted: false, reason: 'Auto-fill disabled for doctor' };
-        }
+            // Check if auto-fill is enabled for this doctor
+            const [settingsRows] = await conn.query(
+                `SELECT * FROM autofill_settings WHERE doctor_id = ?`,
+                [doctor_id]
+            );
+            const settings = settingsRows[0];
 
-        // Check if slot is too soon (minimum notice)
-        let slotDateStr;
-        if (appointment_date instanceof Date) {
-            const y = appointment_date.getFullYear();
-            const m = String(appointment_date.getMonth() + 1).padStart(2, '0');
-            const d = String(appointment_date.getDate()).padStart(2, '0');
-            slotDateStr = `${y}-${m}-${d}`;
-        } else {
-            slotDateStr = String(appointment_date).slice(0, 10);
-        }
-        const slotDateTime = new Date(`${slotDateStr}T${mysqlTime}`);
-        const hoursUntilSlot = (slotDateTime - new Date()) / (1000 * 60 * 60);
+            if (!settings || !settings.enabled) {
+                await conn.commit();
+                return { success: true, autoFillAttempted: false, reason: 'Auto-fill disabled for doctor' };
+            }
 
-        if (hoursUntilSlot < settings.min_notice_hours) {
-            return { success: true, autoFillAttempted: false, reason: 'Slot too soon for auto-fill' };
-        }
+            // Check if slot is too soon (minimum notice)
+            let slotDateStr;
+            if (appointment_date instanceof Date) {
+                const y = appointment_date.getFullYear();
+                const m = String(appointment_date.getMonth() + 1).padStart(2, '0');
+                const d = String(appointment_date.getDate()).padStart(2, '0');
+                slotDateStr = `${y}-${m}-${d}`;
+            } else {
+                slotDateStr = String(appointment_date).slice(0, 10);
+            }
+            const slotDateTime = new Date(`${slotDateStr}T${mysqlTime}`);
+            const hoursUntilSlot = (slotDateTime - new Date()) / (1000 * 60 * 60);
 
-        // Find eligible waitlist patients
-        const timePreferenceFilter = this.getTimePreference(mysqlTime);
-        
-        const [candidates] = await pool.query(
-            `SELECT w.* FROM waitlist w
-             WHERE w.doctor_id = ? 
-             AND w.status = 'ACTIVE'
-             AND w.preferred_date >= ?
-             AND w.max_notice_hours <= ?
-             AND (w.time_preference = 'ANY' OR w.time_preference = ?)
-             ORDER BY 
-                CASE 
-                    WHEN w.preferred_date = ? THEN 0 
-                    ELSE 1 
-                END,
-                w.created_at ASC
-             LIMIT ?`,
-            [doctor_id, appointment_date, hoursUntilSlot, timePreferenceFilter, appointment_date, settings.max_offers_per_slot]
-        );
+            if (hoursUntilSlot < settings.min_notice_hours) {
+                await conn.commit();
+                return { success: true, autoFillAttempted: false, reason: 'Slot too soon for auto-fill' };
+            }
 
-        if (candidates.length === 0) {
-            await pool.query(
+            // Find eligible waitlist patients
+            const timePreferenceFilter = this.getTimePreference(mysqlTime);
+            
+            const [candidates] = await conn.query(
+                `SELECT w.* FROM waitlist w
+                 WHERE w.doctor_id = ? 
+                 AND w.status = 'ACTIVE'
+                 AND w.preferred_date >= ?
+                 AND w.max_notice_hours <= ?
+                 AND (w.time_preference = 'ANY' OR w.time_preference = ?)
+                 ORDER BY 
+                    CASE 
+                        WHEN w.preferred_date = ? THEN 0 
+                        ELSE 1 
+                    END,
+                    w.created_at ASC
+                 LIMIT ?`,
+                [doctor_id, appointment_date, hoursUntilSlot, timePreferenceFilter, appointment_date, settings.max_offers_per_slot]
+            );
+
+            if (candidates.length === 0) {
+                await conn.query(
+                    `UPDATE slot_release_log SET auto_fill_attempted = TRUE WHERE appointment_id = ?`,
+                    [appointmentId]
+                );
+                await conn.commit();
+                return { success: true, autoFillAttempted: true, offers_sent: 0, reason: 'No eligible waitlist patients' };
+            }
+
+            // Create offers for candidates
+            const offerExpiry = new Date();
+            offerExpiry.setMinutes(offerExpiry.getMinutes() + settings.offer_window_mins);
+
+            let offersSent = 0;
+            for (const candidate of candidates) {
+                await conn.query(
+                    `INSERT INTO slot_offers (waitlist_id, original_appointment_id, offered_date, offered_time, expires_at)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [candidate.id, appointmentId, appointment_date, mysqlTime, offerExpiry]
+                );
+
+                // Update waitlist status to OFFERED
+                await conn.query(
+                    `UPDATE waitlist SET status = 'OFFERED' WHERE id = ?`,
+                    [candidate.id]
+                );
+
+                offersSent++;
+                
+                // Dispatch notification via preferences (run in background, do not await inside transaction)
+                const doctorName = `${appointment.first_name} ${appointment.last_name}`;
+                notificationService.notifyWaitlistOffer(
+                    candidate.patient_id,
+                    doctorName,
+                    appointment_date,
+                    appointment_time,
+                    settings.offer_window_mins
+                ).catch(err => console.error(`Failed to send waitlist offer notification to user ${candidate.patient_id}:`, err));
+            }
+
+            await conn.query(
                 `UPDATE slot_release_log SET auto_fill_attempted = TRUE WHERE appointment_id = ?`,
                 [appointmentId]
             );
-            return { success: true, autoFillAttempted: true, offers_sent: 0, reason: 'No eligible waitlist patients' };
+
+            await conn.commit();
+
+            return { 
+                success: true, 
+                autoFillAttempted: true, 
+                offers_sent: offersSent,
+                offer_expires: offerExpiry
+            };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
-
-        // Create offers for candidates
-        const offerExpiry = new Date();
-        offerExpiry.setMinutes(offerExpiry.getMinutes() + settings.offer_window_mins);
-
-        let offersSent = 0;
-        for (const candidate of candidates) {
-            await pool.query(
-                `INSERT INTO slot_offers (waitlist_id, original_appointment_id, offered_date, offered_time, expires_at)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [candidate.id, appointmentId, appointment_date, mysqlTime, offerExpiry]
-            );
-
-            // Update waitlist status to OFFERED
-            await pool.query(
-                `UPDATE waitlist SET status = 'OFFERED' WHERE id = ?`,
-                [candidate.id]
-            );
-
-            offersSent++;
-            
-            // Dispatch notification via preferences
-            const doctorName = `${appointment.first_name} ${appointment.last_name}`;
-            await notificationService.notifyWaitlistOffer(
-                candidate.patient_id,
-                doctorName,
-                appointment_date,
-                appointment_time,
-                settings.offer_window_mins
-            ).catch(err => console.error(`Failed to send waitlist offer notification to user ${candidate.patient_id}:`, err));
-        }
-
-        await pool.query(
-            `UPDATE slot_release_log SET auto_fill_attempted = TRUE WHERE appointment_id = ?`,
-            [appointmentId]
-        );
-
-        return { 
-            success: true, 
-            autoFillAttempted: true, 
-            offers_sent: offersSent,
-            offer_expires: offerExpiry
-        };
     }
 
     /**

@@ -30,26 +30,42 @@ const initCronJobs = () => {
         cronStatus.lastMorningRun = new Date().toISOString();
         logger.info('[Cron] Running Morning Appointment Reminders...');
         try {
-            // Find appointments for today
-            const query = `
-                SELECT a.id AS appt_id, a.patient_id, a.time_slot, d.first_name AS doctor_first, d.last_name AS doctor_last
-                FROM appointments a
-                JOIN doctors d ON a.doctor_id = d.id
-                WHERE a.appointment_date = CURDATE() 
-                AND a.status = 'CONFIRMED'
-                -- BUG-005: was 'CONFIRMED' — statuses are stored lowercase at booking time
-            `;
+            let offset = 0;
+            const limit = 500;
+            let hasMore = true;
+            let totalSent = 0;
 
-            const [appointments] = await db.query(query);
+            while (hasMore) {
+                const query = `
+                    SELECT a.id AS appt_id, a.patient_id, a.time_slot, d.first_name AS doctor_first, d.last_name AS doctor_last
+                    FROM appointments a
+                    JOIN doctors d ON a.doctor_id = d.id
+                    WHERE a.appointment_date = CURDATE() 
+                    AND a.status = 'CONFIRMED'
+                    LIMIT ? OFFSET ?
+                `;
 
-            for (const appt of appointments) {
-                await notificationService.notifyAppointmentReminder(
-                    appt.patient_id,
-                    `Dr. ${appt.doctor_first} ${appt.doctor_last}`,
-                    `today at ${appt.time_slot}`
-                );
+                const [appointments] = await db.query(query, [limit, offset]);
+                if (appointments.length === 0) {
+                    hasMore = false;
+                    break;
+                }
+
+                for (const appt of appointments) {
+                    await notificationService.notifyAppointmentReminder(
+                        appt.patient_id,
+                        `Dr. ${appt.doctor_first} ${appt.doctor_last}`,
+                        `today at ${appt.time_slot}`
+                    ).catch(err => logger.error(`[Cron Error] Failed to send morning reminder to patient ${appt.patient_id}:`, err));
+                }
+
+                totalSent += appointments.length;
+                offset += limit;
+                if (appointments.length < limit) {
+                    hasMore = false;
+                }
             }
-            logger.info('[Cron] Morning reminders execution complete', { count: appointments.length });
+            logger.info('[Cron] Morning reminders execution complete', { count: totalSent });
         } catch (error) {
             logger.error('[Cron Error] Morning reminders failed', { error });
         }

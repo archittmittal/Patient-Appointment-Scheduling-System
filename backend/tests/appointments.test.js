@@ -141,9 +141,10 @@ describe('Appointment & Queue Endpoints', () => {
 
       const mockConn = {
         query: jest.fn()
-          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: tomorrow, patient_id: 1 }]]) // First query: select appt
-          .mockResolvedValueOnce([{ affectedRows: 1 }]) // Second: update status
-          .mockResolvedValueOnce([{ affectedRows: 1 }]), // Third: update live_queue
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: tomorrow, patient_id: 1 }]]) // Pre-flight: select appt (no lock)
+          .mockResolvedValueOnce([[{ status: 'CONFIRMED', appointment_date: tomorrow }]])                // Locked re-read: FOR UPDATE
+          .mockResolvedValueOnce([{ affectedRows: 1 }])                                                  // Update status = CANCELLED
+          .mockResolvedValueOnce([{ affectedRows: 1 }]),                                                 // Update live_queue
         beginTransaction: jest.fn(),
         commit: jest.fn(),
         rollback: jest.fn(),
