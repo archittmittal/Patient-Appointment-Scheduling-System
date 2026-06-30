@@ -495,7 +495,7 @@ router.patch('/queue/:queueId/status', authenticate, requireRole('DOCTOR'), vali
         // 2. Handle status-specific logic
         if (status === 'IN_PROGRESS') {
             await conn.query(
-                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'in_progress' WHERE lq.id = ?",
+                "UPDATE appointments a JOIN live_queue lq ON a.id = lq.appointment_id SET a.consultation_start = NOW(), a.status = 'IN_PROGRESS' WHERE lq.id = ?",
                 [req.params.queueId]
             );
 
