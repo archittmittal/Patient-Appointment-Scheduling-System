@@ -23,7 +23,7 @@ const STATUS_STYLES = {
     NEEDS_RESCHEDULE: 'bg-purple-50 text-purple-600 border-purple-100'
 };
 
-// eslint-disable-next-line no-unused-vars
+ 
 const QuickAction = ({ icon: Icon, title, onClick }) => (
     <button 
         onClick={onClick}
@@ -104,9 +104,12 @@ const PatientDashboard = () => {
                     apiClient.get(`/api/patients/${user.id}/prescriptions`)
                 ]);
 
+                const upcomingData = upcoming && upcoming.data ? upcoming.data : (Array.isArray(upcoming) ? upcoming : []);
+                const pastData = past && past.data ? past.data : (Array.isArray(past) ? past : []);
+
                 setStats({
-                    upcoming: Array.isArray(upcoming) ? upcoming : [],
-                    past: Array.isArray(past) ? past : [],
+                    upcoming: upcomingData,
+                    past: pastData,
                     feedback: Array.isArray(feedback) ? feedback : [],
                     vitals: Array.isArray(vitals) ? vitals : [],
                     prescriptions: Array.isArray(prescriptions) ? prescriptions : [],

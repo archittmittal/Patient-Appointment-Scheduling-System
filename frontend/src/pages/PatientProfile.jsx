@@ -35,7 +35,7 @@ const PatientProfile = () => {
                 ]);
                 
                 setProfile(pRes);
-                const visits = Array.isArray(vRes) ? vRes : [];
+                const visits = vRes && vRes.data ? vRes.data : (Array.isArray(vRes) ? vRes : []);
                 setPastVisits(visits);
                 setVitals(Array.isArray(vitRes) ? vitRes : []);
                 

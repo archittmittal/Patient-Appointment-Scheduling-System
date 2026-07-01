@@ -134,7 +134,8 @@ const LiveQueue = () => {
         if (!user?.id) return;
         try {
             // Get today's appointments for this patient
-            const apps = await apiClient.get(`/api/patients/${user.id}/appointments`);
+            const appsResponse = await apiClient.get(`/api/patients/${user.id}/appointments`);
+            const apps = appsResponse && appsResponse.data ? appsResponse.data : (Array.isArray(appsResponse) ? appsResponse : []);
             
             if (!Array.isArray(apps) || apps.length === 0) {
                 setNoQueue(true);

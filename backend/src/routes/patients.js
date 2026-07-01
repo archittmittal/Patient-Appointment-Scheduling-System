@@ -24,7 +24,9 @@ const patientProfileSchema = Joi.object({
 });
 
 const appointmentsQuerySchema = Joi.object({
-    type: Joi.string().valid('upcoming', 'past', 'all').default('upcoming')
+    type: Joi.string().valid('upcoming', 'past', 'all').default('upcoming'),
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(20)
 });
 
 const trendsQuerySchema = Joi.object({
@@ -121,13 +123,14 @@ router.patch('/:id', authenticate, validateRequest(patientProfileSchema), async 
 });
 
 // Get a patient's appointments — supports ?type=upcoming|past (default: upcoming)
-router.get('/:id/appointments', authenticate, validateRequest(appointmentsQuerySchema, 'query'), async (req, res) => {
+router.get('/:id/appointments', authenticate, validateRequest(appointmentsQuerySchema, 'query'), async (req, res, next) => {
     // Check authorization: doctors/admins or the patient themselves
     if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
         return res.status(403).json({ message: 'Access denied' });
     }
     try {
-        const { type } = req.query;
+        const { type, page, limit } = req.query;
+        const offset = (page - 1) * limit;
 
         let whereClause;
         let orderClause;
@@ -144,6 +147,13 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
             orderClause = 'ORDER BY a.appointment_date ASC';
         }
 
+        const countQuery = `
+            SELECT COUNT(*) AS total
+            FROM appointments a
+            WHERE ${whereClause}
+        `;
+        const [[{ total }]] = await db.query(countQuery, [req.params.id]);
+
         const query = `
             SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date,
                    a.time_slot, a.symptoms, a.status, a.prescription, a.diagnosis, a.notes, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
@@ -152,12 +162,17 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
             JOIN doctors d ON a.doctor_id = d.id
             WHERE ${whereClause}
             ${orderClause}
+            LIMIT ? OFFSET ?
         `;
-        const [rows] = await db.query(query, [req.params.id]);
-        res.json(rows);
+        const [rows] = await db.query(query, [req.params.id, limit, offset]);
+        res.json({
+            data: rows,
+            page,
+            totalPages: Math.ceil(total / limit),
+            total
+        });
     } catch (error) {
-        logger.error(error);
-        res.status(500).json({ message: 'Server error' });
+        next(error);
     }
 });
 
