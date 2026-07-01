@@ -36,6 +36,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-console': 'error',
       'no-unused-vars': 'warn',
       'no-undef': 'error',
       'no-empty': 'off',
@@ -58,6 +59,12 @@ export default defineConfig([
       'react-hooks/use-memo': 'off',
       'react-hooks/void-use-memo': 'off',
       'react-hooks/incompatible-library': 'off',
+    },
+  },
+  {
+    files: ['src/**/*.{js,jsx}'],
+    rules: {
+      'no-console': 'warn',
     },
   },
 ])

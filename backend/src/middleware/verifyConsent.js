@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 async function verifyConsent(req, res, next) {
     const patientId = req.params.id;
@@ -28,7 +29,7 @@ async function verifyConsent(req, res, next) {
                 code: 'CONSENT_REQUIRED'
             });
         } catch (error) {
-            console.error('[Verify Consent Error]', error);
+            logger.error('[Verify Consent Error]', error);
             return res.status(500).json({ message: 'Server error verifying consent' });
         }
     }

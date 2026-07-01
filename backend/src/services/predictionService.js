@@ -4,6 +4,7 @@
  */
 
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 class PredictionService {
     constructor() {
@@ -93,7 +94,7 @@ class PredictionService {
                 factors
             };
         } catch (error) {
-            console.error('Error predicting no-show probability:', error);
+            logger.error('Error predicting no-show probability:', error);
             return { probability: 0.1, riskLevel: 'LOW', factors: ['Error in prediction model'] };
         }
     }
@@ -193,7 +194,7 @@ class PredictionService {
                 factors
             };
         } catch (error) {
-            console.error('Error predicting churn risk:', error);
+            logger.error('Error predicting churn risk:', error);
             return { probability: 0.2, riskLevel: 'LOW', factors: ['Error in churn model'] };
         }
     }
@@ -247,7 +248,7 @@ class PredictionService {
                 timestamp: new Date()
             };
         } catch (error) {
-            console.error('Error getting doctor predictive analytics:', error);
+            logger.error('Error getting doctor predictive analytics:', error);
             throw error;
         }
     }

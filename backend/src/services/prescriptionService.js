@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 /**
  * Known drug interaction database (stub for Issue #144)
@@ -155,7 +156,7 @@ class PrescriptionService {
                 }
             }
         } catch (error) {
-            console.error('Error checking drug interactions:', error);
+            logger.error('Error checking drug interactions:', error);
         }
 
         return interactions;

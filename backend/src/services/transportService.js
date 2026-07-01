@@ -3,6 +3,7 @@
  */
 
 const whatsappService = require('./whatsappService');
+const logger = require('../config/logger');
 
 // Web Push
 let webpush;
@@ -64,7 +65,7 @@ class TransportService {
             );
             return true;
         } catch (error) {
-            console.error('Push notification error:', error);
+            logger.error('Push notification error:', error);
             return false;
         }
     }
@@ -74,7 +75,7 @@ class TransportService {
      */
     async sendSMS(phoneNumber, message) {
         if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
-            console.log('[SMS Notification LOG]', { to: phoneNumber, message });
+            logger.info('[SMS Notification LOG]', { to: phoneNumber, message });
             return false;
         }
         
@@ -86,7 +87,7 @@ class TransportService {
             });
             return true;
         } catch (error) {
-            console.error('SMS notification error:', error);
+            logger.error('SMS notification error:', error);
             return false;
         }
     }
@@ -96,7 +97,7 @@ class TransportService {
      */
     async sendEmail(email, subject, htmlBody) {
         // Placeholder for nodemailer/SendGrid integration
-        console.log('[Email Notification LOG]', { to: email, subject, body: htmlBody.substring(0, 100) + '...' });
+        logger.info('[Email Notification LOG]', { to: email, subject, body: htmlBody.substring(0, 100) + '...' });
         return false;
     }
 

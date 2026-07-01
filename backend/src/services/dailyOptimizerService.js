@@ -8,6 +8,7 @@
  */
 
 const db = require('../config/db');
+const logger = require('../config/logger');
 const { predictConsultationDuration } = require('./durationPrediction');
 
 class DailyOptimizerService {
@@ -28,24 +29,14 @@ class DailyOptimizerService {
             
             const workloads = await Promise.all(doctors.map(async (doctor) => {
                 const [queue] = await db.query(`
-                    SELECT lq.predicted_duration, lq.status, a.consultation_start
+                    SELECT lq.predicted_duration
                     FROM live_queue lq
                     JOIN appointments a ON lq.appointment_id = a.id
                     WHERE a.doctor_id = ? AND a.appointment_date = ?
                     AND lq.status IN ('WAITING', 'IN_PROGRESS')
                 `, [doctor.id, date]);
 
-                let totalMins = 0;
-                const now = new Date();
-
-                queue.forEach(item => {
-                    if (item.status === 'IN_PROGRESS' && item.consultation_start) {
-                        const elapsed = Math.floor((now - new Date(item.consultation_start)) / 60000);
-                        totalMins += Math.max(2, (item.predicted_duration || 15) - elapsed);
-                    } else {
-                        totalMins += item.predicted_duration || 15;
-                    }
-                });
+                const totalMins = queue.reduce((sum, item) => sum + (item.predicted_duration || 15), 0);
 
                 return {
                     doctorId: doctor.id,
@@ -58,7 +49,7 @@ class DailyOptimizerService {
 
             return workloads.sort((a, b) => a.estimatedTotalMins - b.estimatedTotalMins);
         } catch (error) {
-            console.error('Error getting doctor workloads:', error);
+            logger.error('Error getting doctor workloads:', error);
             throw error;
         }
     }
@@ -172,7 +163,7 @@ class DailyOptimizerService {
             };
 
         } catch (error) {
-            console.error('Error optimizing schedule:', error);
+            logger.error('Error optimizing schedule:', error);
             throw error;
         }
     }

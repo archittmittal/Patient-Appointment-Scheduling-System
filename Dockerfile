@@ -1,5 +1,5 @@
 # Root Dockerfile for Hugging Face Spaces
-FROM node:18-slim
+FROM node:20-slim
 
 # Create app directory
 WORKDIR /app
@@ -9,7 +9,7 @@ COPY backend/package*.json ./backend/
 
 # Install backend dependencies
 WORKDIR /app/backend
-RUN npm install
+RUN npm ci --only=production
 
 # Copy backend source code
 COPY backend/ ./
