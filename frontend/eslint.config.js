@@ -62,7 +62,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/**/*.{js,jsx}'],
+    files: ['**/src/**/*.{js,jsx}'],
     rules: {
       'no-console': 'warn',
     },

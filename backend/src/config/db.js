@@ -10,7 +10,7 @@ const dbConfig = {
     port: parseInt(process.env.DB_PORT, 10) || 3306,
     waitForConnections: true,
     connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 100,
-    queueLimit: 0,
+    queueLimit: parseInt(process.env.DB_QUEUE_LIMIT, 10) || 50,
     ssl: process.env.DB_SSL === 'true' ? {
         minVersion: 'TLSv1.2',
         rejectUnauthorized: true
@@ -67,6 +67,13 @@ pool.query = async function(...args) {
         checkSlowQuery(start, args, 'pool.query');
         return result;
     } catch (err) {
+        if (err.message && err.message.includes('Queue limit reached')) {
+            const limitErr = new Error('Database connection queue limit exceeded');
+            limitErr.statusCode = 503;
+            limitErr.code = 'DATABASE_QUEUE_LIMIT_EXCEEDED';
+            limitErr.isPublic = true;
+            throw limitErr;
+        }
         const sql = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].sql ? args[0].sql : 'Unknown SQL');
         logger.error(`Database Query Error: ${err.message}`, { sql, error: err });
         throw err;
@@ -81,6 +88,13 @@ pool.execute = async function(...args) {
         checkSlowQuery(start, args, 'pool.execute');
         return result;
     } catch (err) {
+        if (err.message && err.message.includes('Queue limit reached')) {
+            const limitErr = new Error('Database connection queue limit exceeded');
+            limitErr.statusCode = 503;
+            limitErr.code = 'DATABASE_QUEUE_LIMIT_EXCEEDED';
+            limitErr.isPublic = true;
+            throw limitErr;
+        }
         const sql = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].sql ? args[0].sql : 'Unknown SQL');
         logger.error(`Database Execute Error: ${err.message}`, { sql, error: err });
         throw err;
@@ -90,7 +104,19 @@ pool.execute = async function(...args) {
 // Wrap getConnection to wrap individual connection query and execute methods
 const originalGetConnection = pool.getConnection;
 pool.getConnection = async function(...args) {
-    const conn = await originalGetConnection.apply(this, args);
+    let conn;
+    try {
+        conn = await originalGetConnection.apply(this, args);
+    } catch (err) {
+        if (err.message && err.message.includes('Queue limit reached')) {
+            const limitErr = new Error('Database connection queue limit exceeded');
+            limitErr.statusCode = 503;
+            limitErr.code = 'DATABASE_QUEUE_LIMIT_EXCEEDED';
+            limitErr.isPublic = true;
+            throw limitErr;
+        }
+        throw err;
+    }
     
     const originalConnQuery = conn.query;
     conn.query = async function(...cArgs) {
