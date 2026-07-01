@@ -5,6 +5,7 @@
 
 const pool = require('../config/db');
 const notificationService = require('./notificationService');
+const logger = require('../config/logger');
 
 function convertTo24Hour(timeStr) {
     if (!timeStr || typeof timeStr !== 'string') {
@@ -298,7 +299,7 @@ class WaitlistService {
                     appointment_date,
                     appointment_time,
                     settings.offer_window_mins
-                ).catch(err => console.error(`Failed to send waitlist offer notification to user ${candidate.patient_id}:`, err));
+                ).catch(err => logger.error(`Failed to send waitlist offer notification to user ${candidate.patient_id}:`, err));
             }
 
             await conn.query(
@@ -436,10 +437,10 @@ class WaitlistService {
                 try {
                     await conn.rollback();
                 } catch (rollbackError) {
-                    console.error('Rollback failed:', rollbackError);
+                    logger.error('Rollback failed:', rollbackError);
                 }
             }
-            console.error('acceptSlotOffer error:', error);
+            logger.error('acceptSlotOffer error:', error);
             return { success: false, error: 'Server error accepting slot offer' };
         } finally {
             if (conn) {

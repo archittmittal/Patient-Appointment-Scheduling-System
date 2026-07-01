@@ -12,6 +12,7 @@
  */
 
 const https = require('https');
+const logger = require('../config/logger');
 
 // ─── Provider detection ───────────────────────────────────────────────────────
 
@@ -29,33 +30,32 @@ function detectProvider() {
     return 'log'; // dev / CI fallback — always succeeds
 }
 
-// ─── Meta Cloud API sender ────────────────────────────────────────────────────
+// ─── Meta WhatsApp Cloud API sender ──────────────────────────────────────────
 
 /**
- * Send a free-form text message via Meta WhatsApp Business Cloud API.
- * Uses the `messages` endpoint with type=text so no pre-approved template is needed
- * within the 24-hour customer service window.
+ * Send a WhatsApp message via Meta Business Cloud API.
  *
- * @param {string} to    E.164 phone number e.g. "+919876543210"
- * @param {string} body  Message text (up to 4096 chars)
+ * @param {string} to    E.164 phone number
+ * @param {string} body  Message text (Note: Production requires templates, free-form fails)
  * @returns {Promise<boolean>}
  */
-async function sendViaMeta(to, body) {
-    const token = process.env.WHATSAPP_META_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    const payload = JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to,
-        type: 'text',
-        text: { preview_url: false, body }
-    });
-
+function sendViaMeta(to, body) {
     return new Promise((resolve) => {
+        const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+        const token = process.env.WHATSAPP_META_TOKEN;
+
+        const payload = JSON.stringify({
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to,
+            type: 'text',
+            text: { preview_url: false, body }
+        });
+
         const options = {
             hostname: 'graph.facebook.com',
-            path: `/v19.0/${phoneNumberId}/messages`,
+            port: 443,
+            path: `/v19.0/${phoneId}/messages`,
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,
@@ -71,14 +71,14 @@ async function sendViaMeta(to, body) {
                 if (res.statusCode >= 200 && res.statusCode < 300) {
                     resolve(true);
                 } else {
-                    console.error('[WhatsApp Meta] API error', res.statusCode, data);
+                    logger.error('[WhatsApp Meta] API error', { statusCode: res.statusCode, response: data });
                     resolve(false);
                 }
             });
         });
 
         req.on('error', (err) => {
-            console.error('[WhatsApp Meta] Request error:', err.message);
+            logger.error('[WhatsApp Meta] Request error:', err);
             resolve(false);
         });
 
@@ -105,7 +105,7 @@ async function sendViaTwilio(to, body) {
             process.env.TWILIO_AUTH_TOKEN
         );
     } catch (e) {
-        console.error('[WhatsApp Twilio] twilio package not installed:', e.message);
+        logger.error('[WhatsApp Twilio] twilio package not installed:', e);
         return false;
     }
 
@@ -117,7 +117,7 @@ async function sendViaTwilio(to, body) {
         });
         return true;
     } catch (err) {
-        console.error('[WhatsApp Twilio] Send error:', err.message);
+        logger.error('[WhatsApp Twilio] Send error:', err);
         return false;
     }
 }

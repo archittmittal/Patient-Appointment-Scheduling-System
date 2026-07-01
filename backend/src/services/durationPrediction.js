@@ -11,6 +11,7 @@
  */
 
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 class DurationPredictionService {
     constructor() {
@@ -75,7 +76,7 @@ class DurationPredictionService {
                 extraMins: Math.round(totalExtraMins / rows.length)
             };
         } catch (error) {
-            console.error('Error calculating symptom complexity:', error);
+            logger.error('Error calculating symptom complexity:', error);
             return { score: 1.0, extraMins: 0 };
         }
     }
@@ -118,7 +119,7 @@ class DurationPredictionService {
                 sampleSize: 0
             };
         } catch (error) {
-            console.error('Error getting doctor averages:', error);
+            logger.error('Error getting doctor averages:', error);
             return {
                 avgDuration: this.DEFAULT_DURATION,
                 avgNewPatient: this.DEFAULT_DURATION + 5,
@@ -207,7 +208,7 @@ class DurationPredictionService {
                 }
             };
         } catch (error) {
-            console.error('Error predicting consultation duration:', error);
+            logger.error('Error predicting consultation duration:', error);
             return {
                 predictedDuration: this.DEFAULT_DURATION,
                 factors: { error: 'Prediction failed, using default' }
@@ -306,7 +307,7 @@ class DurationPredictionService {
             return { success: true };
         } catch (error) {
             await conn.rollback();
-            console.error('Error recording consultation duration:', error);
+            logger.error('Error recording consultation duration:', error);
             return { success: false, error: error.message };
         } finally {
             conn.release();
@@ -374,7 +375,7 @@ class DurationPredictionService {
                 patientsAhead: Math.max(0, aheadQueue.length - 1)
             };
         } catch (error) {
-            console.error('Error calculating queue wait time:', error);
+            logger.error('Error calculating queue wait time:', error);
             return { estimatedWait: 0, patientsAhead: 0, error: error.message };
         }
     }
@@ -425,7 +426,7 @@ class DurationPredictionService {
 
             return { updated: queue.length };
         } catch (error) {
-            console.error('Error recalculating queue estimates:', error);
+            logger.error('Error recalculating queue estimates:', error);
             return { updated: 0, error: error.message };
         }
     }

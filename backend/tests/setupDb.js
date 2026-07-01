@@ -126,7 +126,20 @@ async function setupTestDb() {
             await testDb.query(statement);
         }
 
-        console.log(`[Test DB Setup] Schema applied. Applying migrations...`);
+        // 3b. Read and apply seed.sql
+        const seedPath = path.join(__dirname, '../database/seed.sql');
+        if (fs.existsSync(seedPath)) {
+            const seedSql = fs.readFileSync(seedPath, 'utf8');
+            const seedStatements = splitSQL(seedSql).filter(s => {
+                const lower = s.toLowerCase();
+                return !lower.startsWith('use ');
+            });
+            for (const statement of seedStatements) {
+                await testDb.query(statement);
+            }
+        }
+
+        console.log(`[Test DB Setup] Schema and seed applied. Applying migrations...`);
 
         // 4. Apply migrations in order
         const migrationsDir = path.join(__dirname, '../database');

@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const db = require('../config/db');
 const notificationService = require('./notificationService');
+const logger = require('../config/logger');
 
 /**
  * Scheduled Reminder Service
@@ -10,7 +11,7 @@ class ReminderService {
     constructor() {
         // Run every hour at minute 0
         this.hourlyTask = cron.schedule('0 * * * *', () => {
-            console.log('[Cron] Running hourly reminders check...');
+            logger.info('[Cron] Running hourly reminders check...');
             this.checkReminders();
         });
     }
@@ -20,7 +21,7 @@ class ReminderService {
             await this.send24hReminders();
             await this.send1hReminders();
         } catch (error) {
-            console.error('[ReminderService] Error checking reminders:', error);
+            logger.error('[ReminderService] Error checking reminders:', error);
         }
     }
 

@@ -5,6 +5,7 @@
 
 const db = require('../config/db');
 const notificationService = require('./notificationService');
+const logger = require('../config/logger');
 
 class WalkinPriorityService {
     constructor() {
@@ -67,7 +68,7 @@ class WalkinPriorityService {
                 const patientName = patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown Patient';
                 await notificationService.notifyEmergency(doctorId, patientName, reason);
             } catch (err) {
-                console.error('Failed to send emergency notification:', err);
+                logger.error('Failed to send emergency notification:', err);
             }
         }
 

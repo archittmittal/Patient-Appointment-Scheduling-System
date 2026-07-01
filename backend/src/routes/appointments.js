@@ -19,6 +19,8 @@ const validateRequest = require('../middleware/validateRequest');
 const sseManager = require('../services/sseManager');
 const virtualCheckinService = require('../services/virtualCheckinService');
 const { DEFAULT_PREDICTED_DURATION, DEFAULT_MAX_PATIENTS_PER_SLOT } = require('../config/constants');
+const notificationService = require('../services/notificationService');
+const logger = require('../config/logger');
 
 function parseStartHourMinute(timeStr) {
     if (!timeStr) return null;
@@ -427,9 +429,6 @@ router.get('/stream', authenticateSse, requireRole('DOCTOR'), async (req, res) =
         if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
     }
 });
-
-const notificationService = require('../services/notificationService');
-const logger = require('../config/logger');
 
 
 const queueUpdateSchema = Joi.object({

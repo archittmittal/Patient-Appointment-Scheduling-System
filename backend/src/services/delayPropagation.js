@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 class DelayPropagationService {
     constructor() {
@@ -19,28 +20,25 @@ class DelayPropagationService {
         try {
             // Get the currently in-progress appointment
             const [inProgressRows] = await db.query(`
-                SELECT a.id, a.consultation_start, a.predicted_duration_mins,
-                       lq.queue_number, lq.predicted_duration
-                FROM appointments a
-                JOIN live_queue lq ON lq.appointment_id = a.id
-                WHERE a.doctor_id = ? 
-                  AND a.appointment_date = ?
-                  AND lq.status = 'IN_PROGRESS'
+                SELECT id, time_slot, actual_start_time, scheduled_duration_mins
+                FROM appointments
+                WHERE doctor_id = ? AND appointment_date = ? AND status = 'IN_PROGRESS'
                 LIMIT 1
             `, [doctorId, appointmentDate]);
-            const inProgress = inProgressRows[0];
 
-            if (!inProgress || !inProgress.consultation_start) {
+            const inProgress = inProgressRows[0];
+            if (!inProgress) {
                 return { delayMins: 0, isDelayed: false };
             }
 
-            const startTime = new Date(inProgress.consultation_start);
+            // Calculate elapsed time vs expected duration
+            const startTime = new Date(inProgress.actual_start_time);
             const now = new Date();
-            const elapsedMins = Math.round((now - startTime) / 60000);
-            const expectedDuration = inProgress.predicted_duration || inProgress.predicted_duration_mins || 15;
-            
+            const elapsedMins = Math.floor((now - startTime) / (1000 * 60));
+            const expectedDuration = inProgress.scheduled_duration_mins || 15; // default 15m
+
             const delayMins = elapsedMins - expectedDuration;
-            
+
             return {
                 delayMins: Math.max(0, delayMins),
                 isDelayed: delayMins > 2, // Consider delayed if >2 mins over
@@ -49,7 +47,7 @@ class DelayPropagationService {
                 inProgressAppointment: inProgress.id
             };
         } catch (error) {
-            console.error('Error calculating delay:', error);
+            logger.error('Error calculating delay:', error);
             return { delayMins: 0, isDelayed: false, error: error.message };
         }
     }
@@ -60,52 +58,34 @@ class DelayPropagationService {
      */
     async propagateDelayToQueue(doctorId, appointmentDate, delayMins) {
         try {
-            // Get all waiting patients for this doctor today
-            const [waitingPatients] = await db.query(`
-                SELECT lq.id as queue_id, lq.appointment_id, lq.queue_number, 
-                       lq.estimated_time, lq.predicted_duration,
-                       a.patient_id, p.first_name, p.last_name, u.email,
-                       patients.phone
-                FROM live_queue lq
-                JOIN appointments a ON lq.appointment_id = a.id
-                JOIN patients p ON a.patient_id = p.id
-                JOIN users u ON p.id = u.id
-                JOIN patients ON patients.id = p.id
-                WHERE a.doctor_id = ? 
-                  AND a.appointment_date = ?
-                  AND lq.status = 'WAITING'
-                ORDER BY lq.queue_number ASC
+            // Get all waiting/checked-in patients for the day
+            const [waitingAppointments] = await db.query(`
+                SELECT id, patient_id, time_slot, estimated_start_time, status
+                FROM appointments
+                WHERE doctor_id = ? AND appointment_date = ? AND status IN ('PENDING', 'CHECKED_IN', 'IN_PROGRESS')
+                ORDER BY queue_position ASC, time_slot ASC
             `, [doctorId, appointmentDate]);
 
-            if (waitingPatients.length === 0) {
-                return { affected: 0, patients: [] };
-            }
-
             const affectedPatients = [];
-            
-            // Calculate cumulative delay for each patient
-            for (const patient of waitingPatients) {
-                const originalETA = patient.estimated_time;
-                const newETA = originalETA + delayMins;
-                
-                // Update the estimated time in database
-                await db.query(
-                    'UPDATE live_queue SET estimated_time = ? WHERE id = ?',
-                    [newETA, patient.queue_id]
-                );
 
-                affectedPatients.push({
-                    queueId: patient.queue_id,
-                    appointmentId: patient.appointment_id,
-                    patientId: patient.patient_id,
-                    name: `${patient.first_name} ${patient.last_name}`,
-                    email: patient.email,
-                    phone: patient.phone,
-                    queueNumber: patient.queue_number,
-                    originalETA,
-                    newETA,
-                    delayAdded: delayMins
-                });
+            for (const appt of waitingAppointments) {
+                // If the appointment is PENDING or CHECKED_IN, we shift the estimated start time
+                if (appt.status !== 'IN_PROGRESS') {
+                    const currentEst = new Date(appt.estimated_start_time);
+                    const newEst = new Date(currentEst.getTime() + delayMins * 60000);
+
+                    await db.query(`
+                        UPDATE appointments
+                        SET estimated_start_time = ?
+                        WHERE id = ?
+                    `, [newEst, appt.id]);
+
+                    affectedPatients.push({
+                        appointmentId: appt.id,
+                        patientId: appt.patient_id,
+                        newEta: newEst
+                    });
+                }
             }
 
             return {
@@ -114,7 +94,7 @@ class DelayPropagationService {
                 delayMins
             };
         } catch (error) {
-            console.error('Error propagating delay:', error);
+            logger.error('Error propagating delay:', error);
             return { affected: 0, patients: [], error: error.message };
         }
     }
@@ -146,7 +126,7 @@ class DelayPropagationService {
             };
         } catch (error) {
             await conn.rollback();
-            console.error('Error setting manual delay:', error);
+            logger.error('Error setting manual delay:', error);
             return { success: false, error: error.message };
         } finally {
             conn.release();
@@ -176,7 +156,7 @@ class DelayPropagationService {
                 effectiveDelay: Math.max(currentDelay.delayMins, manualDelay?.delay_mins || 0)
             };
         } catch (error) {
-            console.error('Error getting delay status:', error);
+            logger.error('Error getting delay status:', error);
             return { delayMins: 0, isDelayed: false, error: error.message };
         }
     }
@@ -206,7 +186,7 @@ class DelayPropagationService {
                 delayStatus
             };
         } catch (error) {
-            console.error('Error in auto delay propagation:', error);
+            logger.error('Error in auto delay propagation:', error);
             return { propagated: false, error: error.message };
         }
     }
@@ -243,7 +223,7 @@ class DelayPropagationService {
                 dailyPattern
             };
         } catch (error) {
-            console.error('Error getting delay analytics:', error);
+            logger.error('Error getting delay analytics:', error);
             return { summary: {}, dailyPattern: [] };
         }
     }
