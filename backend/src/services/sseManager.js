@@ -5,7 +5,7 @@
 
 class SSEManager {
     constructor() {
-        // Map of connectionId -> res object
+        // Map of connectionId -> { res, metadata }
         this.connections = new Map();
         // Map of appointmentId -> Set of connectionIds
         this.appointmentSubscriptions = new Map();
@@ -19,6 +19,32 @@ class SSEManager {
         this.broadcastToAppointment = this.broadcastToAppointment.bind(this);
         this.broadcastToDoctor = this.broadcastToDoctor.bind(this);
         this.broadcastQueueUpdate = this.broadcastQueueUpdate.bind(this);
+        this.getActiveConnectionsCount = this.getActiveConnectionsCount.bind(this);
+
+        // Start 30s heartbeat keepalive ping
+        this.heartbeatInterval = setInterval(() => {
+            for (const [connectionId, client] of this.connections.entries()) {
+                const res = client.res;
+                if (!res || res.writableEnded || res.finished) {
+                    this.removeClient(connectionId);
+                    continue;
+                }
+                try {
+                    res.write(':keepalive\n\n', (err) => {
+                        if (err) {
+                            this.removeClient(connectionId);
+                        }
+                    });
+                } catch (error) {
+                    this.removeClient(connectionId);
+                }
+            }
+        }, 30000);
+
+        // Unref interval to allow Node/tests to exit cleanly
+        if (this.heartbeatInterval && typeof this.heartbeatInterval.unref === 'function') {
+            this.heartbeatInterval.unref();
+        }
     }
 
     /**
@@ -28,6 +54,17 @@ class SSEManager {
      * @param {object} metadata { appointmentId, doctorId }
      */
     addClient(connectionId, res, metadata = {}) {
+        const maxConnections = parseInt(process.env.MAX_SSE_CONNECTIONS, 10) || 1000;
+        if (this.connections.size >= maxConnections) {
+            res.writeHead(503, {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Connection': 'close'
+            });
+            res.end(JSON.stringify({ message: 'Service Temporarily Unavailable: Connection limit reached' }));
+            return;
+        }
+
         let { appointmentId, doctorId } = metadata;
         if (appointmentId !== undefined && appointmentId !== null) {
             appointmentId = String(appointmentId);
@@ -37,8 +74,6 @@ class SSEManager {
         }
 
         // Set proper headers for SSE
-        // SEC-013: Do NOT set Access-Control-Allow-Origin here — CORS is already enforced
-        // by the cors() middleware in server.js. A wildcard here would bypass the whitelist.
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
@@ -46,7 +81,7 @@ class SSEManager {
         });
 
         // Add to connections
-        this.connections.set(connectionId, res);
+        this.connections.set(connectionId, { res, metadata });
 
         // Add to appointment subscriptions
         if (appointmentId) {
@@ -67,23 +102,31 @@ class SSEManager {
         // Send initial connection event
         this.sendToClient(connectionId, 'connected', { status: 'Neural Link Established' });
 
-        // Setup cleanup on close
-        res.on('close', () => {
+        // Setup cleanup on close/error
+        const cleanup = () => {
             this.removeClient(connectionId, metadata);
-        });
+        };
+        res.on('close', cleanup);
+        res.on('error', cleanup);
     }
 
     /**
      * Remove a client
      */
-    removeClient(connectionId, metadata = {}) {
-        let { appointmentId, doctorId } = metadata;
+    removeClient(connectionId, metadata = null) {
+        const client = this.connections.get(connectionId);
+        if (!client && !metadata) return;
+
+        const actualMetadata = metadata || (client ? client.metadata : {});
+        let { appointmentId, doctorId } = actualMetadata;
+
         if (appointmentId !== undefined && appointmentId !== null) {
             appointmentId = String(appointmentId);
         }
         if (doctorId !== undefined && doctorId !== null) {
             doctorId = String(doctorId);
         }
+
         this.connections.delete(connectionId);
         
         if (appointmentId && this.appointmentSubscriptions.has(appointmentId)) {
@@ -103,10 +146,15 @@ class SSEManager {
      * Send event to a specific client
      */
     sendToClient(connectionId, event, data) {
-        const res = this.connections.get(connectionId);
+        const client = this.connections.get(connectionId);
+        const res = client ? client.res : null;
         if (res && !res.writableEnded) {
-            res.write(`event: ${event}\n`);
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
+            try {
+                res.write(`event: ${event}\n`);
+                res.write(`data: ${JSON.stringify(data)}\n\n`);
+            } catch (error) {
+                this.removeClient(connectionId);
+            }
         }
     }
 
@@ -114,30 +162,34 @@ class SSEManager {
      * Broadcast generic event to all clients of an appointment
      */
     broadcastToAppointment(appointmentId, event, data) {
-        if (appointmentId !== undefined && appointmentId !== null) {
-            appointmentId = String(appointmentId);
-        }
-        const subs = this.appointmentSubscriptions.get(appointmentId);
-        if (subs) {
-            subs.forEach(connectionId => {
-                this.sendToClient(connectionId, event, data);
-            });
-        }
+        setImmediate(() => {
+            if (appointmentId !== undefined && appointmentId !== null) {
+                appointmentId = String(appointmentId);
+            }
+            const subs = this.appointmentSubscriptions.get(appointmentId);
+            if (subs) {
+                subs.forEach(connectionId => {
+                    this.sendToClient(connectionId, event, data);
+                });
+            }
+        });
     }
 
     /**
      * Broadcast generic event to all clients of a doctor
      */
     broadcastToDoctor(doctorId, event, data) {
-        if (doctorId !== undefined && doctorId !== null) {
-            doctorId = String(doctorId);
-        }
-        const subs = this.doctorSubscriptions.get(doctorId);
-        if (subs) {
-            subs.forEach(connectionId => {
-                this.sendToClient(connectionId, event, data);
-            });
-        }
+        setImmediate(() => {
+            if (doctorId !== undefined && doctorId !== null) {
+                doctorId = String(doctorId);
+            }
+            const subs = this.doctorSubscriptions.get(doctorId);
+            if (subs) {
+                subs.forEach(connectionId => {
+                    this.sendToClient(connectionId, event, data);
+                });
+            }
+        });
     }
 
     /**
@@ -145,6 +197,13 @@ class SSEManager {
      */
     broadcastQueueUpdate(appointmentId, queueData) {
         this.broadcastToAppointment(appointmentId, 'queue_update', queueData);
+    }
+
+    /**
+     * Get active connections count
+     */
+    getActiveConnectionsCount() {
+        return this.connections.size;
     }
 }
 

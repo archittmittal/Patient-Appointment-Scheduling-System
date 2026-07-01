@@ -340,10 +340,16 @@ app.get('/api/health', async (req, res) => {
         nodeVersion: process.version
     };
 
+    const sseManager = require('./services/sseManager');
+    const sseConnectionsCount = typeof sseManager.getActiveConnectionsCount === 'function'
+        ? sseManager.getActiveConnectionsCount()
+        : 0;
+
     res.json({
         status: dbStatus.healthy ? 'ok' : 'error',
         message: 'Hospital API is running',
         uptime: process.uptime(),
+        sseConnections: sseConnectionsCount,
         database: {
             healthy: dbStatus.healthy,
             error: dbStatus.error,
