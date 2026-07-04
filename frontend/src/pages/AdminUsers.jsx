@@ -223,9 +223,14 @@ const AdminUsers = () => {
                 </div>
                 <div className="flex gap-3">
                     {filterRole === 'DEPARTMENT' ? (
-                        <button onClick={() => { setShowForm('department'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 transition-colors text-sm">
-                            <Plus size={16} /> Add Department
-                        </button>
+                        <>
+                            <button onClick={() => { setShowForm('doctor'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm">
+                                <Plus size={16} /> Add Doctor
+                            </button>
+                            <button onClick={() => { setShowForm('department'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-xl font-medium hover:bg-violet-700 transition-colors text-sm">
+                                <Plus size={16} /> Add Department
+                            </button>
+                        </>
                     ) : (
                         <>
                             <button onClick={() => { setShowForm('doctor'); setFormData({}); setError(''); }} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors text-sm">
@@ -404,7 +409,10 @@ const AdminUsers = () => {
                                         )}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-1">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <button onClick={() => { setShowForm('doctor'); setFormData({ specialty: dep.name }); setError(''); }} className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1" title="Add Doctor to Department">
+                                                <Plus size={13} /> Add Doctor
+                                            </button>
                                             <button onClick={() => handleDeleteDepartment(dep.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
                                                 <Trash2 size={15} />
                                             </button>
