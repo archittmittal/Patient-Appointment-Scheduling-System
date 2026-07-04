@@ -3,6 +3,9 @@
  * Handles real-time connections for the Virtual Waiting Room
  */
 
+const redisClient = require('../config/redisClient');
+const logger = require('../config/logger');
+
 class SSEManager {
     constructor() {
         // Map of connectionId -> { res, metadata }
@@ -20,6 +23,12 @@ class SSEManager {
         this.broadcastToDoctor = this.broadcastToDoctor.bind(this);
         this.broadcastQueueUpdate = this.broadcastQueueUpdate.bind(this);
         this.getActiveConnectionsCount = this.getActiveConnectionsCount.bind(this);
+        this.setupPubSub = this.setupPubSub.bind(this);
+        this.handleRemoteBroadcast = this.handleRemoteBroadcast.bind(this);
+        this.broadcastLocal = this.broadcastLocal.bind(this);
+
+        // Initialize Pub/Sub listener if configured
+        this.setupPubSub();
 
         // Start 30s heartbeat keepalive ping
         this.heartbeatInterval = setInterval(() => {
@@ -159,14 +168,66 @@ class SSEManager {
     }
 
     /**
-     * Broadcast generic event to all clients of an appointment
+     * Set up Redis Pub/Sub subscription and message listener
      */
-    broadcastToAppointment(appointmentId, event, data) {
-        setImmediate(() => {
-            if (appointmentId !== undefined && appointmentId !== null) {
-                appointmentId = String(appointmentId);
+    setupPubSub() {
+        const { redisSub } = redisClient;
+        if (!redisSub) return;
+
+        redisSub.subscribe('sse:broadcast', (err) => {
+            if (err) {
+                logger.error('Failed to subscribe to sse:broadcast: ' + err.message, { error: err });
+            } else {
+                logger.info('Subscribed to sse:broadcast channel.');
             }
-            const subs = this.appointmentSubscriptions.get(appointmentId);
+        });
+
+        redisSub.on('message', (channel, message) => {
+            if (channel === 'sse:broadcast') {
+                try {
+                    const payload = JSON.parse(message);
+                    this.handleRemoteBroadcast(payload);
+                } catch (error) {
+                    logger.error('Failed to parse remote sse:broadcast payload: ' + error.message, { error });
+                }
+            }
+        });
+    }
+
+    /**
+     * Handle incoming Redis Pub/Sub broadcast payload
+     */
+    handleRemoteBroadcast(payload) {
+        const { type, id, event, data } = payload;
+        const formattedId = id !== undefined && id !== null ? String(id) : '';
+
+        if (type === 'appointment') {
+            const subs = this.appointmentSubscriptions.get(formattedId);
+            if (subs) {
+                subs.forEach(connectionId => {
+                    this.sendToClient(connectionId, event, data);
+                });
+            }
+        } else if (type === 'doctor') {
+            const subs = this.doctorSubscriptions.get(formattedId);
+            if (subs) {
+                subs.forEach(connectionId => {
+                    this.sendToClient(connectionId, event, data);
+                });
+            }
+        }
+    }
+
+    /**
+     * Broadcast locally using setImmediate (fallback or receiver)
+     */
+    broadcastLocal(type, id, event, data) {
+        setImmediate(() => {
+            const formattedId = id !== undefined && id !== null ? String(id) : '';
+            const subs = type === 'appointment'
+                ? this.appointmentSubscriptions.get(formattedId)
+                : this.doctorSubscriptions.get(formattedId);
+
             if (subs) {
                 subs.forEach(connectionId => {
                     this.sendToClient(connectionId, event, data);
@@ -176,20 +237,41 @@ class SSEManager {
     }
 
     /**
+     * Broadcast generic event to all clients of an appointment
+     */
+    broadcastToAppointment(appointmentId, event, data) {
+        if (redisClient.isRedisEnabled()) {
+            redisClient.redisPub.publish('sse:broadcast', JSON.stringify({
+                type: 'appointment',
+                id: appointmentId,
+                event,
+                data
+            })).catch(err => {
+                logger.error('Failed to publish sse:broadcast: ' + err.message, { error: err });
+                this.broadcastLocal('appointment', appointmentId, event, data);
+            });
+        } else {
+            this.broadcastLocal('appointment', appointmentId, event, data);
+        }
+    }
+
+    /**
      * Broadcast generic event to all clients of a doctor
      */
     broadcastToDoctor(doctorId, event, data) {
-        setImmediate(() => {
-            if (doctorId !== undefined && doctorId !== null) {
-                doctorId = String(doctorId);
-            }
-            const subs = this.doctorSubscriptions.get(doctorId);
-            if (subs) {
-                subs.forEach(connectionId => {
-                    this.sendToClient(connectionId, event, data);
-                });
-            }
-        });
+        if (redisClient.isRedisEnabled()) {
+            redisClient.redisPub.publish('sse:broadcast', JSON.stringify({
+                type: 'doctor',
+                id: doctorId,
+                event,
+                data
+            })).catch(err => {
+                logger.error('Failed to publish sse:broadcast: ' + err.message, { error: err });
+                this.broadcastLocal('doctor', doctorId, event, data);
+            });
+        } else {
+            this.broadcastLocal('doctor', doctorId, event, data);
+        }
     }
 
     /**
