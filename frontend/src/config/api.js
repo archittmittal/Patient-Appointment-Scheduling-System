@@ -13,9 +13,9 @@ if (!isLocal && !import.meta.env.VITE_API_URL) {
     console.error('[api] VITE_API_URL is not set — production build will fail to reach the API. Set it in your deployment environment.');
 }
 
-export const API = isLocal
-    ? `http://localhost:${localPort}`
-    : (import.meta.env.VITE_API_URL || '');
+export const API = import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL
+    : (isLocal ? `http://localhost:${localPort}` : '');
 
 export const API_URL = `${API}/api`;
 
