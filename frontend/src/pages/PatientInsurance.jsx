@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Shield, Camera, Plus, History, CheckCircle2, AlertTriangle, ChevronRight, Info, Clock, X, Loader2 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
-import InsuranceScanner from '../components/InsuranceScanner';
+// InsuranceScanner bundles tesseract.js (~4 MB) — lazy-loaded so it is only
+// fetched when the user opens the scanner modal, not on initial page load.
+const InsuranceScanner = lazy(() => import('../components/InsuranceScanner'));
 import InsuranceForm from '../components/InsuranceForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -75,10 +77,16 @@ const PatientInsurance = () => {
 
             <AnimatePresence>
                 {showScanner && (
-                    <InsuranceScanner 
-                        onScanComplete={handleScanComplete} 
-                        onClose={() => setShowScanner(false)} 
-                    />
+                    <Suspense fallback={
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                            <div className="text-white font-semibold">Loading Scanner…</div>
+                        </div>
+                    }>
+                        <InsuranceScanner 
+                            onScanComplete={handleScanComplete} 
+                            onClose={() => setShowScanner(false)} 
+                        />
+                    </Suspense>
                 )}
 
                 {showForm && (

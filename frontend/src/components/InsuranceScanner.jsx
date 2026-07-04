@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
-import { createWorker } from 'tesseract.js';
 import { Camera, RefreshCw, CheckCircle, AlertCircle, Loader2, X, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -57,7 +56,10 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
 
         try {
             const processedImage = await preprocessImage(imageSrc);
-            
+
+            // Dynamic import — tesseract.js (~4 MB) is only fetched when
+            // the user actually initiates a scan, not on initial page load.
+            const { createWorker } = await import('tesseract.js');
             const worker = await createWorker('eng', 1, {
                 logger: m => {
                     if (m.status === 'recognizing text') {

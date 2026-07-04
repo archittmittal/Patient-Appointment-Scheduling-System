@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, 
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
+import {
+    AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { 
-    TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle, 
-    Activity, Award, Download, Search, Users, Stethoscope, 
+import {
+    TrendingUp, TrendingDown, DollarSign, Clock, AlertTriangle,
+    Activity, Award, Download, Search, Users, Stethoscope,
     ChevronLeft, Calendar, FileSpreadsheet, CheckCircle, Percent,
     Database, Tag
 } from 'lucide-react';
