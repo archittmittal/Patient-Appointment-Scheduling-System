@@ -159,9 +159,13 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            await apiClient.post('/api/admin/doctors', formData);
-            closeModal();
-            fetchUsers(1);
+            const data = await apiClient.post('/api/admin/doctors', formData);
+            if (data && data.error) {
+                setError(data.message || 'Failed to add doctor');
+            } else {
+                closeModal();
+                fetchUsers(1);
+            }
         } catch (err) { 
             setError(err.message || 'Server error'); 
         } finally { 
@@ -174,9 +178,13 @@ const AdminUsers = () => {
         setError('');
         setSubmitting(true);
         try {
-            await apiClient.post('/api/admin/patients', formData);
-            closeModal();
-            fetchUsers(1);
+            const data = await apiClient.post('/api/admin/patients', formData);
+            if (data && data.error) {
+                setError(data.message || 'Failed to add patient');
+            } else {
+                closeModal();
+                fetchUsers(1);
+            }
         } catch (err) { 
             setError(err.message || 'Server error'); 
         } finally { 
@@ -192,9 +200,13 @@ const AdminUsers = () => {
             const endpoint = editRole === 'DOCTOR'
                 ? `/api/doctors/${editId}`
                 : `/api/patients/${editId}`;
-            await apiClient.patch(endpoint, formData);
-            closeModal();
-            fetchUsers(1);
+            const data = await apiClient.patch(endpoint, formData);
+            if (data && data.error) {
+                setError(data.message || 'Failed to save changes');
+            } else {
+                closeModal();
+                fetchUsers(1);
+            }
         } catch (err) { 
             setError(err.message || 'Server error'); 
         } finally { 

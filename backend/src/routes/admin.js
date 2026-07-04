@@ -21,9 +21,9 @@ const addDoctorSchema = Joi.object({
     first_name: Joi.string().max(50).required(),
     last_name: Joi.string().max(50).required(),
     specialty: Joi.string().max(100).required(),
-    degree: Joi.string().max(100),
-    experience_years: Joi.number().min(0).max(100),
-    location_room: Joi.string().max(20)
+    degree: Joi.string().max(100).allow('', null),
+    experience_years: Joi.number().min(0).max(100).allow('', null),
+    location_room: Joi.string().max(20).allow('', null)
 });
 
 const addPatientSchema = Joi.object({
@@ -31,10 +31,10 @@ const addPatientSchema = Joi.object({
     password: Joi.string().min(6).required(),
     first_name: Joi.string().max(50).required(),
     last_name: Joi.string().max(50).required(),
-    dob: Joi.string().isoDate(),
-    phone: Joi.string().max(20),
-    blood_group: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'),
-    address: Joi.string().max(255)
+    dob: Joi.string().isoDate().allow('', null),
+    phone: Joi.string().max(20).allow('', null),
+    blood_group: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-').allow('', null),
+    address: Joi.string().max(255).allow('', null)
 });
 
 const usersQuerySchema = Joi.object({
@@ -336,10 +336,21 @@ router.post('/doctors', validateRequest(addDoctorSchema), async (req, res) => {
         );
         const newId = userResult.insertId;
 
+        const defaultAvailability = {
+            monday: { open: true, from: '09:00', to: '17:00' },
+            tuesday: { open: true, from: '09:00', to: '17:00' },
+            wednesday: { open: true, from: '09:00', to: '17:00' },
+            thursday: { open: true, from: '09:00', to: '17:00' },
+            friday: { open: true, from: '09:00', to: '17:00' },
+            saturday: { open: false, from: '', to: '' },
+            sunday: { open: false, from: '', to: '' }
+        };
+
         await conn.query(
-            'INSERT INTO doctors (id, first_name, last_name, specialty, degree, experience_years, location_room, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO doctors (id, first_name, last_name, specialty, degree, experience_years, location_room, image_url, availability, consultation_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [newId, first_name, last_name, specialty, degree || '', experience_years || 0, location_room || '',
-             `https://ui-avatars.com/api/?name=${encodeURIComponent(first_name + '+' + last_name)}&background=random`]
+             `https://ui-avatars.com/api/?name=${encodeURIComponent(first_name + '+' + last_name)}&background=random`,
+             JSON.stringify(defaultAvailability), 0.00]
         );
 
         await conn.commit();
