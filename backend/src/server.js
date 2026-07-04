@@ -419,6 +419,22 @@ if (process.env.NODE_ENV !== 'test') {
         logger.info(`Server listening on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
         // Initialize Background Jobs
         initCronJobs();
+
+        // Run database migrations programmatically on startup (forked child process)
+        try {
+            const { fork } = require('child_process');
+            const path = require('path');
+            const migrationProcess = fork(path.join(__dirname, '../database/apply_migrations.js'));
+            migrationProcess.on('exit', (code) => {
+                if (code === 0) {
+                    logger.info('Database migrations verified and applied successfully.');
+                } else {
+                    logger.error(`Database migrations failed to execute (exit code: ${code}).`);
+                }
+            });
+        } catch (migError) {
+            logger.error('Failed to initiate migrations child process:', migError);
+        }
     });
 
     // ── Graceful Shutdown ──────────────────────────────────────────────────────
