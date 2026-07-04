@@ -1,14 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+import React, { useState, useEffect, useCallback, memo } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
-import { 
-    Activity, Heart, Scale, Thermometer, Plus, ChevronRight, 
-    Zap, ShieldCheck, Target, Sparkles,
-    Calendar, Clock, Info, ArrowRight, X, FlaskConical, Pill, RefreshCw, Download
+import {
+    Activity, Heart, Scale, Thermometer, Plus,
+    Sparkles, X, Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+/**
+ * VitalsChartPanel — memo-wrapped so the heavy recharts renders are skipped
+ * whenever state changes that are unrelated to the vitals data itself
+ * (e.g., showLogModal toggling).
+ */
+const VitalsChartPanel = memo(({ vitals }) => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Blood Pressure Chart */}
+        <div className="apple-card p-8">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+                    <Heart size={20} />
+                </div>
+                <h3 className="text-xl font-bold">Blood Pressure Trends</h3>
+            </div>
+            <div className="h-72 w-full">
+                {vitals.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: '#fff',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                    padding: '12px'
+                                }}
+                            />
+                            <Line type="monotone" dataKey="blood_pressure_sys" stroke="#0071e3" strokeWidth={3} dot={{ r: 4, fill: '#0071e3', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Systolic" />
+                            <Line type="monotone" dataKey="blood_pressure_dia" stroke="#60a5fa" strokeWidth={3} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Diastolic" />
+                        </LineChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+                        <Activity size={32} className="opacity-20" />
+                        <p className="text-sm">No data available for trends</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* Heart Rate Chart */}
+        <div className="apple-card p-8">
+            <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+                    <Activity size={20} />
+                </div>
+                <h3 className="text-xl font-bold">Heart Rate</h3>
+            </div>
+            <div className="h-72 w-full">
+                {vitals.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorHr" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <XAxis dataKey="date" hide />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} domain={['dataMin - 10', 'dataMax + 10']} />
+                            <Tooltip
+                                contentStyle={{
+                                    backgroundColor: '#fff',
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                    padding: '12px'
+                                }}
+                            />
+                            <Area type="monotone" dataKey="heart_rate" stroke="#10b981" fillOpacity={1} fill="url(#colorHr)" strokeWidth={3} />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+                        <Activity size={32} className="opacity-20" />
+                        <p className="text-sm">No data available for trends</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    </div>
+));
+
+/** VitalCard — memo-wrapped to skip re-render when only modal state changes. */
+const VitalCard = memo(({ icon, label, value, unit, color }) => {
+    const colors = {
+        indigo: 'bg-indigo-50 text-indigo-600',
+        rose: 'bg-rose-50 text-rose-600',
+        emerald: 'bg-emerald-50 text-emerald-600',
+        amber: 'bg-amber-50 text-amber-600'
+    };
+
+    return (
+        <div className="apple-card p-6 hover:shadow-md transition-all duration-300">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${colors[color]}`}>
+                {icon}
+            </div>
+            <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
+            <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold tracking-tight">{value || '—'}</span>
+                <span className="text-xs font-medium text-slate-400">{unit}</span>
+            </div>
+        </div>
+    );
+});
+
+// ── Main Page Component ────────────────────────────────────────────────────────
 
 const VitalsHub = () => {
     const { user } = useAuth();
@@ -23,11 +136,11 @@ const VitalsHub = () => {
         temperature_c: ''
     });
 
-    const fetchVitals = async () => {
+    const fetchVitals = useCallback(async () => {
         if (!user?.id) return;
         try {
             const data = await apiClient.get(`/api/patients/${user.id}/vitals`);
-            
+
             if (Array.isArray(data)) {
                 const formatted = data.map(v => ({
                     ...v,
@@ -40,17 +153,17 @@ const VitalsHub = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user?.id]);
 
     useEffect(() => {
         fetchVitals();
-    }, [user?.id]);
+    }, [fetchVitals]);
 
     const handleLog = async (e) => {
         e.preventDefault();
         try {
             const data = await apiClient.post(`/api/patients/${user.id}/vitals`, formData);
-            
+
             if (data && !data.error) {
                 setShowLogModal(false);
                 fetchVitals();
@@ -93,18 +206,18 @@ const VitalsHub = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-bold tracking-tight mb-2">Vitals & Trends</h1>
+                    <h1 className="text-4xl font-bold tracking-tight mb-2">Vitals &amp; Trends</h1>
                     <p className="text-slate-500">Track your key health metrics and monitor progress over time.</p>
                 </div>
                 <div className="flex gap-4">
-                    <button 
+                    <button
                         onClick={handleExport}
                         className="btn-secondary flex items-center gap-2"
                     >
                         <Download size={20} />
                         Export History (CSV)
                     </button>
-                    <button 
+                    <button
                         onClick={() => setShowLogModal(true)}
                         className="btn-primary"
                     >
@@ -116,116 +229,38 @@ const VitalsHub = () => {
 
             {/* Vitals Summary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <VitalCard 
-                    icon={<Scale size={24} className="text-indigo-500" />} 
-                    label="Weight" 
-                    value={latest.weight_kg} 
-                    unit="kg" 
-                    color="indigo" 
+                <VitalCard
+                    icon={<Scale size={24} className="text-indigo-500" />}
+                    label="Weight"
+                    value={latest.weight_kg}
+                    unit="kg"
+                    color="indigo"
                 />
-                <VitalCard 
-                    icon={<Heart size={24} className="text-rose-500" />} 
-                    label="Blood Pressure" 
-                    value={latest.blood_pressure_sys ? `${latest.blood_pressure_sys}/${latest.blood_pressure_dia}` : null} 
-                    unit="mmHg" 
-                    color="rose" 
+                <VitalCard
+                    icon={<Heart size={24} className="text-rose-500" />}
+                    label="Blood Pressure"
+                    value={latest.blood_pressure_sys ? `${latest.blood_pressure_sys}/${latest.blood_pressure_dia}` : null}
+                    unit="mmHg"
+                    color="rose"
                 />
-                <VitalCard 
-                    icon={<Activity size={24} className="text-emerald-500" />} 
-                    label="Heart Rate" 
-                    value={latest.heart_rate} 
-                    unit="bpm" 
-                    color="emerald" 
+                <VitalCard
+                    icon={<Activity size={24} className="text-emerald-500" />}
+                    label="Heart Rate"
+                    value={latest.heart_rate}
+                    unit="bpm"
+                    color="emerald"
                 />
-                <VitalCard 
-                    icon={<Thermometer size={24} className="text-amber-500" />} 
-                    label="Temperature" 
-                    value={latest.temperature_c} 
-                    unit="°C" 
-                    color="amber" 
+                <VitalCard
+                    icon={<Thermometer size={24} className="text-amber-500" />}
+                    label="Temperature"
+                    value={latest.temperature_c}
+                    unit="°C"
+                    color="amber"
                 />
             </div>
 
-            {/* Trends Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Blood Pressure Chart */}
-                <div className="apple-card p-8">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
-                            <Heart size={20} />
-                        </div>
-                        <h3 className="text-xl font-bold">Blood Pressure Trends</h3>
-                    </div>
-                    <div className="h-72 w-full">
-                        {vitals.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: '#fff', 
-                                            borderRadius: '12px', 
-                                            border: 'none',
-                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                                            padding: '12px'
-                                        }}
-                                    />
-                                    <Line type="monotone" dataKey="blood_pressure_sys" stroke="#0071e3" strokeWidth={3} dot={{ r: 4, fill: '#0071e3', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Systolic" />
-                                    <Line type="monotone" dataKey="blood_pressure_dia" stroke="#60a5fa" strokeWidth={3} dot={{ r: 4, fill: '#60a5fa', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} name="Diastolic" />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
-                                <Activity size={32} className="opacity-20" />
-                                <p className="text-sm">No data available for trends</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Heart Rate Chart */}
-                <div className="apple-card p-8">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
-                            <Activity size={20} />
-                        </div>
-                        <h3 className="text-xl font-bold">Heart Rate</h3>
-                    </div>
-                    <div className="h-72 w-full">
-                        {vitals.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={vitals} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                    <defs>
-                                        <linearGradient id="colorHr" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <XAxis dataKey="date" hide />
-                                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} domain={['dataMin - 10', 'dataMax + 10']} />
-                                    <Tooltip 
-                                        contentStyle={{ 
-                                            backgroundColor: '#fff', 
-                                            borderRadius: '12px', 
-                                            border: 'none',
-                                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                                            padding: '12px'
-                                        }}
-                                    />
-                                    <Area type="monotone" dataKey="heart_rate" stroke="#10b981" fillOpacity={1} fill="url(#colorHr)" strokeWidth={3} />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
-                                <Activity size={32} className="opacity-20" />
-                                <p className="text-sm">No data available for trends</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+            {/* Trends Section — heavy chart renders are memo-isolated */}
+            <VitalsChartPanel vitals={vitals} />
 
             {/* Log Vitals Modal */}
             {showLogModal && (
@@ -262,7 +297,7 @@ const VitalsHub = () => {
                                 <label className="form-label">Heart Rate (bpm)</label>
                                 <input type="number" className="input-field" value={formData.heart_rate} onChange={e => setFormData({...formData, heart_rate: e.target.value})} placeholder="72" />
                             </div>
-                            
+
                             <div className="flex gap-4 pt-4">
                                 <button type="button" onClick={() => setShowLogModal(false)} className="flex-1 px-6 py-3 bg-slate-100 text-slate-600 rounded-full font-medium hover:bg-slate-200 transition-all">Cancel</button>
                                 <button type="submit" className="flex-1 btn-primary py-3">Save Vitals</button>
@@ -283,28 +318,6 @@ const VitalsHub = () => {
                         {vitals.length > 0 ? "Your health metrics are within a healthy range. Consistency is key to long-term wellness. Keep logging your data to see more accurate trends." : "Start logging your vitals to see health insights and personalized trends. This helps your doctors provide better care."}
                     </p>
                 </div>
-            </div>
-        </div>
-    );
-};
-
-const VitalCard = ({ icon, label, value, unit, color }) => {
-    const colors = {
-        indigo: 'bg-indigo-50 text-indigo-600',
-        rose: 'bg-rose-50 text-rose-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        amber: 'bg-amber-50 text-amber-600'
-    };
-
-    return (
-        <div className="apple-card p-6 hover:shadow-md transition-all duration-300">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${colors[color]}`}>
-                {icon}
-            </div>
-            <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
-            <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight">{value || '—'}</span>
-                <span className="text-xs font-medium text-slate-400">{unit}</span>
             </div>
         </div>
     );
