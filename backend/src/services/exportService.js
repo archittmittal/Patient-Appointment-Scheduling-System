@@ -223,6 +223,153 @@ class ExportService {
 
         doc.end();
     }
+
+    /**
+     * Export Full Clinical Profile as JSON
+     */
+    async exportFullClinicalProfileJSON(patientId) {
+        // 1. Fetch patient profile
+        const [profileRows] = await db.query(
+            `SELECT p.id, p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, p.abha_id, p.abha_number, u.email 
+             FROM patients p 
+             JOIN users u ON p.id = u.id 
+             WHERE p.id = ?`, 
+            [patientId]
+        );
+        if (profileRows.length === 0) return null;
+        const profile = profileRows[0];
+
+        // 2. Fetch appointments
+        const [appointments] = await db.query(
+            `SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
+                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+             FROM appointments a
+             JOIN doctors d ON a.doctor_id = d.id
+             WHERE a.patient_id = ?
+             ORDER BY a.appointment_date DESC`,
+            [patientId]
+        );
+
+        // 3. Fetch prescriptions
+        const [prescriptions] = await db.query(
+            `SELECT p.id, DATE_FORMAT(p.date_prescribed, '%Y-%m-%d') AS date_prescribed, p.medications, p.dosage, p.frequency, p.duration_days, p.instructions, p.is_active,
+                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+             FROM prescriptions p
+             JOIN doctors d ON p.doctor_id = d.id
+             WHERE p.patient_id = ?
+             ORDER BY p.date_prescribed DESC`,
+            [patientId]
+        );
+
+        // 4. Fetch vitals
+        const [vitals] = await db.query(
+            `SELECT id, weight_kg, height_cm, blood_pressure_sys, blood_pressure_dia, heart_rate, temperature_c, spo2, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i:%s') AS recorded_at
+             FROM patient_vitals
+             WHERE patient_id = ?
+             ORDER BY recorded_at DESC`,
+            [patientId]
+        );
+
+        // 5. Fetch consent logs
+        const [consentLogs] = await db.query(
+            `SELECT c.id, c.status, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+             FROM consent_logs c
+             JOIN doctors d ON c.doctor_id = d.id
+             WHERE c.patient_id = ?
+             ORDER BY c.created_at DESC`,
+            [patientId]
+        );
+
+        return {
+            exported_at: new Date().toISOString(),
+            profile,
+            appointments,
+            prescriptions,
+            vitals,
+            consentLogs
+        };
+    }
+
+    /**
+     * Export Full Clinical Profile as CSV
+     */
+    async exportFullClinicalProfileCSV(patientId) {
+        const [profileRows] = await db.query(
+            `SELECT p.first_name, p.last_name, p.dob, p.phone, p.blood_group, p.address, p.abha_id, p.abha_number, u.email 
+             FROM patients p 
+             JOIN users u ON p.id = u.id 
+             WHERE p.id = ?`, 
+            [patientId]
+        );
+        if (profileRows.length === 0) return null;
+        const profile = profileRows[0];
+
+        const [appointments] = await db.query(
+            `SELECT DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
+                    d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
+             FROM appointments a
+             JOIN doctors d ON a.doctor_id = d.id
+             WHERE a.patient_id = ?
+             ORDER BY a.appointment_date DESC`,
+            [patientId]
+        );
+
+        // Map to flat rows
+        const flatRows = appointments.map(app => ({
+            patient_first_name: profile.first_name,
+            patient_last_name: profile.last_name,
+            patient_dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : 'N/A',
+            patient_phone: profile.phone || 'N/A',
+            patient_blood_group: profile.blood_group || 'N/A',
+            patient_abha_id: profile.abha_id || 'N/A',
+            patient_abha_number: profile.abha_number || 'N/A',
+            patient_email: profile.email,
+            appointment_date: app.appointment_date || 'N/A',
+            time_slot: app.time_slot || 'N/A',
+            symptoms: app.symptoms || 'N/A',
+            status: app.status || 'N/A',
+            diagnosis: app.diagnosis || 'N/A',
+            notes: app.notes || 'N/A',
+            prescription: app.prescription || 'N/A',
+            follow_up_date: app.follow_up_date || 'N/A',
+            doctor_name: `Dr. ${app.doctor_first} ${app.doctor_last}`,
+            doctor_specialty: app.specialty
+        }));
+
+        // If no appointments, just output patient profile row
+        if (flatRows.length === 0) {
+            flatRows.push({
+                patient_first_name: profile.first_name,
+                patient_last_name: profile.last_name,
+                patient_dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : 'N/A',
+                patient_phone: profile.phone || 'N/A',
+                patient_blood_group: profile.blood_group || 'N/A',
+                patient_abha_id: profile.abha_id || 'N/A',
+                patient_abha_number: profile.abha_number || 'N/A',
+                patient_email: profile.email,
+                appointment_date: 'N/A',
+                time_slot: 'N/A',
+                symptoms: 'N/A',
+                status: 'N/A',
+                diagnosis: 'N/A',
+                notes: 'N/A',
+                prescription: 'N/A',
+                follow_up_date: 'N/A',
+                doctor_name: 'N/A',
+                doctor_specialty: 'N/A'
+            });
+        }
+
+        const fields = [
+            'patient_first_name', 'patient_last_name', 'patient_dob', 'patient_phone', 'patient_blood_group', 
+            'patient_abha_id', 'patient_abha_number', 'patient_email', 'appointment_date', 'time_slot', 
+            'symptoms', 'status', 'diagnosis', 'notes', 'prescription', 'follow_up_date', 'doctor_name', 'doctor_specialty'
+        ];
+
+        const json2csvParser = new Parser({ fields });
+        return json2csvParser.parse(flatRows);
+    }
 }
 
 module.exports = new ExportService();

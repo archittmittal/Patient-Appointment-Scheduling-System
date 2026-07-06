@@ -16,7 +16,15 @@ const SENSITIVE_FIELDS = [
     'oldPassword',
     'creditCard',
     'cvv',
-    'card_number'
+    'card_number',
+    'symptoms',
+    'diagnosis',
+    'prescription',
+    'medications',
+    'instructions',
+    'treatment',
+    'medical_history',
+    'notes'
 ];
 
 // Helper to recursively redact sensitive fields in an object
