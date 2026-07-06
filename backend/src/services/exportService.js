@@ -239,47 +239,48 @@ class ExportService {
         if (profileRows.length === 0) return null;
         const profile = profileRows[0];
 
-        // 2. Fetch appointments
-        const [appointments] = await db.query(
-            `SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
-                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
-             FROM appointments a
-             JOIN doctors d ON a.doctor_id = d.id
-             WHERE a.patient_id = ?
-             ORDER BY a.appointment_date DESC`,
-            [patientId]
-        );
-
-        // 3. Fetch prescriptions
-        const [prescriptions] = await db.query(
-            `SELECT p.id, DATE_FORMAT(p.date_prescribed, '%Y-%m-%d') AS date_prescribed, p.medications, p.dosage, p.frequency, p.duration_days, p.instructions, p.is_active,
-                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
-             FROM prescriptions p
-             JOIN doctors d ON p.doctor_id = d.id
-             WHERE p.patient_id = ?
-             ORDER BY p.date_prescribed DESC`,
-            [patientId]
-        );
-
-        // 4. Fetch vitals
-        const [vitals] = await db.query(
-            `SELECT id, weight_kg, height_cm, blood_pressure_sys, blood_pressure_dia, heart_rate, temperature_c, spo2, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i:%s') AS recorded_at
-             FROM patient_vitals
-             WHERE patient_id = ?
-             ORDER BY recorded_at DESC`,
-            [patientId]
-        );
-
-        // 5. Fetch consent logs
-        const [consentLogs] = await db.query(
-            `SELECT c.id, c.status, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
-                    d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
-             FROM consent_logs c
-             JOIN doctors d ON c.doctor_id = d.id
-             WHERE c.patient_id = ?
-             ORDER BY c.created_at DESC`,
-            [patientId]
-        );
+        // Fetch remaining datasets in parallel
+        const [
+            [appointments],
+            [prescriptions],
+            [vitals],
+            [consentLogs]
+        ] = await Promise.all([
+            db.query(
+                `SELECT a.id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
+                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+                 FROM appointments a
+                 JOIN doctors d ON a.doctor_id = d.id
+                 WHERE a.patient_id = ?
+                 ORDER BY a.appointment_date DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT p.id, DATE_FORMAT(p.date_prescribed, '%Y-%m-%d') AS date_prescribed, p.medications, p.dosage, p.frequency, p.duration_days, p.instructions, p.is_active,
+                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+                 FROM prescriptions p
+                 JOIN doctors d ON p.doctor_id = d.id
+                 WHERE p.patient_id = ?
+                 ORDER BY p.date_prescribed DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT id, weight_kg, height_cm, blood_pressure_sys, blood_pressure_dia, heart_rate, temperature_c, spo2, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i:%s') AS recorded_at
+                 FROM patient_vitals
+                 WHERE patient_id = ?
+                 ORDER BY recorded_at DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT c.id, c.status, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+                        d.first_name as doctor_first_name, d.last_name as doctor_last_name, d.specialty
+                 FROM consent_logs c
+                 JOIN doctors d ON c.doctor_id = d.id
+                 WHERE c.patient_id = ?
+                 ORDER BY c.created_at DESC`,
+                [patientId]
+            )
+        ]);
 
         return {
             exported_at: new Date().toISOString(),
@@ -305,18 +306,50 @@ class ExportService {
         if (profileRows.length === 0) return null;
         const profile = profileRows[0];
 
-        const [appointments] = await db.query(
-            `SELECT DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
-                    d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
-             FROM appointments a
-             JOIN doctors d ON a.doctor_id = d.id
-             WHERE a.patient_id = ?
-             ORDER BY a.appointment_date DESC`,
-            [patientId]
-        );
+        // Fetch remaining datasets in parallel
+        const [
+            [appointments],
+            [prescriptions],
+            [vitals],
+            [consentLogs]
+        ] = await Promise.all([
+            db.query(
+                `SELECT DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS appointment_date, a.time_slot, a.symptoms, a.status, a.diagnosis, a.notes, a.prescription, DATE_FORMAT(a.follow_up_date, '%Y-%m-%d') AS follow_up_date,
+                        d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
+                 FROM appointments a
+                 JOIN doctors d ON a.doctor_id = d.id
+                 WHERE a.patient_id = ?
+                 ORDER BY a.appointment_date DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT DATE_FORMAT(p.date_prescribed, '%Y-%m-%d') AS date_prescribed, p.medications, p.dosage, p.frequency, p.duration_days, p.instructions, p.is_active,
+                        d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
+                 FROM prescriptions p
+                 JOIN doctors d ON p.doctor_id = d.id
+                 WHERE p.patient_id = ?
+                 ORDER BY p.date_prescribed DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT weight_kg, height_cm, blood_pressure_sys, blood_pressure_dia, heart_rate, temperature_c, spo2, DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i:%s') AS recorded_at
+                 FROM patient_vitals
+                 WHERE patient_id = ?
+                 ORDER BY recorded_at DESC`,
+                [patientId]
+            ),
+            db.query(
+                `SELECT c.status, DATE_FORMAT(c.created_at, '%Y-%m-%d %H:%i:%s') AS created_at,
+                        d.first_name as doctor_first, d.last_name as doctor_last, d.specialty
+                 FROM consent_logs c
+                 JOIN doctors d ON c.doctor_id = d.id
+                 WHERE c.patient_id = ?
+                 ORDER BY c.created_at DESC`,
+                [patientId]
+            )
+        ]);
 
-        // Map to flat rows
-        const flatRows = appointments.map(app => ({
+        const patientBase = {
             patient_first_name: profile.first_name,
             patient_last_name: profile.last_name,
             patient_dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : 'N/A',
@@ -324,47 +357,72 @@ class ExportService {
             patient_blood_group: profile.blood_group || 'N/A',
             patient_abha_id: profile.abha_id || 'N/A',
             patient_abha_number: profile.abha_number || 'N/A',
-            patient_email: profile.email,
-            appointment_date: app.appointment_date || 'N/A',
-            time_slot: app.time_slot || 'N/A',
-            symptoms: app.symptoms || 'N/A',
-            status: app.status || 'N/A',
-            diagnosis: app.diagnosis || 'N/A',
-            notes: app.notes || 'N/A',
-            prescription: app.prescription || 'N/A',
-            follow_up_date: app.follow_up_date || 'N/A',
-            doctor_name: `Dr. ${app.doctor_first} ${app.doctor_last}`,
-            doctor_specialty: app.specialty
-        }));
+            patient_email: profile.email
+        };
 
-        // If no appointments, just output patient profile row
-        if (flatRows.length === 0) {
+        const flatRows = [];
+
+        // 1. Profile entry
+        flatRows.push({
+            ...patientBase,
+            record_type: 'PROFILE',
+            details: `Address: ${profile.address || 'N/A'}`,
+            date: 'N/A',
+            doctor: 'N/A',
+            additional_info: 'N/A'
+        });
+
+        // 2. Appointments
+        appointments.forEach(app => {
             flatRows.push({
-                patient_first_name: profile.first_name,
-                patient_last_name: profile.last_name,
-                patient_dob: profile.dob ? new Date(profile.dob).toISOString().split('T')[0] : 'N/A',
-                patient_phone: profile.phone || 'N/A',
-                patient_blood_group: profile.blood_group || 'N/A',
-                patient_abha_id: profile.abha_id || 'N/A',
-                patient_abha_number: profile.abha_number || 'N/A',
-                patient_email: profile.email,
-                appointment_date: 'N/A',
-                time_slot: 'N/A',
-                symptoms: 'N/A',
-                status: 'N/A',
-                diagnosis: 'N/A',
-                notes: 'N/A',
-                prescription: 'N/A',
-                follow_up_date: 'N/A',
-                doctor_name: 'N/A',
-                doctor_specialty: 'N/A'
+                ...patientBase,
+                record_type: 'APPOINTMENT',
+                details: `Symptoms: ${app.symptoms || 'N/A'}, Diagnosis: ${app.diagnosis || 'N/A'}, Notes: ${app.notes || 'N/A'}, Status: ${app.status}`,
+                date: app.appointment_date || 'N/A',
+                doctor: `Dr. ${app.doctor_first} ${app.doctor_last} (${app.specialty})`,
+                additional_info: `Prescription: ${app.prescription || 'N/A'}, Follow-up: ${app.follow_up_date || 'N/A'}`
             });
-        }
+        });
+
+        // 3. Prescriptions
+        prescriptions.forEach(rx => {
+            flatRows.push({
+                ...patientBase,
+                record_type: 'PRESCRIPTION',
+                details: `Medications: ${rx.medications}, Dosage: ${rx.dosage || 'N/A'}, Frequency: ${rx.frequency || 'N/A'}, Duration: ${rx.duration_days ? rx.duration_days + ' days' : 'N/A'}`,
+                date: rx.date_prescribed || 'N/A',
+                doctor: `Dr. ${rx.doctor_first} ${rx.doctor_last} (${rx.specialty})`,
+                additional_info: `Active: ${rx.is_active ? 'Yes' : 'No'}, Instructions: ${rx.instructions || 'N/A'}`
+            });
+        });
+
+        // 4. Vitals
+        vitals.forEach(v => {
+            flatRows.push({
+                ...patientBase,
+                record_type: 'VITAL_RECORD',
+                details: `Weight: ${v.weight_kg ? v.weight_kg + 'kg' : 'N/A'}, Height: ${v.height_cm ? v.height_cm + 'cm' : 'N/A'}, BP: ${v.blood_pressure_sys || 'N/A'}/${v.blood_pressure_dia || 'N/A'} mmHg`,
+                date: v.recorded_at || 'N/A',
+                doctor: 'N/A',
+                additional_info: `HR: ${v.heart_rate ? v.heart_rate + ' bpm' : 'N/A'}, Temp: ${v.temperature_c ? v.temperature_c + 'C' : 'N/A'}, SpO2: ${v.spo2 ? v.spo2 + '%' : 'N/A'}`
+            });
+        });
+
+        // 5. Consent Logs
+        consentLogs.forEach(c => {
+            flatRows.push({
+                ...patientBase,
+                record_type: 'CONSENT_LOG',
+                details: `Consent Status: ${c.status}`,
+                date: c.created_at || 'N/A',
+                doctor: `Dr. ${c.doctor_first} ${c.doctor_last} (${c.specialty})`,
+                additional_info: 'N/A'
+            });
+        });
 
         const fields = [
             'patient_first_name', 'patient_last_name', 'patient_dob', 'patient_phone', 'patient_blood_group', 
-            'patient_abha_id', 'patient_abha_number', 'patient_email', 'appointment_date', 'time_slot', 
-            'symptoms', 'status', 'diagnosis', 'notes', 'prescription', 'follow_up_date', 'doctor_name', 'doctor_specialty'
+            'patient_abha_id', 'patient_abha_number', 'patient_email', 'record_type', 'details', 'date', 'doctor', 'additional_info'
         ];
 
         const json2csvParser = new Parser({ fields });

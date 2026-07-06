@@ -526,9 +526,10 @@ router.delete('/:id/data', authenticate, async (req, res) => {
         return res.status(403).json({ message: 'Access denied' });
     }
 
-    const conn = await db.getConnection();
-    await conn.beginTransaction();
+    let conn;
     try {
+        conn = await db.getConnection();
+        await conn.beginTransaction();
         const patientId = req.params.id;
 
         // Check if patient exists
@@ -552,11 +553,15 @@ router.delete('/:id/data', authenticate, async (req, res) => {
         await conn.commit();
         res.json({ message: 'Patient account and all associated data erased successfully' });
     } catch (error) {
-        await conn.rollback();
+        if (conn) {
+            await conn.rollback();
+        }
         logger.error('[Account Erasure Error]', error);
         res.status(500).json({ message: 'Server error erasing patient account' });
     } finally {
-        conn.release();
+        if (conn) {
+            conn.release();
+        }
     }
 });
 
