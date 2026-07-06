@@ -6,6 +6,7 @@ const verifyConsent = require('../middleware/verifyConsent');
 const exportService = require('../services/exportService');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -178,7 +179,6 @@ router.get('/:id/appointments', authenticate, validateRequest(appointmentsQueryS
 
 const prescriptionService = require('../services/prescriptionService');
 const vitalsService = require('../services/vitalsService');
-const logger = require('../config/logger');
 
 // Issue #94: Get patient prescriptions
 router.get('/:id/prescriptions', authenticate, verifyConsent, async (req, res) => {
@@ -432,6 +432,136 @@ router.post('/:id/abha', authenticate, validateRequest(abhaLinkSchema), async (r
             return res.status(409).json({ message });
         }
         res.status(500).json({ message: 'Server error updating ABHA details' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/patients/{id}/data-export:
+ *   get:
+ *     summary: Export full patient clinical profile as JSON or CSV
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: format
+ *         schema:
+ *           type: string
+ *           enum: [json, csv]
+ *           default: json
+ *     responses:
+ *       200:
+ *         description: Full patient clinical profile file download
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/:id/data-export', authenticate, async (req, res) => {
+    // Only the patient themselves or an ADMIN can export this data
+    if (req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    try {
+        const format = req.query.format || 'json';
+        const patientId = req.params.id;
+
+        if (format === 'csv') {
+            const csv = await exportService.exportFullClinicalProfileCSV(patientId);
+            if (!csv) return res.status(404).json({ message: 'Patient not found' });
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', `attachment; filename=clinical_profile_${patientId}.csv`);
+            return res.status(200).send(csv);
+        } else {
+            const data = await exportService.exportFullClinicalProfileJSON(patientId);
+            if (!data) return res.status(404).json({ message: 'Patient not found' });
+
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', `attachment; filename=clinical_profile_${patientId}.json`);
+            return res.status(200).json(data);
+        }
+    } catch (error) {
+        logger.error('[Data Export Error]', error);
+        res.status(500).json({ message: 'Server error exporting patient data' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/patients/{id}/data:
+ *   delete:
+ *     summary: Erase patient account and all associated medical data
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Account successfully erased
+ *       403:
+ *         description: Access denied
+ *       404:
+ *         description: Patient not found
+ *       500:
+ *         description: Server error
+ */
+router.delete('/:id/data', authenticate, async (req, res) => {
+    // Only the patient themselves or an ADMIN can delete the account
+    if (req.user.role !== 'ADMIN' && parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
+        return res.status(403).json({ message: 'Access denied' });
+    }
+
+    let conn;
+    try {
+        conn = await db.getConnection();
+        await conn.beginTransaction();
+        const patientId = req.params.id;
+
+        // Check if patient exists
+        const [patientRows] = await conn.query('SELECT id FROM patients WHERE id = ?', [patientId]);
+        if (patientRows.length === 0) {
+            await conn.rollback();
+            return res.status(404).json({ message: 'Patient not found' });
+        }
+
+        // Delete from all child tables without ON DELETE CASCADE
+        await conn.query('DELETE FROM patient_vitals WHERE patient_id = ?', [patientId]);
+        await conn.query('DELETE FROM prescriptions WHERE patient_id = ?', [patientId]);
+        await conn.query('DELETE FROM notification_log WHERE patient_id = ?', [patientId]);
+        await conn.query('DELETE FROM consultation_history WHERE patient_id = ?', [patientId]);
+        await conn.query('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?', [patientId, patientId]);
+        await conn.query('DELETE FROM payment_transactions WHERE user_id = ?', [patientId]);
+        
+        // Deleting from users will automatically cascade to patients, appointments, live_queue, consent_logs, etc.
+        await conn.query('DELETE FROM users WHERE id = ? AND role = ?', [patientId, 'PATIENT']);
+
+        await conn.commit();
+        res.json({ message: 'Patient account and all associated data erased successfully' });
+    } catch (error) {
+        if (conn) {
+            await conn.rollback();
+        }
+        logger.error('[Account Erasure Error]', error);
+        res.status(500).json({ message: 'Server error erasing patient account' });
+    } finally {
+        if (conn) {
+            conn.release();
+        }
     }
 });
 
