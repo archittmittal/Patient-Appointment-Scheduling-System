@@ -77,6 +77,24 @@ router.post('/reset-password', authController.resetPassword);
  */
 router.post('/google', validateRequest(Joi.object({ token: Joi.string().min(1).required() })), authController.googleLogin);
 
+/**
+ * @swagger
+ * /api/auth/refresh:
+ *   post:
+ *     summary: Rotate access and refresh tokens
+ *     tags: [Auth]
+ */
+router.post('/refresh', validateRequest(Joi.object({ refreshToken: Joi.string().required() })), authController.refresh);
+
+/**
+ * @swagger
+ * /api/auth/revoke:
+ *   post:
+ *     summary: Revoke refresh token (logout)
+ *     tags: [Auth]
+ */
+router.post('/revoke', validateRequest(Joi.object({ refreshToken: Joi.string().required() })), authController.revoke);
+
 const abhaService = require('../services/abhaService');
 const logger = require('../config/logger');
 
