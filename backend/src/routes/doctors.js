@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const authorizeOwner = require('../middleware/authorizeOwner');
 const Joi = require('joi');
 const validateRequest = require('../middleware/validateRequest');
 const {
@@ -130,11 +131,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id — update doctor profile (photo, bio, specialty, etc.)
-router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctorProfileSchema), async (req, res) => {
-    // Only the doctor themselves can update their profile
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.patch('/:id', authenticate, requireRole('DOCTOR'), validateRequest(doctorProfileSchema), authorizeOwner('id'), async (req, res) => {
     try {
         const { first_name, last_name, specialty, degree, experience_years, about, location_room, image_url, max_patients_per_slot, consultation_fee } = req.body;
         await db.query(
@@ -181,11 +178,7 @@ router.get('/:id/slot-counts', async (req, res) => {
 });
 
 // PATCH /api/doctors/:id/availability — update weekly schedule
-router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validateRequest(availabilitySchema), async (req, res) => {
-    // Only the doctor themselves can update their availability
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.patch('/:id/availability', authenticate, requireRole('DOCTOR'), validateRequest(availabilitySchema), authorizeOwner('id'), async (req, res) => {
     try {
         const { availability } = req.body;
         if (!availability || typeof availability !== 'object') {
@@ -231,11 +224,7 @@ router.get('/:id/reviews', async (req, res) => {
 
 // GET /api/doctors/:id/patients — all patients with their appointments + symptoms
 // DB-005: Paginated — default 50 per page to avoid unbounded dumps for high-volume doctors
-router.get('/:id/patients', authenticate, requireRole('DOCTOR'), validateRequest(patientsQuerySchema, 'query'), async (req, res) => {
-    // Only the doctor themselves can view their patient list
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.get('/:id/patients', authenticate, requireRole('DOCTOR'), validateRequest(patientsQuerySchema, 'query'), authorizeOwner('id'), async (req, res) => {
     try {
         const { page, limit } = req.query;
         const offset = (page - 1) * limit;
@@ -275,11 +264,7 @@ router.get('/:id/patients', authenticate, requireRole('DOCTOR'), validateRequest
 });
 
 // GET /api/doctors/:id/queue — today's live queue for this doctor
-router.get('/:id/queue', authenticate, requireRole('DOCTOR'), async (req, res) => {
-    // Only the doctor themselves can view their queue
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.get('/:id/queue', authenticate, requireRole('DOCTOR'), authorizeOwner('id'), async (req, res) => {
     try {
         const [rows] = await db.query(`
             SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status, lq.estimated_time,
@@ -314,11 +299,7 @@ router.get('/:id/blocked-dates', async (req, res) => {
 });
 
 // POST /api/doctors/:id/blocked-dates — block a specific date
-router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateRequest(blockedDateSchema), async (req, res) => {
-    // Only the doctor themselves can block dates
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateRequest(blockedDateSchema), authorizeOwner('id'), async (req, res) => {
     try {
         const { date, reason } = req.body;
         if (!date) return res.status(400).json({ message: 'date is required' });
@@ -337,11 +318,7 @@ router.post('/:id/blocked-dates', authenticate, requireRole('DOCTOR'), validateR
 });
 
 // DELETE /api/doctors/:id/blocked-dates/:dateId — unblock a date
-router.delete('/:id/blocked-dates/:dateId', authenticate, requireRole('DOCTOR'), async (req, res) => {
-    // Only the doctor themselves can unblock dates
-    if (parseInt(req.user.id, 10) !== parseInt(req.params.id, 10)) {
-        return res.status(403).json({ message: 'Access denied' });
-    }
+router.delete('/:id/blocked-dates/:dateId', authenticate, requireRole('DOCTOR'), authorizeOwner('id'), async (req, res) => {
     try {
         await db.query(
             'DELETE FROM doctor_blocked_dates WHERE id = ? AND doctor_id = ?',
