@@ -27,7 +27,23 @@ async function listPatients(cursor, limit) {
 
 async function listUsers({ page, limit, role, sort_by, order: orderRaw }) {
     const offset = (page - 1) * limit;
-    const sortColumn = ALLOWED_SORT[sort_by] || ALLOWED_SORT.id;
+    let sortColumn;
+    switch (sort_by) {
+        case 'name':
+            sortColumn = "CONCAT(COALESCE(p.first_name, ''), ' ', COALESCE(p.last_name, ''), COALESCE(d.first_name, ''), ' ', COALESCE(d.last_name, ''))";
+            break;
+        case 'created_at':
+            sortColumn = 'u.created_at';
+            break;
+        case 'role':
+            sortColumn = 'u.role';
+            break;
+        case 'id':
+        default:
+            sortColumn = 'u.id';
+            break;
+    }
+
     let order = 'ASC';
     if (orderRaw && typeof orderRaw === 'string') {
         const orderUpper = orderRaw.toUpperCase();

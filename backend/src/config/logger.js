@@ -19,8 +19,8 @@ const logLevel = process.env.LOG_LEVEL || defaultLogLevel;
 
 const errorStackFormat = winston.format((info) => {
     if (info instanceof Error) {
-        info.message = info.message;
-        info.stack = info.stack;
+        info.message = String(info.message);
+        info.stack = String(info.stack);
     } else if (info.stack) {
         // If stack is passed explicitly as metadata
         info.message = `${info.message}`;

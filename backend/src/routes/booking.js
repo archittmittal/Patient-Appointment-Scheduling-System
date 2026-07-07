@@ -36,7 +36,7 @@ function parseStartHourMinute(timeStr) {
     if (!timeStr) return null;
     const rangeParts = timeStr.split(/[–\-—]/);
     const startPart = rangeParts[0].trim();
-    const ampmMatch = startPart.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    const ampmMatch = startPart.match(/(\d{1,2}):(\d{1,2})\s*(AM|PM)/i);
     if (ampmMatch) {
         let hours = parseInt(ampmMatch[1], 10);
         const minutes = parseInt(ampmMatch[2], 10);
@@ -45,7 +45,7 @@ function parseStartHourMinute(timeStr) {
         if (ampm === 'AM' && hours === 12) hours = 0;
         return { hours, minutes };
     }
-    const simpleMatch = startPart.match(/(\d+):(\d+)/);
+    const simpleMatch = startPart.match(/(\d{1,2}):(\d{1,2})/);
     if (simpleMatch) {
         const hours = parseInt(simpleMatch[1], 10);
         const minutes = parseInt(simpleMatch[2], 10);

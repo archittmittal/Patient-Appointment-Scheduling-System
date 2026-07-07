@@ -143,7 +143,7 @@ function toPrometheusFormat() {
     lines.push('# HELP http_request_duration_ms Request latency percentiles in milliseconds');
     lines.push('# TYPE http_request_duration_ms gauge');
     for (const [route, stats] of Object.entries(snapshot.latency)) {
-        const label = `route="${route.replace(/"/g, '\\"')}"`;
+        const label = `route="${route.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         lines.push(`http_request_duration_ms{${label},quantile="0.50"} ${stats.p50}`);
         lines.push(`http_request_duration_ms{${label},quantile="0.95"} ${stats.p95}`);
         lines.push(`http_request_duration_ms{${label},quantile="0.99"} ${stats.p99}`);

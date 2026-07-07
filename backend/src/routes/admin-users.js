@@ -132,7 +132,7 @@ router.delete('/patients/:id', async (req, res) => {
 // GET /api/admin/patients/search
 router.get('/patients/search', validateRequest(searchPatientsQuerySchema, 'query'), async (req, res) => {
     try {
-        const query = req.query.q || '';
+        const query = typeof req.query.q === 'string' ? req.query.q : '';
         const results = await adminUserService.searchPatients(query);
         res.json(results);
     } catch (error) {
