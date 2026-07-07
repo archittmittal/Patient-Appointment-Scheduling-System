@@ -410,6 +410,60 @@ app.get(['/healthz', '/api/healthz'], async (req, res) => {
 });
 
 
+
+// ============================================================================
+// Metrics Endpoints — gated behind ADMIN auth (PR #13)
+// ============================================================================
+const { authenticate, requireRole } = require('./middleware/authenticate');
+const metricsService = require('./services/metricsService');
+
+/**
+ * @swagger
+ * /api/metrics:
+ *   get:
+ *     summary: JSON latency percentile snapshot (ADMIN only)
+ *     description: Returns p50/p95/p99 response time percentiles per route, total request counts, and process uptime. Requires ADMIN role.
+ *     tags: [Monitoring]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Metrics snapshot
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — requires ADMIN role
+ */
+app.get('/api/metrics', authenticate, requireRole(['ADMIN']), (req, res) => {
+    res.json(metricsService.getSnapshot());
+});
+
+/**
+ * @swagger
+ * /api/metrics/prometheus:
+ *   get:
+ *     summary: Prometheus text-format metrics (ADMIN only)
+ *     description: Returns metrics in Prometheus exposition format for scraping by Grafana / Prometheus. Requires ADMIN role.
+ *     tags: [Monitoring]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Prometheus-formatted metrics
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — requires ADMIN role
+ */
+app.get('/api/metrics/prometheus', authenticate, requireRole(['ADMIN']), (req, res) => {
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(metricsService.toPrometheusFormat());
+});
+
 // Global Error Handler (Must be last)
 app.use(errorHandler);
 

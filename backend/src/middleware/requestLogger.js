@@ -1,5 +1,6 @@
 const morgan = require('morgan');
 const logger = require('../config/logger');
+const metricsService = require('../services/metricsService');
 
 // Define token for authenticated user ID & role
 morgan.token('user-id', (req) => (req.user && req.user.id ? req.user.id : '-'));
@@ -17,6 +18,7 @@ const SENSITIVE_FIELDS = [
     'creditCard',
     'cvv',
     'card_number',
+    // Medical / clinical fields (PR #11 compliance)
     'symptoms',
     'diagnosis',
     'prescription',
@@ -30,7 +32,7 @@ const SENSITIVE_FIELDS = [
 // Helper to recursively redact sensitive fields in an object
 function redactObject(obj) {
     if (!obj || typeof obj !== 'object') return obj;
-    
+
     // Support arrays
     if (Array.isArray(obj)) {
         return obj.map(item => redactObject(item));
@@ -60,11 +62,25 @@ morgan.token('body', (req) => {
     }
 });
 
+// ── Metrics instrumentation ───────────────────────────────────────────────────
+// Records response duration + status into metricsService so /api/metrics can
+// compute p50 / p95 / p99 percentiles per route without any external dependency.
+function metricsMiddleware(req, res, next) {
+    const startAt = process.hrtime.bigint();
+
+    res.on('finish', () => {
+        const durationMs = Number(process.hrtime.bigint() - startAt) / 1e6;
+        metricsService.recordRequest(req.method, req.originalUrl || req.url, durationMs, res.statusCode);
+    });
+
+    next();
+}
+
 // Production: Log structured metadata using Winston JSON logger
 const productionMiddleware = morgan((tokens, req, res) => {
     const status = parseInt(tokens.status(req, res));
     const responseTime = parseFloat(tokens['response-time'](req, res));
-    
+
     const bodyStr = tokens.body(req, res);
     let body = null;
     if (bodyStr && bodyStr !== '[ERROR_PARSING_BODY]') {
@@ -87,7 +103,10 @@ const productionMiddleware = morgan((tokens, req, res) => {
         logMetadata.body = body;
     }
 
-    logger.http(`HTTP ${logMetadata.method} ${logMetadata.url} - ${logMetadata.status || '-'} (${logMetadata.responseTimeMs || '-'} ms)`, logMetadata);
+    logger.http(
+        `${logMetadata.method} ${logMetadata.url} ${logMetadata.status || '-'} ${logMetadata.responseTimeMs || '-'} ms - user: ${logMetadata.userId} (${logMetadata.userRole})`,
+        logMetadata
+    );
     return null; // Return null so Morgan doesn't print to stdout itself
 });
 
@@ -101,7 +120,15 @@ const developmentMiddleware = morgan(devFormat, {
     }
 });
 
-const requestLogger = process.env.NODE_ENV === 'production' ? productionMiddleware : developmentMiddleware;
+const morganMiddleware = process.env.NODE_ENV === 'production' ? productionMiddleware : developmentMiddleware;
+
+// Composed middleware: metrics instrumentation + Morgan HTTP logging
+function requestLogger(req, res, next) {
+    metricsMiddleware(req, res, (err) => {
+        if (err) return next(err);
+        morganMiddleware(req, res, next);
+    });
+}
 
 module.exports = requestLogger;
 module.exports.redactObject = redactObject; // exported for testing
