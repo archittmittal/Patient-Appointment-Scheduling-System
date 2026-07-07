@@ -18,7 +18,8 @@ async function applyMigrations() {
         'migrations/migration_sprint13_abha_support.sql',
         'migration_advanced_portal.sql',
         'migration_issue144_medical_data.sql',
-        'migrations/migration_sprint14_capacity_booking.sql'
+        'migrations/migration_sprint14_capacity_booking.sql',
+        'migrations/migration_sprint15_refresh_tokens.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');

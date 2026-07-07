@@ -78,7 +78,7 @@ const authConfig = {
      * Accepts any value accepted by the `jsonwebtoken` `expiresIn` option
      * (e.g. "8h", "1d", "7d").
      */
-    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
 
     /**
      * bcrypt work factor (cost). Higher = slower hashing but more secure.

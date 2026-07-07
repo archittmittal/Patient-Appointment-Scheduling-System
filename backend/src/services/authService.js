@@ -43,6 +43,7 @@ class AuthService {
         }
 
         const token = sessionService.generateToken(user);
+        const refreshToken = await sessionService.generateRefreshToken(user.id);
 
         return {
             id: user.id,
@@ -50,7 +51,8 @@ class AuthService {
             role: user.role,
             first_name: firstName,
             last_name: lastName,
-            token
+            token,
+            refreshToken
         };
     }
 
@@ -96,8 +98,9 @@ class AuthService {
             await conn.commit();
 
             const token = sessionService.generateToken({ id: newId, email, role: 'PATIENT' });
+            const refreshToken = await sessionService.generateRefreshToken(newId);
 
-            return { id: newId, email, role: 'PATIENT', first_name, last_name, token, abha_id: abha_id || null, abha_number: abha_number || null };
+            return { id: newId, email, role: 'PATIENT', first_name, last_name, token, refreshToken, abha_id: abha_id || null, abha_number: abha_number || null };
         } catch (error) {
             await conn.rollback();
             if (error.code === 'ER_DUP_ENTRY') {
@@ -313,6 +316,7 @@ class AuthService {
         }
 
         const token = sessionService.generateToken(user);
+        const refreshToken = await sessionService.generateRefreshToken(user.id);
 
         return {
             id: user.id,
@@ -320,8 +324,82 @@ class AuthService {
             role: user.role,
             first_name: firstName,
             last_name: lastName,
-            token
+            token,
+            refreshToken
         };
+    }
+
+    /**
+     * Rotate access and refresh tokens using a valid refresh token
+     * @param {string} refreshToken Active refresh token
+     * @returns {Promise<Object>} New access and refresh token pair
+     */
+    async refreshSession(refreshToken) {
+        if (!refreshToken) {
+            const error = new Error('Refresh token is required');
+            error.status = 400;
+            throw error;
+        }
+
+        // Query database for refresh token
+        const [rows] = await db.query(
+            'SELECT * FROM refresh_tokens WHERE token = ?',
+            [refreshToken]
+        );
+
+        if (rows.length === 0) {
+            const error = new Error('Invalid or expired refresh token');
+            error.status = 401;
+            throw error;
+        }
+
+        const storedToken = rows[0];
+        
+        // Check expiry
+        if (new Date(storedToken.expires_at) < new Date()) {
+            await db.query('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+            const error = new Error('Refresh token expired');
+            error.status = 401;
+            throw error;
+        }
+
+        // Fetch user details
+        const [users] = await db.query('SELECT * FROM users WHERE id = ?', [storedToken.user_id]);
+        if (users.length === 0) {
+            const error = new Error('User not found');
+            error.status = 401;
+            throw error;
+        }
+
+        const user = users[0];
+
+        // Generate new tokens (rotation)
+        const newAccessToken = sessionService.generateToken(user);
+        const newRefreshToken = await sessionService.generateRefreshToken(user.id);
+
+        // Delete the old refresh token (token rotation prevention)
+        await db.query('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+
+        return {
+            token: newAccessToken,
+            refreshToken: newRefreshToken
+        };
+    }
+
+    /**
+     * Revoke a refresh token (logout)
+     * @param {string} refreshToken Active refresh token
+     * @returns {Promise<Object>} Status message
+     */
+    async revokeSession(refreshToken) {
+        if (!refreshToken) {
+            const error = new Error('Refresh token is required');
+            error.status = 400;
+            throw error;
+        }
+
+        await db.query('DELETE FROM refresh_tokens WHERE token = ?', [refreshToken]);
+        return { message: 'Token revoked successfully' };
     }
 }
 

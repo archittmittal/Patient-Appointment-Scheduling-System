@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const db = require('../config/db');
 const { jwtSecret, jwtExpiresIn } = require('../config/auth');
 
 class SessionService {
@@ -27,6 +29,26 @@ class SessionService {
         } catch (error) {
             return null;
         }
+    }
+
+    /**
+     * Generate a new Refresh Token
+     * @param {number} userId User ID
+     * @returns {Promise<string>} Refresh token string
+     */
+    async generateRefreshToken(userId) {
+        const token = crypto.randomBytes(40).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7); // expires in 7 days
+        
+        const expiresAtMysql = expiresAt.toISOString().slice(0, 19).replace('T', ' ');
+
+        await db.query(
+            'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+            [userId, token, expiresAtMysql]
+        );
+
+        return token;
     }
 }
 
