@@ -9,6 +9,9 @@ export const authService = {
         
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
+            if (data.refreshToken) {
+                localStorage.setItem('hs_refresh_token', data.refreshToken);
+            }
             // Store minimal session data
             const session = {
                 id: data.id,
@@ -29,6 +32,9 @@ export const authService = {
         
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
+            if (data.refreshToken) {
+                localStorage.setItem('hs_refresh_token', data.refreshToken);
+            }
             const session = {
                 id: data.id,
                 email: data.email,
@@ -48,6 +54,9 @@ export const authService = {
 
         if (data.token) {
             localStorage.setItem('hs_token', data.token);
+            if (data.refreshToken) {
+                localStorage.setItem('hs_refresh_token', data.refreshToken);
+            }
             const session = {
                 id: data.id,
                 email: data.email,
@@ -63,7 +72,14 @@ export const authService = {
      * Clear all session data
      */
     logout() {
+        const refreshToken = localStorage.getItem('hs_refresh_token');
+        if (refreshToken) {
+            apiClient.post('/api/auth/revoke', { refreshToken }).catch(e => {
+                console.error('Failed to revoke token on logout:', e);
+            });
+        }
         localStorage.removeItem('hs_token');
+        localStorage.removeItem('hs_refresh_token');
         localStorage.removeItem('hs_user');
         
         // Comprehensive cleanup of all application-prefixed keys

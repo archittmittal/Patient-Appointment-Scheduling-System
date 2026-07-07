@@ -2,13 +2,28 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
     constructor() {
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS, // Use App Password for Gmail
-            },
-        });
+        let transportConfig;
+        if (process.env.SMTP_HOST) {
+            transportConfig = {
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT, 10) || 587,
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: {
+                    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+                    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS
+                }
+            };
+        } else {
+            transportConfig = {
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS, // Use App Password for Gmail
+                }
+            };
+        }
+
+        this.transporter = nodemailer.createTransport(transportConfig);
 
         // Ensure methods are bound to this instance
         this.sendOTP = this.sendOTP.bind(this);
@@ -20,7 +35,7 @@ class EmailService {
      */
     async sendOTP(email, otp) {
         const mailOptions = {
-            from: `"HealthSync Support" <${process.env.EMAIL_USER}>`,
+            from: `"HealthSync Support" <${process.env.SMTP_FROM || process.env.EMAIL_USER}>`,
             to: email,
             subject: 'Your HealthSync Password Reset OTP',
             html: `
@@ -46,7 +61,7 @@ class EmailService {
      */
     async sendPaymentReceipt(email, appointmentDetails) {
         const mailOptions = {
-            from: `"HealthSync Billing" <${process.env.EMAIL_USER}>`,
+            from: `"HealthSync Billing" <${process.env.SMTP_FROM || process.env.EMAIL_USER}>`,
             to: email,
             subject: `Payment Receipt: HealthSync Appointment #${appointmentDetails.queueNumber || ''}`,
             html: `
