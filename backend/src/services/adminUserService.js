@@ -28,7 +28,13 @@ async function listPatients(cursor, limit) {
 async function listUsers({ page, limit, role, sort_by, order: orderRaw }) {
     const offset = (page - 1) * limit;
     const sortColumn = ALLOWED_SORT[sort_by] || ALLOWED_SORT.id;
-    const order = orderRaw.toUpperCase();
+    let order = 'ASC';
+    if (orderRaw && typeof orderRaw === 'string') {
+        const orderUpper = orderRaw.toUpperCase();
+        if (orderUpper === 'DESC') {
+            order = 'DESC';
+        }
+    }
 
     let whereClause = '';
     const filterParams = [];
@@ -178,6 +184,9 @@ async function deletePatient(id) {
 }
 
 async function searchPatients(query) {
+    if (typeof query !== 'string') {
+        query = '';
+    }
     if (!query || query.length < 2) return [];
 
     const [patients] = await db.query(`

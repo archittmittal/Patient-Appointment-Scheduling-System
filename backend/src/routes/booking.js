@@ -146,7 +146,12 @@ router.get('/:id/prescription/pdf', authenticate, async (req, res) => {
         const [appt] = await db.query('SELECT patient_id, doctor_id FROM appointments WHERE id = ?', [req.params.id]);
         if (appt.length === 0) return res.status(404).json({ message: 'Appointment not found' });
         
-        if (req.user.role !== 'DOCTOR' && req.user.role !== 'ADMIN' && parseInt(req.user.id) !== parseInt(appt[0].patient_id)) {
+        const isAuthorized = 
+            req.user.role === 'ADMIN' ||
+            (req.user.role === 'DOCTOR' && parseInt(req.user.id, 10) === parseInt(appt[0].doctor_id, 10)) ||
+            (parseInt(req.user.id, 10) === parseInt(appt[0].patient_id, 10));
+
+        if (!isAuthorized) {
             return res.status(403).json({ message: 'Access denied' });
         }
 

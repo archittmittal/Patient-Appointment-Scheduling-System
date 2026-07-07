@@ -15,17 +15,22 @@ const joinWaitlistSchema = Joi.object({
     reason: Joi.string().max(255).allow('', null)
 });
 
+// Helper to resolve patient ID and check profile existence
+async function resolvePatient(userId) {
+    const [rows] = await db.query(
+        'SELECT id FROM patients WHERE id = ?',
+        [userId]
+    );
+    return rows[0] || null;
+}
+
 // POST /api/appointments/waitlist/join
 router.post('/waitlist/join', authenticate, validateRequest(joinWaitlistSchema), async (req, res) => {
     try {
         const { doctorId, preferredDate, timePreference, maxNoticeHours, reason } = req.body;
         
         // Get patient ID from user
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
         
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -52,11 +57,7 @@ router.post('/waitlist/join', authenticate, validateRequest(joinWaitlistSchema),
 // DELETE /api/appointments/waitlist/:id - Leave waitlist
 router.delete('/waitlist/:id', authenticate, async (req, res) => {
     try {
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -78,11 +79,7 @@ router.delete('/waitlist/:id', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/my - Get patient's waitlist entries
 router.get('/waitlist/my', authenticate, async (req, res) => {
     try {
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
 
         if (!patient) {
             return res.json([]);
@@ -99,11 +96,7 @@ router.get('/waitlist/my', authenticate, async (req, res) => {
 // GET /api/appointments/waitlist/offers - Get pending slot offers for patient
 router.get('/waitlist/offers', authenticate, async (req, res) => {
     try {
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
 
         if (!patient) {
             return res.json([]);
@@ -120,11 +113,7 @@ router.get('/waitlist/offers', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/accept - Accept a slot offer
 router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
     try {
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });
@@ -146,11 +135,7 @@ router.post('/waitlist/offers/:id/accept', authenticate, async (req, res) => {
 // POST /api/appointments/waitlist/offers/:id/decline - Decline a slot offer
 router.post('/waitlist/offers/:id/decline', authenticate, async (req, res) => {
     try {
-        const [patientRows] = await db.query(
-            'SELECT id FROM patients WHERE id = ?',
-            [req.user.id]
-        );
-        const patient = patientRows[0];
+        const patient = await resolvePatient(req.user.id);
 
         if (!patient) {
             return res.status(400).json({ message: 'Patient profile not found' });

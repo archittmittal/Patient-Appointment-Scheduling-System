@@ -90,5 +90,26 @@ describe('Route Decomposition & Resource Authorization (PR #14)', () => {
             expect(res.statusCode).toBe(200);
             expect(res.body).toHaveProperty('predictedDuration');
         });
+
+        it('enforces treating doctor access controls on GET /api/appointments/:id/prescription/pdf', async () => {
+            // Mock appointment row: patient 1, doctor 2
+            jest.spyOn(db, 'query').mockResolvedValueOnce([[{ patient_id: 1, doctor_id: 2 }]]);
+            
+            // Non-treating doctor (id: 9) attempts access -> 403
+            const otherDoctorToken = mintToken('DOCTOR', 9);
+            let res = await request(app)
+                .get('/api/appointments/101/prescription/pdf')
+                .set('Authorization', `Bearer ${otherDoctorToken}`);
+            expect(res.statusCode).toBe(403);
+
+            // Treating doctor (id: 2) attempts access -> allows bypass check and proceeds
+            jest.spyOn(db, 'query').mockResolvedValueOnce([[{ patient_id: 1, doctor_id: 2 }]]);
+            const treatingDoctorToken = mintToken('DOCTOR', 2);
+            res = await request(app)
+                .get('/api/appointments/101/prescription/pdf')
+                .set('Authorization', `Bearer ${treatingDoctorToken}`);
+            // Note: will fail/succeed with PDF generation error or 200, but not 403.
+            expect(res.statusCode).not.toBe(403);
+        });
     });
 });

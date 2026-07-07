@@ -41,6 +41,10 @@ const patientsListQuerySchema = Joi.object({
     limit: Joi.number().integer().min(1).max(50).default(50)
 });
 
+const searchPatientsQuerySchema = Joi.object({
+    q: Joi.string().allow('', null).default('')
+});
+
 // All admin user routes require authenticate + requireRole('ADMIN')
 router.use(authenticate);
 router.use(requireRole('ADMIN'));
@@ -126,7 +130,7 @@ router.delete('/patients/:id', async (req, res) => {
 });
 
 // GET /api/admin/patients/search
-router.get('/patients/search', async (req, res) => {
+router.get('/patients/search', validateRequest(searchPatientsQuerySchema, 'query'), async (req, res) => {
     try {
         const query = req.query.q || '';
         const results = await adminUserService.searchPatients(query);
