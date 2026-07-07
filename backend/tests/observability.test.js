@@ -139,6 +139,18 @@ describe('metricsService', () => {
             const snap = metricsService.getSnapshot();
             expect(snap.requests.errors4xx).toBe(2);
         });
+
+        it('caps distinct tracked routes and maps overflow to OTHER', () => {
+            // Record 105 distinct routes
+            for (let i = 1; i <= 105; i++) {
+                metricsService.recordRequest('GET', `/api/route-${i}`, 10, 200);
+            }
+            const snap = metricsService.getSnapshot();
+            const keys = Object.keys(snap.latency);
+            expect(keys.length).toBeLessThanOrEqual(101); // 100 distinct + 1 OTHER
+            expect(snap.latency['OTHER']).toBeDefined();
+            expect(snap.latency['OTHER'].count).toBe(5); // 101, 102, 103, 104, 105
+        });
     });
 
     describe('toPrometheusFormat()', () => {
@@ -222,6 +234,9 @@ describe('GET /healthz and /api/healthz Health Probes', () => {
     });
 
     it('should return 503 unhealthy when Redis is configured but unreachable', async () => {
+        const db = require('../src/config/db');
+        jest.spyOn(db, 'query').mockResolvedValueOnce([[]]);
+
         process.env.REDIS_HOST = '127.0.0.1';
         process.env.REDIS_PORT = '9999'; // closed port
 

@@ -8,6 +8,8 @@
  */
 
 const WINDOW_SIZE = 1000; // max samples kept per route
+const MAX_TRACKED_ROUTES = 100;
+const OVERFLOW_ROUTE_KEY = 'OTHER';
 
 // Internal state
 const _samples = {}; // { "GET /api/appointments": [12, 45, ...] }
@@ -37,7 +39,17 @@ function normaliseRoute(url) {
  * @param {number} statusCode   HTTP status code
  */
 function recordRequest(method, url, durationMs, statusCode) {
-    const route = `${method.toUpperCase()} ${normaliseRoute(url)}`;
+    let route = `${method.toUpperCase()} ${normaliseRoute(url)}`;
+
+    // Enforce hard cap on distinct tracked routes to prevent memory leaks from arbitrary URLs
+    if (!_samples[route]) {
+        const currentRoutes = Object.keys(_samples);
+        if (currentRoutes.length >= MAX_TRACKED_ROUTES && !currentRoutes.includes(OVERFLOW_ROUTE_KEY)) {
+            route = OVERFLOW_ROUTE_KEY;
+        } else if (currentRoutes.length >= MAX_TRACKED_ROUTES) {
+            route = OVERFLOW_ROUTE_KEY;
+        }
+    }
 
     // Samples — maintain a capped rolling window
     if (!_samples[route]) _samples[route] = [];

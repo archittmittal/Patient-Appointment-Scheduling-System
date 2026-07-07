@@ -3,7 +3,10 @@ const path = require('path');
 let DailyRotateFile;
 try {
     DailyRotateFile = require('winston-daily-rotate-file');
-} catch (_) {
+} catch (err) {
+    if (err.code !== 'MODULE_NOT_FOUND') {
+        throw err;
+    }
     // Optional dependency — gracefully omit file transport when not installed
     DailyRotateFile = null;
 }
@@ -43,15 +46,6 @@ const productionFormat = winston.format.combine(
     winston.format.json()
 );
 
-// File transport always writes JSON regardless of NODE_ENV so log aggregators
-// (CloudWatch, Datadog, Loki) can parse it uniformly.
-const fileFormat = winston.format.combine(
-    winston.format.timestamp(),
-    errorStackFormat(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-);
-
 const currentFormat = process.env.NODE_ENV === 'production' ? productionFormat : developmentFormat;
 
 // ── Transports ────────────────────────────────────────────────────────────────
@@ -69,31 +63,39 @@ const transports = [
 if (DailyRotateFile && process.env.NODE_ENV !== 'test') {
     const logsDir = path.join(process.cwd(), 'logs');
 
-    transports.push(
-        new DailyRotateFile({
-            filename: path.join(logsDir, 'app-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            zippedArchive: true,
-            maxSize: '20m',
-            maxFiles: '14d',
-            format: fileFormat,
-            handleExceptions: true,
-            handleRejections: true
-        })
-    );
+    const appLogTransport = new DailyRotateFile({
+        filename: path.join(logsDir, 'app-%DATE%.log'),
+        datePattern: 'YYYY-MM-DD',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '14d',
+        format: productionFormat,
+        handleExceptions: true,
+        handleRejections: true
+    });
+
+    appLogTransport.on('error', (err) => {
+        console.error('Winston DailyRotateFile appLogTransport error:', err);
+    });
+
+    transports.push(appLogTransport);
 
     // Separate error-only log file — easier to grep production incidents
-    transports.push(
-        new DailyRotateFile({
-            level: 'error',
-            filename: path.join(logsDir, 'error-%DATE%.log'),
-            datePattern: 'YYYY-MM-DD',
-            zippedArchive: true,
-            maxSize: '20m',
-            maxFiles: '30d',
-            format: fileFormat
-        })
-    );
+    const errorLogTransport = new DailyRotateFile({
+        level: 'error',
+        filename: path.join(logsDir, 'error-%DATE%.log'),
+        datePattern: 'YYYY-MM-DD',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '30d',
+        format: productionFormat
+    });
+
+    errorLogTransport.on('error', (err) => {
+        console.error('Winston DailyRotateFile errorLogTransport error:', err);
+    });
+
+    transports.push(errorLogTransport);
 }
 
 // ── Logger instance ───────────────────────────────────────────────────────────
