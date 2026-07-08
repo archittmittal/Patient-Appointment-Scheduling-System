@@ -36,27 +36,6 @@ function convertTo24Hour(timeStr) {
     throw new Error(`Invalid time format: ${timeStr}`);
 }
 
-function convertTo12Hour(timeStr) {
-    if (!timeStr || typeof timeStr !== 'string') {
-        throw new Error('Invalid time input: must be a non-empty string');
-    }
-    const parts = timeStr.split(':');
-    if (parts.length < 2) {
-        throw new Error(`Invalid time format: ${timeStr}`);
-    }
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        throw new Error(`Invalid time format: ${timeStr}`);
-    }
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    let displayHours = hours % 12;
-    displayHours = displayHours ? displayHours : 12;
-    const hoursStr = String(displayHours).padStart(2, '0');
-    const minutesStr = String(minutes).padStart(2, '0');
-    return `${hoursStr}:${minutesStr} ${ampm}`;
-}
-
 class WaitlistService {
     constructor() {
         // Ensure methods are bound to this instance

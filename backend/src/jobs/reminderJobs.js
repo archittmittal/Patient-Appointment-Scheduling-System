@@ -47,7 +47,6 @@ const initCronJobs = () => {
 
                 const [appointments] = await db.query(query, [limit, offset]);
                 if (appointments.length === 0) {
-                    hasMore = false;
                     break;
                 }
 
