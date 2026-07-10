@@ -58,7 +58,7 @@ const SymptomChecker = () => {
         const bookingState = {
             doctorId: doctor.id,
             specialty: doctor.specialty,
-            step: 2 // Skip directly to date/time selection step
+            step: 3 // Skip directly to date/time selection step
         };
         localStorage.setItem('pendingBooking', JSON.stringify(bookingState));
         navigate('/book', { state: { symptoms: symptomsInput } });
