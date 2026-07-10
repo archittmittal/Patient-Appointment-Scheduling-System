@@ -36,6 +36,15 @@ class DailyOptimizerService {
                     AND lq.status IN ('WAITING', 'IN_PROGRESS')
                 `, [doctor.id, date]);
 
+                const [delayRows] = await db.query(`
+                    SELECT delay_mins
+                    FROM delay_history
+                    WHERE doctor_id = ? AND delay_date = ?
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                `, [doctor.id, date]);
+                const delayMins = delayRows[0]?.delay_mins || 0;
+
                 const totalMins = queue.reduce((sum, item) => sum + (item.predicted_duration || 15), 0);
 
                 return {
@@ -43,11 +52,13 @@ class DailyOptimizerService {
                     name: `${doctor.first_name} ${doctor.last_name}`,
                     specialty: doctor.specialty,
                     patientCount: queue.length,
-                    estimatedTotalMins: totalMins
+                    estimatedTotalMins: totalMins,
+                    delayMins: delayMins,
+                    totalWaitMins: totalMins + delayMins
                 };
             }));
 
-            return workloads.sort((a, b) => a.estimatedTotalMins - b.estimatedTotalMins);
+            return workloads.sort((a, b) => a.totalWaitMins - b.totalWaitMins);
         } catch (error) {
             logger.error('Error getting doctor workloads:', error);
             throw error;
