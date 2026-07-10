@@ -30,10 +30,24 @@ const EMPTY_NOTES = {
     }
 };
 
+const SUGGESTED_DRUGS = [
+    'Paracetamol 650mg',
+    'Amoxicillin 500mg',
+    'Ibuprofen 400mg',
+    'Metformin 500mg',
+    'Pantoprazole 40mg',
+    'Cetirizine 10mg',
+    'Azithromycin 500mg',
+    'Atorvastatin 10mg',
+    'Amlodipine 5mg',
+    'Vitamin D3 60K'
+];
+
 const NotesModal = ({ item, onSave, onClose, saving }) => {
     const [form, setForm] = useState(EMPTY_NOTES);
     const [previousVitals, setPreviousVitals] = useState(null);
     const [loadingVitals, setLoadingVitals] = useState(true);
+    const [rxRows, setRxRows] = useState([]);
 
     useEffect(() => {
         const fetchPrevious = async () => {
@@ -55,10 +69,51 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
         }));
     };
 
+    const addRxRow = () => {
+        setRxRows(prev => [
+            ...prev,
+            { name: '', frequency: '1-0-1', duration: '5', durationUnit: 'Days', instructions: 'After food', showSuggestions: false }
+        ]);
+    };
+
+    const removeRxRow = (index) => {
+        setRxRows(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const updateRxRow = (index, field, value) => {
+        setRxRows(prev => prev.map((row, i) => {
+            if (i !== index) return row;
+            const updated = { ...row, [field]: value };
+            if (field === 'name') {
+                updated.showSuggestions = value.trim().length > 0;
+            }
+            return updated;
+        }));
+    };
+
+    const selectSuggestion = (index, drugName) => {
+        setRxRows(prev => prev.map((row, i) => {
+            if (i !== index) return row;
+            return { ...row, name: drugName, showSuggestions: false };
+        }));
+    };
+
+    const handleComplete = () => {
+        const serialized = rxRows
+            .filter(r => r.name.trim() !== '')
+            .map(r => `${r.name.trim()} — ${r.frequency} for ${r.duration || 1} ${r.durationUnit} (${r.instructions})`)
+            .join('\n');
+        
+        onSave({
+            ...form,
+            prescription: serialized || null
+        });
+    };
+
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 z-50">
-            <div className="glass-modal rounded-[3rem] w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300">
-                <div className="flex items-center justify-between p-10 border-b border-[var(--border-base)] bg-primary-light/5">
+            <div className="glass-modal rounded-[3rem] w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between p-10 border-b border-[var(--border-base)] bg-primary-light/5 shrink-0">
                     <div>
                         <h3 className="text-2xl font-black text-[var(--text-base)] tracking-tight">Clinical Assessment</h3>
                         <p className="text-sm text-slate-500 font-medium mt-1">Patient: <span className="text-primary font-bold">{item.first_name} {item.last_name}</span></p>
@@ -68,7 +123,7 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                     </button>
                 </div>
 
-                <div className="p-10 space-y-6">
+                <div className="p-10 space-y-6 overflow-y-auto flex-1">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Current Diagnosis</label>
                         <div className="relative group">
@@ -83,18 +138,109 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Prescription & Dosage</label>
-                        <div className="relative group">
-                            <Pill size={18} className="absolute left-4 top-4 text-slate-300 group-focus-within:text-primary transition-colors" />
-                            <textarea
-                                name="prescription"
-                                value={form.prescription}
-                                onChange={change}
-                                rows={3}
-                                placeholder="List medications and instructions..."
-                                className="input-field pl-12 resize-none h-24"
-                            />
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Prescribed Medications (Rx)</label>
+                            <button
+                                type="button"
+                                onClick={addRxRow}
+                                className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+                            >
+                                + Add Medicine
+                            </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {rxRows.map((rx, idx) => (
+                                <div key={idx} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50 space-y-3 relative group">
+                                    <button
+                                        type="button"
+                                        onClick={() => removeRxRow(idx)}
+                                        className="absolute right-4 top-4 text-slate-300 hover:text-rose-500 transition-colors"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                    
+                                    <div className="grid grid-cols-12 gap-3 pr-6">
+                                        <div className="col-span-12 relative">
+                                            <input
+                                                placeholder="Medicine Name (e.g. Paracetamol 650mg)"
+                                                value={rx.name}
+                                                onChange={e => updateRxRow(idx, 'name', e.target.value)}
+                                                className="w-full bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary/40 focus:bg-white"
+                                            />
+                                            {/* Simple Autocomplete Suggestions */}
+                                            {rx.showSuggestions && rx.name && (
+                                                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-36 overflow-y-auto">
+                                                    {SUGGESTED_DRUGS
+                                                        .filter(d => d.toLowerCase().includes(rx.name.toLowerCase()))
+                                                        .map(d => (
+                                                            <button
+                                                                key={d}
+                                                                type="button"
+                                                                onClick={() => selectSuggestion(idx, d)}
+                                                                className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 font-medium"
+                                                            >
+                                                                {d}
+                                                            </button>
+                                                        ))
+                                                    }
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        <div className="col-span-6">
+                                            <select
+                                                value={rx.frequency}
+                                                onChange={e => updateRxRow(idx, 'frequency', e.target.value)}
+                                                className="w-full bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary/40"
+                                            >
+                                                <option value="1-0-0">1-0-0 (Morning)</option>
+                                                <option value="0-1-0">0-1-0 (Afternoon)</option>
+                                                <option value="0-0-1">0-0-1 (Night)</option>
+                                                <option value="1-0-1">1-0-1 (Morning & Night)</option>
+                                                <option value="1-1-1">1-1-1 (Thrice daily)</option>
+                                                <option value="As needed (PRN)">As needed (PRN)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div className="col-span-3 flex gap-1">
+                                            <input
+                                                type="number"
+                                                placeholder="Qty"
+                                                value={rx.duration}
+                                                onChange={e => updateRxRow(idx, 'duration', e.target.value)}
+                                                className="w-full bg-white border border-slate-200 px-2 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary/40 text-center"
+                                            />
+                                            <select
+                                                value={rx.durationUnit}
+                                                onChange={e => updateRxRow(idx, 'durationUnit', e.target.value)}
+                                                className="bg-white border border-slate-200 px-1 py-2.5 rounded-xl text-[10px] font-semibold focus:outline-none focus:border-primary/40"
+                                            >
+                                                <option value="Days">Days</option>
+                                                <option value="Weeks">Weeks</option>
+                                                <option value="Months">Months</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div className="col-span-3">
+                                            <select
+                                                value={rx.instructions}
+                                                onChange={e => updateRxRow(idx, 'instructions', e.target.value)}
+                                                className="w-full bg-white border border-slate-200 px-2 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-primary/40"
+                                            >
+                                                <option value="After food">After food</option>
+                                                <option value="Before food">Before food</option>
+                                                <option value="With food">With food</option>
+                                                <option value="Empty stomach">Empty stomach</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {rxRows.length === 0 && (
+                                <p className="text-xs text-slate-400 italic text-center py-4">No medications prescribed yet. Click + Add Medicine.</p>
+                            )}
                         </div>
                     </div>
 
@@ -214,10 +360,10 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
                     </div>
                 </div>
 
-                <div className="flex gap-4 p-10 border-t border-[var(--border-base)] bg-primary-light/5">
+                <div className="flex gap-4 p-10 border-t border-[var(--border-base)] bg-primary-light/5 shrink-0">
                     <button onClick={onClose} className="btn-secondary flex-1 font-bold">Discard</button>
                     <button
-                        onClick={() => onSave(form)}
+                        onClick={handleComplete}
                         disabled={saving}
                         className="btn-primary flex-1 font-bold shadow-xl shadow-primary/20 disabled:opacity-60"
                     >
