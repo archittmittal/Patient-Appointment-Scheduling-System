@@ -255,7 +255,7 @@ const DoctorDashboard = () => {
                 apiClient.get(`/api/doctors/${user.id}/queue`),
                 apiClient.get(`/api/doctors/${user.id}/delay-status`)
             ]);
-            setPatients(patientsData);
+            setPatients(patientsData?.data || patientsData || []);
             setQueue(queueData);
             setQueueLastUpdated(new Date());
 
@@ -298,6 +298,23 @@ const DoctorDashboard = () => {
             setDelayInfo({ isDelayed: false, delayMins: 0, reason: '' });
         } finally {
             setSettingDelay(false);
+        }
+    };
+
+    const downloadPDF = async (apptId) => {
+        try {
+            const blob = await apiClient.getBlob(`/api/appointments/${apptId}/prescription/pdf`);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `prescription_${apptId}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            alert('Failed to download prescription PDF.');
         }
     };
 
@@ -624,7 +641,10 @@ const DoctorDashboard = () => {
                                             <User size={28} />
                                         </div>
                                         <div>
-                                            <h4 className="text-2xl font-black text-[var(--text-base)] tracking-tight">{p.first_name} {p.last_name}</h4>
+                                            <h4 className="text-2xl font-black text-[var(--text-base)] tracking-tight">
+                                                {p.first_name} {p.last_name}
+                                                <span className="text-xs font-medium text-slate-400 ml-3">ID: PAT-{p.patient_id}</span>
+                                            </h4>
                                             <div className="flex items-center gap-6 mt-2">
                                                 <span className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Calendar size={14} className="text-primary" />{new Date(p.appointment_date).toLocaleDateString()}</span>
                                                 <span className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Clock size={14} className="text-primary" />{p.time_slot}</span>
@@ -632,9 +652,19 @@ const DoctorDashboard = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <span className={`px-4 py-1.5 text-[10px] font-black rounded-full border uppercase tracking-widest ${p.status === 'COMPLETED' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
-                                        {p.status}
-                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {p.status === 'COMPLETED' && (
+                                            <button 
+                                                onClick={() => downloadPDF(p.appointment_id)}
+                                                className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg border border-primary/20 text-primary hover:bg-primary/5 transition-all flex items-center gap-1.5"
+                                            >
+                                                OPD Slip
+                                            </button>
+                                        )}
+                                        <span className={`px-4 py-1.5 text-[10px] font-black rounded-full border uppercase tracking-widest ${p.status === 'COMPLETED' ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' : 'bg-slate-500/10 text-slate-500 border-slate-500/20'}`}>
+                                            {p.status}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         ))}
