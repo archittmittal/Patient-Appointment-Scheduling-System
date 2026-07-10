@@ -197,4 +197,72 @@ router.get('/queue-overview', async (req, res) => {
     }
 });
 
+const reorderQueueSchema = Joi.object({
+    doctorId: Joi.number().integer().required(),
+    queueIds: Joi.array().items(Joi.number().integer()).min(1).required()
+});
+
+// POST /api/admin/reorder-queue
+router.post('/reorder-queue', validateRequest(reorderQueueSchema), async (req, res) => {
+    const { doctorId, queueIds } = req.body;
+    const adminId = req.user.id;
+
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    try {
+        // Update queue_number sequentially based on the order of queueIds
+        for (let i = 0; i < queueIds.length; i++) {
+            const queueId = queueIds[i];
+            await conn.query(
+                'UPDATE live_queue SET queue_number = ? WHERE id = ?',
+                [i + 1, queueId]
+            );
+        }
+
+        await conn.commit();
+
+        // Audit logging
+        logger.info(`Admin reordered queue for doctor ${doctorId}`, {
+            adminId,
+            doctorId,
+            queueIds
+        });
+
+        // Clear cache
+        cache.invalidate('admin:queue-overview');
+
+        // Broadcast real-time SSE updates
+        const sseManager = require('../services/sseManager');
+        const virtualCheckinService = require('../services/virtualCheckinService');
+
+        // 1. Broadcast to doctor
+        sseManager.broadcastToDoctor(doctorId, 'queue_update', { message: 'Queue reordered by administrator' });
+
+        // 2. Broadcast to all active appointments for this doctor today
+        const [appointments] = await db.query(
+            `SELECT id, patient_id FROM appointments 
+             WHERE doctor_id = ? 
+               AND appointment_date = CURDATE() 
+               AND status IN ('CONFIRMED', 'PENDING', 'CHECKED_IN', 'IN_PROGRESS', 'WAITING')`,
+            [doctorId]
+        );
+
+        for (const apt of appointments) {
+            const activeStatus = await virtualCheckinService.getWaitingRoomStatus(apt.id, apt.patient_id);
+            if (activeStatus) {
+                sseManager.broadcastQueueUpdate(apt.id, activeStatus);
+            }
+        }
+
+        res.json({ success: true, message: 'Queue reordered successfully' });
+    } catch (error) {
+        await conn.rollback();
+        logger.error('Failed to reorder queue:', error);
+        res.status(500).json({ message: 'Server error' });
+    } finally {
+        conn.release();
+    }
+});
+
 module.exports = router;
