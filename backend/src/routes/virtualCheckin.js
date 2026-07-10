@@ -60,12 +60,12 @@ router.post('/:appointmentId/checkin', authenticate, async (req, res) => {
     try {
         const { appointmentId } = req.params;
         const patientId = req.user.id;
-        const { etaMinutes, latitude, longitude, device } = req.body;
+        const { etaMinutes, latitude, longitude, device, vitals } = req.body;
 
         const result = await virtualCheckinService.virtualCheckIn(
             appointmentId,
             patientId,
-            { etaMinutes, latitude, longitude, device }
+            { etaMinutes, latitude, longitude, device, vitals }
         );
 
         // Broadcast real-time updates to patient waiting room and doctor dashboard

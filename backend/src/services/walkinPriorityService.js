@@ -54,6 +54,23 @@ class WalkinPriorityService {
              JSON.stringify(vitalSigns || {}), triageScore, queuePosition]
         );
 
+        if (vitalSigns && Object.keys(vitalSigns).length > 0) {
+            const vitalsService = require('./vitalsService');
+            try {
+                await vitalsService.logVitals(patientId, {
+                    weight_kg: vitalSigns.weight_kg || null,
+                    height_cm: vitalSigns.height_cm || null,
+                    blood_pressure_sys: vitalSigns.bp_systolic || vitalSigns.blood_pressure_sys || null,
+                    blood_pressure_dia: vitalSigns.bp_diastolic || vitalSigns.blood_pressure_dia || null,
+                    heart_rate: vitalSigns.heart_rate || null,
+                    temperature_c: vitalSigns.temperature || vitalSigns.temperature_c || null,
+                    spo2: vitalSigns.oxygen_saturation || vitalSigns.spo2 || null
+                }, patientId);
+            } catch (vErr) {
+                logger.error('Failed to log vitals during walkin registration:', vErr);
+            }
+        }
+
         // Reorder queue to accommodate new patient based on priority
         await this.reorderQueue(doctorId, specialtyId);
 

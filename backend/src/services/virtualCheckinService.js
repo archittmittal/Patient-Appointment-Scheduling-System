@@ -23,7 +23,7 @@ class VirtualCheckinService {
      * Virtual check-in for an appointment (patient joins queue from home)
      */
     async virtualCheckIn(appointmentId, patientId, options = {}) {
-        const { etaMinutes, latitude, longitude, device } = options;
+        const { etaMinutes, latitude, longitude, device, vitals } = options;
         
         // Verify appointment belongs to patient and is for today
         const [appointments] = await db.query(
@@ -63,6 +63,23 @@ class VirtualCheckinService {
              WHERE id = ?`,
             [etaMinutes || null, latitude || null, longitude || null, device || 'web', appointmentId]
         );
+
+        if (vitals && Object.keys(vitals).length > 0) {
+            const vitalsService = require('./vitalsService');
+            try {
+                await vitalsService.logVitals(patientId, {
+                    weight_kg: vitals.weight_kg || null,
+                    height_cm: vitals.height_cm || null,
+                    blood_pressure_sys: vitals.blood_pressure_sys || null,
+                    blood_pressure_dia: vitals.blood_pressure_dia || null,
+                    heart_rate: vitals.heart_rate || null,
+                    temperature_c: vitals.temperature_c || null,
+                    spo2: vitals.spo2 || null
+                }, patientId);
+            } catch (vErr) {
+                logger.error('Failed to log vitals during virtual checkin:', vErr);
+            }
+        }
 
         // Create virtual waiting session
         const [sessionResult] = await db.query(

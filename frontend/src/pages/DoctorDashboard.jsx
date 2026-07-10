@@ -53,7 +53,19 @@ const NotesModal = ({ item, onSave, onClose, saving }) => {
         const fetchPrevious = async () => {
             const data = await apiClient.get(`/api/patients/${item.patient_id}/vitals`);
             if (Array.isArray(data) && data.length > 0) {
-                setPreviousVitals(data[data.length - 1]);
+                const latest = data[data.length - 1];
+                setPreviousVitals(latest);
+                setForm(f => ({
+                    ...f,
+                    vitals: {
+                        weight_kg: latest.weight_kg !== null && latest.weight_kg !== undefined ? String(latest.weight_kg) : '',
+                        height_cm: latest.height_cm !== null && latest.height_cm !== undefined ? String(latest.height_cm) : '',
+                        blood_pressure_sys: latest.blood_pressure_sys !== null && latest.blood_pressure_sys !== undefined ? String(latest.blood_pressure_sys) : '',
+                        blood_pressure_dia: latest.blood_pressure_dia !== null && latest.blood_pressure_dia !== undefined ? String(latest.blood_pressure_dia) : '',
+                        heart_rate: latest.heart_rate !== null && latest.heart_rate !== undefined ? String(latest.heart_rate) : '',
+                        temperature_c: latest.temperature_c !== null && latest.temperature_c !== undefined ? String(latest.temperature_c) : ''
+                    }
+                }));
             }
             setLoadingVitals(false);
         };

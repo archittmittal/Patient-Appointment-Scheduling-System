@@ -123,12 +123,49 @@ const DelayBanner = ({ delayMins, reason }) => delayMins >= 5 && (
 const LiveQueue = () => {
     const { user } = useAuth();
     const [queueData, setQueueData] = useState([]);
-    const [queueInfo, setQueueInfo] = useState({ currentToken: 0, yourToken: 0, estimatedWaitTime: 0 });
+    const [queueInfo, setQueueInfo] = useState({ currentToken: 0, yourToken: 0, estimatedWaitTime: 0, virtualCheckinStatus: 'NOT_CHECKED_IN' });
     const [isLoading, setIsLoading] = useState(true);
     const [noQueue, setNoQueue] = useState(false);
     const [lastUpdated, setLastUpdated] = useState(null);
     const [delayInfo, setDelayInfo] = useState({ isDelayed: false, delayMins: 0 });
     const [smartArrival, setSmartArrival] = useState(null);
+
+    const [checkinForm, setCheckinForm] = useState({
+        etaMinutes: 30,
+        bp_sys: '',
+        bp_dia: '',
+        heart_rate: '',
+        temp_c: ''
+    });
+    const [checkingIn, setCheckingIn] = useState(false);
+
+    const handleCheckIn = async (e) => {
+        e.preventDefault();
+        if (!queueInfo.appointmentId) return;
+        setCheckingIn(true);
+        try {
+            const hasVitals = checkinForm.bp_sys || checkinForm.bp_dia || checkinForm.heart_rate || checkinForm.temp_c;
+            const vitalsPayload = hasVitals ? {
+                blood_pressure_sys: checkinForm.bp_sys ? parseInt(checkinForm.bp_sys) : null,
+                blood_pressure_dia: checkinForm.bp_dia ? parseInt(checkinForm.bp_dia) : null,
+                heart_rate: checkinForm.heart_rate ? parseInt(checkinForm.heart_rate) : null,
+                temperature_c: checkinForm.temp_c ? parseFloat(checkinForm.temp_c) : null
+            } : null;
+
+            await apiClient.post(`/api/virtual-checkin/${queueInfo.appointmentId}/checkin`, {
+                etaMinutes: parseInt(checkinForm.etaMinutes) || 30,
+                device: 'web',
+                vitals: vitalsPayload
+            });
+
+            await fetchQueue();
+        } catch (err) {
+            console.error('Failed virtual check-in:', err);
+            alert(err.message || 'Check-in failed');
+        } finally {
+            setCheckingIn(false);
+        }
+    };
 
     const fetchQueue = useCallback(async () => {
         if (!user?.id) return;
@@ -165,7 +202,9 @@ const LiveQueue = () => {
                     estimatedWaitTime: data.estimatedWaitMins || data.estimated_time || 0, 
                     patientsAhead: data.patientsAhead || 0, 
                     predictedDuration: data.predictedDuration || 15, 
-                    doctorId: data.doctor_id 
+                    doctorId: data.doctor_id,
+                    appointmentId: todayApt.id,
+                    virtualCheckinStatus: data.virtual_checkin_status || 'NOT_CHECKED_IN'
                 });
                 setQueueData(Array.isArray(data.queueSequence) ? data.queueSequence : []);
                 setNoQueue(false);
@@ -275,46 +314,123 @@ const LiveQueue = () => {
 
             <div className="grid lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2 space-y-12">
-                    <div className="glass-modal rounded-[4rem] p-12 bg-primary border-none shadow-2xl relative overflow-hidden group transition-all duration-1000 hover:shadow-primary/30">
-                        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2"></div>
-                        <div className="flex flex-col md:flex-row justify-between items-center md:items-start text-center md:text-left gap-10 relative z-10">
-                            <div className="space-y-4">
-                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">ACTIVE NODE</p>
-                                <h2 className="text-9xl font-black text-white tracking-tighter uppercase leading-none tabular-nums shadow-text">{queueInfo.currentToken || '—'}</h2>
-                                <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em] mt-8 flex items-center gap-3 justify-center md:justify-start leading-none">
-                                    <Activity size={14} className="animate-pulse" /> Clinical Throughput Active
-                                </p>
-                            </div>
-                            <div className="flex flex-col items-center md:items-end gap-3 pt-4">
-                                <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">YOUR INDEX</p>
-                                <h2 className="text-7xl font-black text-white/90 tracking-tighter uppercase leading-none tabular-nums">{queueInfo.yourToken}</h2>
-                                <div className="mt-6 px-6 py-2 bg-white/10 rounded-full border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.3em] shadow-inner">Index Verified</div>
-                            </div>
-                        </div>
+                    {queueInfo.virtualCheckinStatus === 'NOT_CHECKED_IN' ? (
+                        <div className="glass-modal rounded-[4rem] p-12 bg-white/5 border border-white/5 shadow-2xl relative overflow-hidden group transition-all duration-1000">
+                            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+                            <h2 className="text-3xl font-black text-[var(--text-base)] tracking-tighter uppercase leading-none mb-4 flex items-center gap-4">
+                                <Sparkles size={28} className="text-primary animate-pulse" /> Virtual Check-In
+                            </h2>
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed mb-8">
+                                Please pre-submit or confirm your current vitals and ETA to join the virtual waiting room.
+                            </p>
 
-                        <div className="mt-16 pt-12 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
-                            <div className="space-y-6 group/sub">
-                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Estimated Sync Time</p>
-                                <div className="flex items-center gap-6">
-                                    <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Timer size={28} /></div>
-                                    <div>
-                                        <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">~{queueInfo.estimatedWaitTime}M</p>
-                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Neural Prediction Core</p>
+                            <form onSubmit={handleCheckIn} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] pl-2">Systolic BP (mmHg)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="e.g. 120"
+                                            value={checkinForm.bp_sys}
+                                            onChange={e => setCheckinForm({ ...checkinForm, bp_sys: e.target.value })}
+                                            className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] pl-2">Diastolic BP (mmHg)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="e.g. 80"
+                                            value={checkinForm.bp_dia}
+                                            onChange={e => setCheckinForm({ ...checkinForm, bp_dia: e.target.value })}
+                                            className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] pl-2">Heart Rate (bpm)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="e.g. 72"
+                                            value={checkinForm.heart_rate}
+                                            onChange={e => setCheckinForm({ ...checkinForm, heart_rate: e.target.value })}
+                                            className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] pl-2">Temperature (°C)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            placeholder="e.g. 36.5"
+                                            value={checkinForm.temp_c}
+                                            onChange={e => setCheckinForm({ ...checkinForm, temp_c: e.target.value })}
+                                            className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all"
+                                        />
                                     </div>
                                 </div>
+                                <div className="space-y-3 pt-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] pl-2">Estimated Arrival Time (Minutes from now)</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        placeholder="e.g. 30"
+                                        value={checkinForm.etaMinutes}
+                                        onChange={e => setCheckinForm({ ...checkinForm, etaMinutes: e.target.value })}
+                                        className="w-full p-5 bg-white/5 border border-white/5 rounded-2xl text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all"
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={checkingIn}
+                                    className="w-full py-6 bg-primary text-white font-black text-[11px] uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 disabled:opacity-50"
+                                >
+                                    {checkingIn ? 'Processing Check-In...' : 'Confirm Vitals & Join Waiting Room'}
+                                </button>
+                            </form>
+                        </div>
+                    ) : (
+                        <div className="glass-modal rounded-[4rem] p-12 bg-primary border-none shadow-2xl relative overflow-hidden group transition-all duration-1000 hover:shadow-primary/30">
+                            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/10 rounded-full blur-[120px] -z-10 translate-x-1/2 -translate-y-1/2"></div>
+                            <div className="flex flex-col md:flex-row justify-between items-center md:items-start text-center md:text-left gap-10 relative z-10">
+                                <div className="space-y-4">
+                                    <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">ACTIVE NODE</p>
+                                    <h2 className="text-9xl font-black text-white tracking-tighter uppercase leading-none tabular-nums shadow-text">{queueInfo.currentToken || '—'}</h2>
+                                    <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em] mt-8 flex items-center gap-3 justify-center md:justify-start leading-none">
+                                        <Activity size={14} className="animate-pulse" /> Clinical Throughput Active
+                                    </p>
+                                </div>
+                                <div className="flex flex-col items-center md:items-end gap-3 pt-4">
+                                    <p className="text-[11px] font-black text-primary-light uppercase tracking-[0.6em] opacity-80 leading-none">YOUR INDEX</p>
+                                    <h2 className="text-7xl font-black text-white/90 tracking-tighter uppercase leading-none tabular-nums">{queueInfo.yourToken}</h2>
+                                    <div className="mt-6 px-6 py-2 bg-white/10 rounded-full border border-white/10 text-[9px] font-black text-white uppercase tracking-[0.3em] shadow-inner">Index Verified</div>
+                                </div>
                             </div>
-                            <div className="space-y-6 group/sub">
-                                <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Registry Buffer</p>
-                                <div className="flex items-center gap-6">
-                                    <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Users size={28} /></div>
-                                    <div>
-                                        <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">{queueInfo.patientsAhead ?? 0} PAX</p>
-                                        <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Queue Separation Depth</p>
+
+                            <div className="mt-16 pt-12 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+                                <div className="space-y-6 group/sub">
+                                    <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Estimated Sync Time</p>
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Timer size={28} /></div>
+                                        <div>
+                                            <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">~{queueInfo.estimatedWaitTime}M</p>
+                                            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Neural Prediction Core</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-6 group/sub">
+                                    <p className="text-[10px] font-black text-primary-light uppercase tracking-[0.5em] leading-none opacity-80">Registry Buffer</p>
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-[1.75rem] bg-white/10 border border-white/10 flex items-center justify-center text-white shadow-2xl group-hover/sub:rotate-12 transition-transform duration-700"><Users size={28} /></div>
+                                        <div>
+                                            <p className="text-4xl font-black text-white tracking-tighter uppercase leading-none tabular-nums">{queueInfo.patientsAhead ?? 0} PAX</p>
+                                            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-2 leading-none">Queue Separation Depth</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="glass-modal p-12 rounded-[4rem] border-none shadow-2xl relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 transition-opacity"><Target size={64} /></div>

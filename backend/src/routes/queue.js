@@ -39,7 +39,7 @@ const queueUpdateSchema = Joi.object({
 router.get('/queue/:appointmentId', authenticate, async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins, a.patient_id
+            SELECT lq.*, a.doctor_id, a.appointment_date, a.predicted_duration_mins, a.patient_id, a.virtual_checkin_status
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id
             WHERE lq.appointment_id = ?
