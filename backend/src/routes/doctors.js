@@ -95,16 +95,14 @@ const autofillSettingsSchema = Joi.object({
  *       404:
  *         description: Doctor not found
  */
-// DB-007: Explicit column list for the public doctor listing (excludes availability blob)
+// DB-007: Explicit column list for the public doctor listing (now includes availability for booking flows)
 const DOCTOR_LIST_COLUMNS = `
     id, first_name, last_name, specialty, degree, experience_years,
-    location_room, image_url, about, consultation_fee, max_patients_per_slot, rating
+    location_room, image_url, about, consultation_fee, max_patients_per_slot, rating, availability
 `;
 
 router.get('/', async (req, res) => {
     try {
-        // DB-007: Use explicit columns — availability is a potentially large JSON blob
-        // and is not needed for the doctor listing/search view.
         const [rows] = await db.query(`SELECT ${DOCTOR_LIST_COLUMNS} FROM doctors`);
         res.json(rows);
     } catch (error) {
@@ -116,10 +114,9 @@ router.get('/', async (req, res) => {
 // GET /api/doctors/:id — single doctor (with availability)
 router.get('/:id', async (req, res) => {
     try {
-        // DB-007: Include availability here — the booking UI needs it for slot selection,
-        // but exclude password_hash and other internal columns.
+        // DB-007: Include availability via DOCTOR_LIST_COLUMNS, exclude internal credentials
         const [rows] = await db.query(
-            `SELECT ${DOCTOR_LIST_COLUMNS}, availability FROM doctors WHERE id = ?`,
+            `SELECT ${DOCTOR_LIST_COLUMNS} FROM doctors WHERE id = ?`,
             [req.params.id]
         );
         if (rows.length === 0) return res.status(404).json({ message: 'Doctor not found' });

@@ -4,6 +4,21 @@ import { Share2, Heart, Star, MapPin, Clock, Award, Phone, ShieldCheck, ChevronR
 import { apiClient } from '../services/apiClient';
 import PeakHoursAnalytics from '../components/PeakHoursAnalytics';
 
+const isSlotOpen = (slot) => {
+    if (!slot) return false;
+    if (Array.isArray(slot)) return slot.length > 0;
+    return slot.open === true;
+};
+
+const getSlotTimeString = (slot) => {
+    if (!slot) return '';
+    if (Array.isArray(slot)) {
+        if (slot.length === 0) return '';
+        return `${slot[0]} — ${slot[slot.length - 1]}`;
+    }
+    return `${slot.from} — ${slot.to}`;
+};
+
 const ReviewCard = ({ name, rating, date, comment, avatar }) => (
     <div className="glass-card mb-4 group hover:border-primary/30 transition-all duration-300 p-6 bg-primary-light/5">
         <div className="flex justify-between items-start mb-4">
@@ -134,14 +149,18 @@ const DoctorProfile = () => {
                                 <Clock size={16} className="text-primary" /> Operational Window Matrix
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {doctor.availability ? Object.entries(typeof doctor.availability === 'string' ? JSON.parse(doctor.availability) : doctor.availability).map(([day, slot]) => (
-                                    <div key={day} className={`group flex items-center justify-between p-5 rounded-3xl border transition-all ${slot.open ? 'bg-white/5 border-[var(--border-base)] hover:border-primary/30' : 'bg-rose-500/5 border-rose-500/10 opacity-60'}`}>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${slot.open ? 'text-slate-500' : 'text-rose-500'}`}>{day}</span>
-                                        <span className={`text-xs font-black ${slot.open ? 'text-[var(--text-base)]' : 'text-rose-500/70'}`}>
-                                            {slot.open ? `${slot.from} — ${slot.to}` : 'Closed'}
-                                        </span>
-                                    </div>
-                                )) : <div className="p-4 text-slate-500 opacity-50 font-bold">Registry data offline...</div>}
+                                {doctor.availability ? Object.entries(typeof doctor.availability === 'string' ? JSON.parse(doctor.availability) : doctor.availability).map(([day, slot]) => {
+                                    const open = isSlotOpen(slot);
+                                    const timeStr = getSlotTimeString(slot);
+                                    return (
+                                        <div key={day} className={`group flex items-center justify-between p-5 rounded-3xl border transition-all ${open ? 'bg-white/5 border-[var(--border-base)] hover:border-primary/30' : 'bg-rose-500/5 border-rose-500/10 opacity-60'}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest ${open ? 'text-slate-500' : 'text-rose-500'}`}>{day}</span>
+                                            <span className={`text-xs font-black ${open ? 'text-[var(--text-base)]' : 'text-rose-500/70'}`}>
+                                                {open ? timeStr : 'Closed'}
+                                            </span>
+                                        </div>
+                                    );
+                                }) : <div className="p-4 text-slate-500 opacity-50 font-bold">Registry data offline...</div>}
                             </div>
                         </div>
                     </div>

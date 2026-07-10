@@ -114,9 +114,16 @@ const DoctorSchedule = () => {
         d.setDate(d.getDate() + i);
         const dateStr = toStr(d);
         const dayAvail = avail?.[DAY_NAMES[d.getDay()]];
-        const isOpen   = dayAvail?.open === true;
+        const isOpen = dayAvail && (Array.isArray(dayAvail) ? dayAvail.length > 0 : dayAvail.open === true);
         const isBlocked = blocked.has(dateStr);
-        const slots = (isOpen && !isBlocked) ? generateHourlySlots(dayAvail.from, dayAvail.to) : [];
+        let slots = [];
+        if (isOpen && !isBlocked) {
+            if (Array.isArray(dayAvail)) {
+                slots = dayAvail;
+            } else {
+                slots = generateHourlySlots(dayAvail.from, dayAvail.to);
+            }
+        }
         return { dateStr, dayLabel: DAY_LABELS[d.getDay()], date: d, isOpen, isBlocked, slots };
     });
 

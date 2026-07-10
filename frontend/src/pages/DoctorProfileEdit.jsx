@@ -58,7 +58,48 @@ const DoctorProfileEdit = () => {
                     });
                     if (data.availability) {
                         const av = typeof data.availability === 'string' ? JSON.parse(data.availability) : data.availability;
-                        setAvailability({ ...DEFAULT_AVAILABILITY, ...av });
+                        const normalized = {};
+                        Object.keys(av).forEach(day => {
+                            const val = av[day];
+                            if (Array.isArray(val)) {
+                                if (val.length > 0) {
+                                    let from = "09:00";
+                                    let to = "17:00";
+                                    try {
+                                        const parseTime = (tStr) => {
+                                            const parts = tStr.split(':');
+                                            let h = parseInt(parts[0], 10);
+                                            const m = parts[1].slice(0, 2);
+                                            if (tStr.toLowerCase().includes('pm') && h !== 12) {
+                                                h += 12;
+                                            } else if (tStr.toLowerCase().includes('am') && h === 12) {
+                                                h = 0;
+                                            }
+                                            return `${String(h).padStart(2, '0')}:${m}`;
+                                        };
+                                        from = parseTime(val[0]);
+                                        const endParts = val[val.length - 1].split(':');
+                                        let endH = parseInt(endParts[0], 10);
+                                        const endM = endParts[1].slice(0, 2);
+                                        if (val[val.length - 1].toLowerCase().includes('pm') && endH !== 12) {
+                                            endH += 12;
+                                        } else if (val[val.length - 1].toLowerCase().includes('am') && endH === 12) {
+                                            endH = 0;
+                                        }
+                                        endH += 1;
+                                        to = `${String(endH).padStart(2, '0')}:${endM}`;
+                                    } catch (e) {
+                                        console.error('Failed parsing time from array availability:', val);
+                                    }
+                                    normalized[day] = { open: true, from, to };
+                                } else {
+                                    normalized[day] = { open: false, from: '', to: '' };
+                                }
+                            } else {
+                                normalized[day] = val;
+                            }
+                        });
+                        setAvailability({ ...DEFAULT_AVAILABILITY, ...normalized });
                     }
                 }
             } catch (err) {

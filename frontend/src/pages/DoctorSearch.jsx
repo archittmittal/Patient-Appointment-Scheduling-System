@@ -12,7 +12,9 @@ const getNextAvailableDate = (availability) => {
     for (let i = 0; i < 7; i++) {
         const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
         const dayName = DAY_NAMES[d.getDay()];
-        if (av[dayName]?.open) {
+        const dayAvail = av[dayName];
+        const isOpen = dayAvail && (Array.isArray(dayAvail) ? dayAvail.length > 0 : dayAvail.open);
+        if (isOpen) {
             if (i === 0) return 'Today';
             if (i === 1) return 'Tomorrow';
             return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });

@@ -59,6 +59,51 @@ const generateHourlySlots = (from, to) => {
     }
 };
 
+const isDayOpen = (dayAvail) => {
+    if (!dayAvail) return false;
+    if (Array.isArray(dayAvail)) {
+        return dayAvail.length > 0;
+    }
+    return dayAvail.open === true;
+};
+
+const hasAnyAvailability = (avail) => {
+    if (!avail) return false;
+    return Object.keys(avail).some(day => {
+        const dayAvail = avail[day];
+        return isDayOpen(dayAvail);
+    });
+};
+
+const getSlotsForDay = (dayAvail) => {
+    if (!dayAvail) return [];
+    if (Array.isArray(dayAvail)) {
+        return dayAvail.map(slotStr => {
+            let hour = 9;
+            try {
+                const parts = slotStr.split(':');
+                let h = parseInt(parts[0], 10);
+                if (slotStr.toLowerCase().includes('pm') && h !== 12) {
+                    h += 12;
+                } else if (slotStr.toLowerCase().includes('am') && h === 12) {
+                    h = 0;
+                }
+                hour = h;
+            } catch (e) {
+                console.error('Failed to parse hour from slot:', slotStr, e);
+            }
+            return {
+                label: slotStr,
+                hour: hour
+            };
+        });
+    }
+    if (dayAvail.open) {
+        return generateHourlySlots(dayAvail.from, dayAvail.to);
+    }
+    return [];
+};
+
 const BookAppointment = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -399,6 +444,24 @@ const BookAppointment = () => {
     );
 
     const renderStep3 = () => {
+        if (!hasAnyAvailability(doctorAvail)) {
+            return (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <button onClick={() => setStep(2)} className="text-slate-500 hover:text-primary flex items-center gap-2 text-sm font-medium transition-colors">
+                            <ChevronLeft size={16} /> Choose Doctor
+                        </button>
+                        <h2 className="text-2xl font-semibold">Choose Date & Time</h2>
+                    </div>
+                    <div className="apple-card p-12 text-center border-dashed border-2 border-slate-100 bg-transparent text-slate-400">
+                        <AlertCircle size={40} className="mx-auto mb-4 opacity-50 text-amber-500" />
+                        <h3 className="text-lg font-bold text-slate-700 mb-2">Doctor Unavailable</h3>
+                        <p className="text-sm font-medium text-slate-500 max-w-xs mx-auto">This doctor has not configured their operating availability yet. Please choose another doctor.</p>
+                    </div>
+                </div>
+            );
+        }
+
         const year = currentMonth.getFullYear();
         const month = currentMonth.getMonth();
         const firstDayOfMonth = new Date(year, month, 1).getDay();
@@ -407,7 +470,7 @@ const BookAppointment = () => {
         const today = new Date();
         
         const currentDayAvail = selectedDate ? doctorAvail?.[getDayOfWeek(selectedDate)] : null;
-        const allSlots = currentDayAvail?.open ? generateHourlySlots(currentDayAvail.from, currentDayAvail.to) : [];
+        const allSlots = getSlotsForDay(currentDayAvail);
 
         return (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -436,7 +499,7 @@ const BookAppointment = () => {
                             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(date => {
                                 const dStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
                                 const isPast = new Date(year, month, date) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                                const closed = !isPast && doctorAvail?.[getDayOfWeek(dStr)]?.open === false;
+                                const closed = !isPast && !isDayOpen(doctorAvail?.[getDayOfWeek(dStr)]);
                                 const isBlocked = !isPast && blockedDates.has(dStr);
                                 const disabled = isPast || closed || isBlocked;
                                 
