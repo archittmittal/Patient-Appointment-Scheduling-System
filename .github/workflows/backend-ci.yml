@@ -41,7 +41,8 @@ jobs:
       run: npm install
 
     - name: Security Audit
-      run: npm audit --audit-level=high || echo "Advisory Warning: Security audit detected vulnerabilities but is non-blocking."
+      run: |
+        npm audit --audit-level=high || echo "Advisory Warning: Security audit detected vulnerabilities but is non-blocking."
 
     - name: Run Tests
       run: npm test
