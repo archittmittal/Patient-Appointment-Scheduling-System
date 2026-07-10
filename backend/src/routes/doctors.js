@@ -266,7 +266,7 @@ router.get('/:id/queue', authenticate, requireRole('DOCTOR'), authorizeOwner('id
         const [rows] = await db.query(`
             SELECT lq.id AS queue_id, lq.queue_number, lq.status AS queue_status, lq.estimated_time,
                    a.id AS appointment_id, a.patient_id, a.time_slot, a.symptoms,
-                   a.virtual_checkin_status, a.patient_eta_minutes,
+                   a.virtual_checkin_status, a.patient_eta_minutes, a.consultation_start,
                    p.first_name, p.last_name
             FROM live_queue lq
             JOIN appointments a ON lq.appointment_id = a.id

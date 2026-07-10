@@ -211,4 +211,59 @@ describe('DoctorDashboard Page Component', () => {
       reason: 'Surgical delay',
     });
   });
+
+  it('automatically detects session overrun and allows propagating a 10m delay', async () => {
+    vi.useFakeTimers();
+
+    // Mock active IN_PROGRESS session starting 20 minutes ago
+    const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('/queue')) {
+        return Promise.resolve([
+          {
+            queue_id: 201,
+            queue_number: 1,
+            queue_status: 'IN_PROGRESS',
+            time_slot: '09:00 AM',
+            consultation_start: twentyMinsAgo,
+            first_name: 'John',
+            last_name: 'Doe'
+          }
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    await act(async () => {
+      render(<DoctorDashboard />);
+    });
+
+    // Let the timer update elapsedSeconds
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    // Check that warning block is shown
+    expect(screen.getByText('Consultation Running Late')).toBeInTheDocument();
+    expect(screen.getByText('Would you like to propagate a 10-minute delay to subsequent patients?')).toBeInTheDocument();
+
+    // Click "Yes, Propagate"
+    const propagateBtn = screen.getByText('Yes, Propagate');
+    apiClient.post.mockResolvedValue({ success: true });
+
+    await act(async () => {
+      fireEvent.click(propagateBtn);
+    });
+
+    // Verify delay API was hit with 10 mins and reason
+    expect(apiClient.post).toHaveBeenCalledWith('/api/doctors/5/delay', {
+      delayMins: 10,
+      reason: 'Consultation overrun'
+    });
+
+    // Warning block should now be hidden
+    expect(screen.queryByText('Consultation Running Late')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
+  });
 });
