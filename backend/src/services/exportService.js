@@ -138,88 +138,175 @@ class ExportService {
                 a.prescription,
                 a.diagnosis,
                 a.notes,
+                a.follow_up_date,
+                p.id AS patient_id,
                 p.first_name AS patient_first,
                 p.last_name AS patient_last,
                 p.dob AS patient_dob,
                 p.phone AS patient_phone,
+                p.blood_group AS patient_blood_group,
+                p.abha_number,
+                d.id AS doctor_id,
                 d.first_name AS doctor_first,
                 d.last_name AS doctor_last,
                 d.specialty AS doctor_specialty,
-                d.location_room
+                d.location_room,
+                v.blood_pressure,
+                v.heart_rate,
+                v.temperature,
+                v.spo2,
+                v.weight_kg
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             JOIN doctors d ON a.doctor_id = d.id
+            LEFT JOIN live_queue lq ON a.id = lq.appointment_id
+            LEFT JOIN vitals v ON lq.id = v.queue_id
             WHERE a.id = ?
         `;
         const [rows] = await db.query(query, [appointmentId]);
         if (rows.length === 0) throw new Error('Appointment not found');
         const data = rows[0];
 
-        const doc = new PDFDocument({ margin: 50 });
+        const doc = new PDFDocument({ size: 'A4', margin: 40 });
         doc.pipe(res);
 
-        // Header and branding style
-        doc.fontSize(24).fillColor('#4f46e5').text('HEALTHSYNC PREMIUM', { align: 'center', underline: true });
-        doc.fontSize(10).fillColor('#64748b').text('Clinical Orchestration Engine & Medical Portal', { align: 'center' });
-        doc.moveDown(2);
+        // 1. Top Decorative Brand Bar
+        doc.rect(40, 40, 515, 6).fill('#0891b2');
 
-        // Doctor & Clinic Info (Left side)
+        // 2. Hospital / Clinic Info
+        doc.fontSize(16).fillColor('#0f172a').text('HEALTHSYNC MEDICAL CENTER', 40, 56, { bold: true });
+        doc.fontSize(8).fillColor('#64748b').text('Multi-Speciality OPD Care & Clinical Portal', 40, 76);
+        doc.text('Helpline: +91 98765 43210 | info@healthsync.com | www.healthsync.com', 40, 88);
+
+        // 3. Doctor Details (Right-aligned)
         const doctorName = `Dr. ${data.doctor_first} ${data.doctor_last}`;
-        doc.fontSize(14).fillColor('#1e293b').text(doctorName, { bold: true });
-        doc.fontSize(10).fillColor('#64748b').text(data.doctor_specialty || 'General Practitioner');
-        doc.text(`Medical Center - Room ${data.location_room || 'N/A'}`);
-        doc.moveDown();
+        doc.fontSize(11).fillColor('#0f172a').text(doctorName, 350, 56, { align: 'right', bold: true });
+        doc.fontSize(8).fillColor('#0891b2').text(data.doctor_specialty || 'General Practitioner', 350, 70, { align: 'right' });
+        doc.fontSize(8).fillColor('#64748b').text(`Cabin: ${data.location_room || 'N/A'} | Reg No: HS-DOC-${data.doctor_id}`, 350, 82, { align: 'right' });
 
-        // Right side alignment (simulated via absolute coordinates or Y-resets)
-        doc.y = 110; 
-        doc.fontSize(10).fillColor('#64748b').text(`Date: ${data.appointment_date}`, { align: 'right' });
-        doc.text(`Prescription ID: PR-${data.appointment_id}`, { align: 'right' });
-        doc.moveDown(2);
+        // 4. Accent Divider Line
+        doc.moveTo(40, 108).lineTo(555, 108).strokeColor('#e2e8f0').lineWidth(1).stroke();
 
-        doc.y = 180; // move below header block
+        // 5. Patient Information Box (Bordered Grid)
+        doc.rect(40, 118, 515, 54).fill('#f8fafc').stroke('#e2e8f0');
 
-        // Divider
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#e2e8f0').stroke();
-        doc.moveDown();
+        // Helper to calculate age
+        const calculateAge = (dobString) => {
+            if (!dobString) return 'N/A';
+            try {
+                const today = new Date();
+                const birthDate = new Date(dobString);
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+                return `${age} Yrs`;
+            } catch {
+                return 'N/A';
+            }
+        };
 
-        // Patient Info
-        doc.fontSize(12).fillColor('#1e293b').text('PATIENT INFORMATION', { underline: true });
-        doc.moveDown(0.5);
-        doc.fontSize(11).fillColor('#334155').text(`Name: ${data.patient_first} ${data.patient_last}`);
-        doc.text(`DOB: ${data.patient_dob ? new Date(data.patient_dob).toLocaleDateString() : 'N/A'}`);
-        doc.text(`Phone: ${data.patient_phone || 'N/A'}`);
-        doc.moveDown(2);
+        // Patient Details Row 1
+        doc.fontSize(8).fillColor('#64748b').text('PATIENT ID:', 50, 126);
+        doc.fontSize(9).fillColor('#0f172a').text(`PAT-${data.patient_id}`, 115, 126, { bold: true });
 
-        // Diagnosis
-        doc.fontSize(12).fillColor('#1e293b').text('CLINICAL DIAGNOSIS', { underline: true });
-        doc.moveDown(0.5);
-        doc.fontSize(11).fillColor('#334155').text(data.diagnosis || 'General check-up / consultation notes');
-        doc.moveDown(2);
+        doc.fontSize(8).fillColor('#64748b').text('DATE:', 235, 126);
+        doc.fontSize(9).fillColor('#0f172a').text(data.appointment_date, 280, 126);
 
-        // Prescription/Medicines
-        doc.fontSize(12).fillColor('#1e293b').text('PRESCRIBED MEDICATIONS', { underline: true });
-        doc.moveDown(0.5);
+        doc.fontSize(8).fillColor('#64748b').text('AGE / DOB:', 405, 126);
+        doc.fontSize(9).fillColor('#0f172a').text(`${calculateAge(data.patient_dob)} (${data.patient_dob ? new Date(data.patient_dob).toLocaleDateString() : 'N/A'})`, 465, 126);
+
+        // Patient Details Row 2
+        doc.fontSize(8).fillColor('#64748b').text('PATIENT NAME:', 50, 139);
+        doc.fontSize(9).fillColor('#0f172a').text(`${data.patient_first} ${data.patient_last}`, 115, 139, { bold: true });
+
+        doc.fontSize(8).fillColor('#64748b').text('PHONE:', 235, 139);
+        doc.fontSize(9).fillColor('#0f172a').text(data.patient_phone || 'N/A', 280, 139);
+
+        doc.fontSize(8).fillColor('#64748b').text('BLOOD GROUP:', 405, 139);
+        doc.fontSize(9).fillColor('#ef4444').text(data.patient_blood_group || 'N/A', 465, 139, { bold: true });
+
+        // Patient Details Row 3
+        doc.fontSize(8).fillColor('#64748b').text('ABHA NO:', 50, 152);
+        doc.fontSize(9).fillColor('#0f172a').text(data.abha_number || 'N/A', 115, 152);
+
+        doc.fontSize(8).fillColor('#64748b').text('PRESCRIPTION:', 235, 152);
+        doc.fontSize(9).fillColor('#0f172a').text(`OPD-SLIP-${data.appointment_id}`, 280, 152);
+
+        // 6. Layout Columns Setup (Left Sidebar / Right Main Area)
+        // Vertical Divider line separating side column from prescriptions
+        doc.moveTo(180, 182).lineTo(180, 680).strokeColor('#e2e8f0').lineWidth(1).stroke();
+
+        // 7. Left Sidebar: Clinical Vitals & Complaints
+        doc.fontSize(10).fillColor('#0f172a').text('CLINICAL VITALS', 40, 186, { bold: true });
         
-        doc.fontSize(12).fillColor('#4f46e5').text(data.prescription || 'No medications prescribed during this session.', {
-            indent: 10,
-            lineGap: 4
-        });
-        doc.moveDown(2);
+        let vitalsY = 202;
+        const addVitalField = (label, val, unit) => {
+            doc.fontSize(7.5).fillColor('#64748b').text(label, 40, vitalsY);
+            doc.fontSize(9).fillColor('#0f172a').text(`${val || '—'} ${unit}`, 40, vitalsY + 9, { bold: true });
+            vitalsY += 26;
+        };
+        addVitalField('Blood Pressure', data.blood_pressure, 'mmHg');
+        addVitalField('Pulse Rate', data.heart_rate, 'bpm');
+        addVitalField('Body Temp', data.temperature, '°C');
+        addVitalField('SpO2', data.spo2, '%');
+        addVitalField('Body Weight', data.weight_kg, 'kg');
 
-        // Clinical / Private Notes
-        if (data.notes) {
-            doc.fontSize(12).fillColor('#1e293b').text('INSTRUCTIONS / CLINICAL NOTES', { underline: true });
-            doc.moveDown(0.5);
-            doc.fontSize(11).fillColor('#334155').text(data.notes);
-            doc.moveDown(2);
+        // Chief Complaints
+        doc.fontSize(10).fillColor('#0f172a').text('CHIEF COMPLAINTS', 40, 345, { bold: true });
+        doc.fontSize(8.5).fillColor('#334155').text(data.symptoms || 'Routine clinical check-up', 40, 360, {
+            width: 130,
+            lineGap: 3
+        });
+
+        // 8. Right Main Area: Diagnosis, Rx, Advice
+        // Clinical Diagnosis
+        doc.fontSize(10).fillColor('#0f172a').text('CLINICAL DIAGNOSIS', 195, 186, { bold: true });
+        doc.fontSize(9).fillColor('#334155').text(data.diagnosis || 'General wellness / OPD follow-up', 195, 199, {
+            width: 360,
+            lineGap: 3
+        });
+
+        // Rx Section
+        doc.fontSize(18).fillColor('#0891b2').text('Rx', 195, 235, { bold: true });
+        
+        let rxY = 260;
+        if (data.prescription) {
+            const medLines = data.prescription.split('\n').map(l => l.trim()).filter(Boolean);
+            medLines.forEach((line, index) => {
+                doc.fontSize(8.5).fillColor('#64748b').text(`${index + 1}.`, 195, rxY);
+                doc.fontSize(9.5).fillColor('#0f172a').text(line, 210, rxY, { bold: true, width: 345 });
+                const height = doc.heightOfString(line, { width: 345 });
+                rxY += Math.max(height + 10, 20);
+            });
+        } else {
+            doc.fontSize(9).fillColor('#64748b').text('No active medications prescribed.', 210, rxY, { italic: true });
+            rxY += 20;
         }
 
-        // Footer
-        doc.y = 700; 
-        doc.moveTo(50, doc.y).lineTo(550, doc.y).strokeColor('#e2e8f0').stroke();
-        doc.moveDown(0.5);
-        doc.fontSize(9).fillColor('#94a3b8').text('This is a secure, electronically verified prescription document from HealthSync.', { align: 'center' });
-        doc.text('Verification and security powered by JWT credentials.', { align: 'center' });
+        // Advice and Instructions
+        let adviceY = Math.max(rxY + 15, 450);
+        doc.fontSize(10).fillColor('#0f172a').text('ADVICE / CLINICAL INSTRUCTIONS', 195, adviceY, { bold: true });
+        doc.fontSize(8.5).fillColor('#334155').text(data.notes || 'Take prescribed medications as per schedule. Ensure proper rest and hydration.', 195, adviceY + 13, {
+            width: 360,
+            lineGap: 3
+        });
+
+        // Follow-up consultation date
+        if (data.follow_up_date) {
+            const followUpStr = new Date(data.follow_up_date).toLocaleDateString('en-US', {
+                weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+            });
+            doc.fontSize(9).fillColor('#0891b2').text(`Next Follow-up Consultation: ${followUpStr}`, 195, adviceY + 120, { bold: true });
+        }
+
+        // 9. Footer & Doctor Signature
+        doc.fontSize(8.5).fillColor('#64748b').text("Doctor's Signature / Seal", 400, 646, { align: 'center' });
+        doc.moveTo(400, 642).lineTo(540, 642).strokeColor('#cbd5e1').lineWidth(1).stroke();
+
+        doc.rect(40, 710, 515, 18).fill('#f1f5f9');
+        doc.fontSize(7.5).fillColor('#64748b').text('This is an electronically generated and validated clinical document. No physical signature is required.', 40, 715, { align: 'center', width: 515 });
 
         doc.end();
     }
