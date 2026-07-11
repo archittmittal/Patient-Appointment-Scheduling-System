@@ -207,6 +207,10 @@ router.post('/reorder-queue', validateRequest(reorderQueueSchema), async (req, r
     const { doctorId, queueIds } = req.body;
     const adminId = req.user.id;
 
+    if (!Array.isArray(queueIds) || queueIds.length > 1000) {
+        return res.status(400).json({ message: 'Invalid queue length' });
+    }
+
     const conn = await db.getConnection();
     await conn.beginTransaction();
 
