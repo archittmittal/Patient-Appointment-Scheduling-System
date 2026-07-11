@@ -106,6 +106,7 @@ const WalkinRegistration = () => {
     const [symptoms, setSymptoms] = useState('');
     const [vitals, setVitals] = useState({});
     const [workloads, setWorkloads] = useState([]);
+    const [selectedSpecialty, setSelectedSpecialty] = useState('');
 
     useEffect(() => {
         const loadData = async () => {
@@ -122,12 +123,44 @@ const WalkinRegistration = () => {
 
     const getCongestion = (doctorId) => {
         const work = workloads.find(w => w.doctorId === doctorId);
-        if (!work) return { label: 'Optimizing', theme: 'slate' };
+        if (!work) return { label: 'Optimizing', theme: 'slate', waitMins: 0 };
         
-        if (work.estimatedTotalMins < 30) return { label: 'Low Wait', theme: 'emerald' };
-        if (work.estimatedTotalMins < 60) return { label: 'Moderate', theme: 'amber' };
-        return { label: 'High Traffic', theme: 'rose' };
+        const waitMins = work.totalWaitMins || work.estimatedTotalMins || 0;
+        if (waitMins < 30) return { label: `Low Load - ${waitMins}m wait`, theme: 'emerald', waitMins };
+        if (waitMins < 60) return { label: `Medium Load - ${waitMins}m wait`, theme: 'amber', waitMins };
+        return { label: `High Traffic - ${waitMins}m wait`, theme: 'rose', waitMins };
     };
+
+    const getRecommendedDoctor = (specialty) => {
+        const filteredDocs = doctors.filter(d => d.specialty === specialty);
+        if (filteredDocs.length === 0) return null;
+        
+        let bestDoc = filteredDocs[0];
+        let minWait = Infinity;
+        
+        filteredDocs.forEach(d => {
+            const cong = getCongestion(d.id);
+            if (cong.waitMins < minWait) {
+                minWait = cong.waitMins;
+                bestDoc = d;
+            }
+        });
+        
+        return bestDoc;
+    };
+
+    useEffect(() => {
+        if (selectedSpecialty) {
+            const recommended = getRecommendedDoctor(selectedSpecialty);
+            if (recommended) {
+                setSelectedDoctor(recommended);
+            }
+        } else {
+            setSelectedDoctor(null);
+        }
+    }, [selectedSpecialty, doctors, workloads]);
+
+    const specialties = Array.from(new Set(doctors.map(d => d.specialty).filter(Boolean)));
 
     const handleSubmit = async () => {
         if (!selectedDoctor || !reason) return alert('Protocol Denied: Selection required');
@@ -212,28 +245,60 @@ const WalkinRegistration = () => {
                             <span className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-inner border border-primary/20"><Compass size={24} /></span>
                             Clinical Node Selection
                         </h3>
+
+                        <div className="mb-8 space-y-3">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] pl-4">Filter by Department</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedSpecialty}
+                                    onChange={(e) => setSelectedSpecialty(e.target.value)}
+                                    className="w-full p-6 bg-white/5 border border-white/5 rounded-[2rem] text-[var(--text-base)] font-black tracking-tight shadow-inner outline-none focus:border-primary/40 transition-all appearance-none cursor-pointer"
+                                >
+                                    <option value="" className="bg-slate-900 text-white">Select a Department / Specialty...</option>
+                                    {specialties.map(spec => (
+                                        <option key={spec} value={spec} className="bg-slate-900 text-white">{spec}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    <ChevronDown size={20} />
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid sm:grid-cols-2 gap-6 max-h-[500px] overflow-y-auto pr-4 custom-scrollbar">
-                            {doctors.map((doc) => (
-                                <button key={doc.id} onClick={() => setSelectedDoctor(doc)} className={`p-6 rounded-[2.5rem] border text-left transition-all duration-700 group relative flex items-center gap-6 overflow-hidden ${selectedDoctor?.id === doc.id ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/5' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}>
-                                     <div className={`w-20 h-20 rounded-[2rem] border-4 overflow-hidden shadow-inner transition-transform duration-700 ${selectedDoctor?.id === doc.id ? 'border-primary rotate-3 group-hover:rotate-0' : 'border-white/10 grayscale group-hover:grayscale-0'}`}>
-                                        <img src={doc.image_url || `https://ui-avatars.com/api/?name=${doc.first_name}+${doc.last_name}&background=random`} alt={doc.first_name} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter leading-none mb-2">Dr. {doc.first_name} {doc.last_name}</h4>
-                                        <div className="flex items-center gap-3">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60 leading-none">{doc.specialty}</p>
-                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${
-                                                getCongestion(doc.id).theme === 'emerald' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                                getCongestion(doc.id).theme === 'amber' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                                'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                                            }`}>
-                                                {getCongestion(doc.id).label}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    {selectedDoctor?.id === doc.id && <div className="p-2 bg-primary text-white rounded-full"><CheckCircle2 size={16} /></div>}
-                                </button>
-                            ))}
+                            {doctors
+                                .filter(doc => !selectedSpecialty || doc.specialty === selectedSpecialty)
+                                .map((doc) => {
+                                    const congestion = getCongestion(doc.id);
+                                    const recommended = selectedSpecialty && getRecommendedDoctor(selectedSpecialty)?.id === doc.id;
+
+                                    return (
+                                        <button key={doc.id} onClick={() => setSelectedDoctor(doc)} className={`p-6 rounded-[2.5rem] border text-left transition-all duration-700 group relative flex items-center gap-6 overflow-hidden ${selectedDoctor?.id === doc.id ? 'border-primary bg-primary/5 shadow-2xl shadow-primary/5' : 'border-white/5 bg-white/5 hover:bg-white/10'}`}>
+                                            {recommended && (
+                                                <div className="absolute top-0 right-0 bg-primary/10 text-primary border-l border-b border-primary/20 px-3 py-1 rounded-bl-xl text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                    <Sparkles size={8} /> Recommended
+                                                </div>
+                                            )}
+                                             <div className={`w-20 h-20 rounded-[2rem] border-4 overflow-hidden shadow-inner transition-transform duration-700 ${selectedDoctor?.id === doc.id ? 'border-primary rotate-3 group-hover:rotate-0' : 'border-white/10 grayscale group-hover:grayscale-0'}`}>
+                                                <img src={doc.image_url || `https://ui-avatars.com/api/?name=${doc.first_name}+${doc.last_name}&background=random`} alt={doc.first_name} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-lg font-black text-[var(--text-base)] uppercase tracking-tighter leading-none mb-2">Dr. {doc.first_name} {doc.last_name}</h4>
+                                                <div className="flex items-center gap-3">
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60 leading-none">{doc.specialty}</p>
+                                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest border ${
+                                                        congestion.theme === 'emerald' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                                        congestion.theme === 'amber' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                                        'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                                                    }`}>
+                                                        {congestion.label}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {selectedDoctor?.id === doc.id && <div className="p-2 bg-primary text-white rounded-full shrink-0"><CheckCircle2 size={16} /></div>}
+                                        </button>
+                                    );
+                                })}
                         </div>
                     </div>
 
