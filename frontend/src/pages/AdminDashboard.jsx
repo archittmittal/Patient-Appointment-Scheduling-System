@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle, TrendingUp, ArrowUpRight, Zap, RefreshCw, Plus } from 'lucide-react';
+import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle, TrendingUp, ArrowUpRight, Zap, RefreshCw, GripVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import EmergencyModal from '../components/EmergencyModal';
@@ -44,9 +44,46 @@ const QueueBadge = ({ label, count, bg, text }) => (
     </div>
 );
 
-const DoctorQueueCard = ({ data }) => {
+const DoctorQueueCard = ({ data, onReorder }) => {
     const total = data.waiting + data.in_progress + data.completed + data.missed;
     const completedPct = total > 0 ? Math.round((data.completed / total) * 100) : 0;
+
+    const [localQueue, setLocalQueue] = useState(data.queue || []);
+    const [draggedIndex, setDraggedIndex] = useState(null);
+
+    useEffect(() => {
+        setLocalQueue(data.queue || []);
+    }, [data.queue]);
+
+    const handleDragStart = (e, index) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.classList.add('opacity-40');
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === index) return;
+
+        const updated = [...localQueue];
+        const draggedItem = updated[draggedIndex];
+        updated.splice(draggedIndex, 1);
+        updated.splice(index, 0, draggedItem);
+        
+        setDraggedIndex(index);
+        setLocalQueue(updated);
+    };
+
+    const handleDragEnd = (e) => {
+        e.currentTarget.classList.remove('opacity-40');
+    };
+
+    const handleDrop = async (e) => {
+        e.preventDefault();
+        setDraggedIndex(null);
+        const reorderedIds = localQueue.map(q => q.queue_id);
+        onReorder(data.doctor_id, reorderedIds);
+    };
 
     return (
         <div className="glass-card rounded-[2.5rem] border-none shadow-xl shadow-slate-200/40 p-8 hover:shadow-2xl transition-all group relative overflow-hidden">
@@ -84,11 +121,24 @@ const DoctorQueueCard = ({ data }) => {
                 </div>
             )}
 
-            {data.queue.length > 0 && (
+            {localQueue.length > 0 && (
                 <div className="space-y-2.5 max-h-48 overflow-y-auto pr-2 no-scrollbar relative z-10">
-                    {data.queue.map(q => (
-                        <div key={q.queue_id} className="flex items-center justify-between text-[11px] bg-white/40 border border-slate-100/50 rounded-xl px-4 py-3 hover:bg-white/60 transition-colors">
+                    {localQueue.map((q, idx) => (
+                        <div 
+                            key={q.queue_id}
+                            draggable={q.queue_status === 'WAITING' || q.queue_status === 'MISSED'}
+                            onDragStart={e => handleDragStart(e, idx)}
+                            onDragOver={e => handleDragOver(e, idx)}
+                            onDragEnd={handleDragEnd}
+                            onDrop={handleDrop}
+                            className={`flex items-center justify-between text-[11px] bg-white/40 border border-slate-100/50 rounded-xl px-4 py-3 hover:bg-white/60 transition-colors group/item ${
+                                (q.queue_status === 'WAITING' || q.queue_status === 'MISSED') ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed opacity-80'
+                            }`}
+                        >
                             <div className="flex items-center gap-3">
+                                {(q.queue_status === 'WAITING' || q.queue_status === 'MISSED') && (
+                                    <GripVertical size={14} className="text-slate-300 group-hover/item:text-slate-400 transition-colors" />
+                                )}
                                 <span className="font-black text-[9px] bg-primary/10 text-primary border border-primary/10 rounded-lg px-2 py-1 tracking-tighter">
                                     #{q.queue_number}
                                 </span>
@@ -137,6 +187,32 @@ const AdminDashboard = () => {
         setLastUpdated(new Date());
         setQueueLoading(false);
     }, []);
+
+    const handleReorderQueue = async (doctorId, reorderedQueueIds) => {
+        try {
+            await apiClient.post('/api/admin/reorder-queue', {
+                doctorId,
+                queueIds: reorderedQueueIds
+            });
+            setQueueData(prev => prev.map(doc => {
+                if (doc.doctor_id !== doctorId) return doc;
+                
+                const newQueue = [...doc.queue].sort((a, b) => {
+                    const idxA = reorderedQueueIds.indexOf(a.queue_id);
+                    const idxB = reorderedQueueIds.indexOf(b.queue_id);
+                    return idxA - idxB;
+                }).map((item, idx) => ({ ...item, queue_number: idx + 1 }));
+
+                return {
+                    ...doc,
+                    queue: newQueue
+                };
+            }));
+        } catch (err) {
+            console.error('Failed to reorder queue:', err);
+            fetchQueue();
+        }
+    };
 
     useEffect(() => {
         fetchQueue();
@@ -311,7 +387,7 @@ const AdminDashboard = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                         {queueData.map(d => (
-                            <DoctorQueueCard key={d.doctor_id} data={d} />
+                            <DoctorQueueCard key={d.doctor_id} data={d} onReorder={handleReorderQueue} />
                         ))}
                     </div>
                 )}
