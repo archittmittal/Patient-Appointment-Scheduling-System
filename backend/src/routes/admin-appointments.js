@@ -199,7 +199,7 @@ router.get('/queue-overview', async (req, res) => {
 
 const reorderQueueSchema = Joi.object({
     doctorId: Joi.number().integer().required(),
-    queueIds: Joi.array().items(Joi.number().integer()).min(1).required()
+    queueIds: Joi.array().items(Joi.number().integer()).min(1).max(1000).required()
 });
 
 // POST /api/admin/reorder-queue
@@ -223,7 +223,7 @@ router.post('/reorder-queue', validateRequest(reorderQueueSchema), async (req, r
         await conn.commit();
 
         // Audit logging
-        logger.info(`Admin reordered queue for doctor ${doctorId}`, {
+        logger.info('Admin reordered queue', {
             adminId,
             doctorId,
             queueIds

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle, TrendingUp, ArrowUpRight, Zap, RefreshCw, Plus, GripVertical } from 'lucide-react';
+import { Users, Calendar, Stethoscope, CheckCircle, Clock, Activity, AlertCircle, TrendingUp, ArrowUpRight, Zap, RefreshCw, GripVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import EmergencyModal from '../components/EmergencyModal';
