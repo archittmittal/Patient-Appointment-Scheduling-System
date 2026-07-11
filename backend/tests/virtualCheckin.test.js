@@ -10,7 +10,8 @@ jest.mock('../src/config/db', () => ({
 // Mock services
 jest.mock('../src/services/virtualCheckinService', () => ({
     updateStatus: jest.fn(),
-    getWaitingRoomStatus: jest.fn()
+    getWaitingRoomStatus: jest.fn(),
+    virtualCheckIn: jest.fn()
 }));
 
 jest.mock('../src/services/sseManager', () => ({
@@ -91,5 +92,55 @@ describe('Virtual Checkin Status Update Endpoint — POST /api/virtual-checkin/:
         );
         expect(sseManager.broadcastQueueUpdate).toHaveBeenCalledWith('101', mockActiveStatus);
         expect(sseManager.broadcastToDoctor).toHaveBeenCalledWith(2, 'doctor_queue_update', expect.any(Object));
+    });
+});
+
+describe('Virtual Checkin Endpoint — POST /api/virtual-checkin/:appointmentId/checkin', () => {
+    const patientToken = jwt.sign({ id: 1, role: 'PATIENT' }, jwtSecret);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        db.query.mockResolvedValue([[], []]);
+    });
+
+    it('should successfully check-in virtually and log vitals if provided', async () => {
+        const mockResult = { success: true, message: 'Checked in' };
+        const virtualCheckinService = require('../src/services/virtualCheckinService');
+        
+        jest.spyOn(virtualCheckinService, 'virtualCheckIn').mockResolvedValue(mockResult);
+        jest.spyOn(virtualCheckinService, 'getWaitingRoomStatus').mockResolvedValue({
+            appointment: { id: 101, doctorId: 2, doctor_id: 2 }
+        });
+
+        const res = await request(app)
+            .post('/api/virtual-checkin/101/checkin')
+            .set('Authorization', `Bearer ${patientToken}`)
+            .send({
+                etaMinutes: 20,
+                device: 'web',
+                vitals: {
+                    blood_pressure_sys: 120,
+                    blood_pressure_dia: 80,
+                    heart_rate: 72,
+                    temperature_c: 36.5
+                }
+            });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toEqual(mockResult);
+        expect(virtualCheckinService.virtualCheckIn).toHaveBeenCalledWith(
+            '101',
+            1,
+            {
+                etaMinutes: 20,
+                device: 'web',
+                vitals: {
+                    blood_pressure_sys: 120,
+                    blood_pressure_dia: 80,
+                    heart_rate: 72,
+                    temperature_c: 36.5
+                }
+            }
+        );
     });
 });
