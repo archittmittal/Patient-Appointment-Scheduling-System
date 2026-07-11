@@ -153,11 +153,18 @@ describe('DoctorDashboard Page Component', () => {
     expect(screen.getAllByText('Jane Smith').length).toBeGreaterThanOrEqual(1);
 
     const diagnosisInput = screen.getByPlaceholderText('Enter clinical diagnosis...');
-    const prescriptionInput = screen.getByPlaceholderText('List medications and instructions...');
+    const addMedicineBtn = screen.getByRole('button', { name: '+ Add Medicine' });
     const submitBtn = screen.getByText('Verify & Complete');
 
     fireEvent.change(diagnosisInput, { target: { name: 'diagnosis', value: 'Influenza' } });
-    fireEvent.change(prescriptionInput, { target: { name: 'prescription', value: 'Tamiflu twice daily' } });
+    
+    // Add medicine row
+    await act(async () => {
+      fireEvent.click(addMedicineBtn);
+    });
+
+    const medicineNameInput = screen.getByPlaceholderText('Medicine Name (e.g. Paracetamol 650mg)');
+    fireEvent.change(medicineNameInput, { target: { value: 'Tamiflu 75mg' } });
 
     await act(async () => {
       fireEvent.click(submitBtn);
@@ -167,7 +174,7 @@ describe('DoctorDashboard Page Component', () => {
       status: 'COMPLETED',
       diagnosis: 'Influenza',
       notes: null,
-      prescription: 'Tamiflu twice daily',
+      prescription: 'Tamiflu 75mg — 1-0-1 for 5 Days (After food)',
       follow_up_date: null,
       vitals: null,
     });
