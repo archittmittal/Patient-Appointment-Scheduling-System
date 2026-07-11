@@ -393,6 +393,43 @@ const DoctorDashboard = () => {
     const [settingDelay, setSettingDelay] = useState(false);
     const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
 
+    const [dismissedOverrun, setDismissedOverrun] = useState(false);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+    useEffect(() => {
+        const active = queue.find(item => item.queue_status === 'IN_PROGRESS');
+        if (!active || !active.consultation_start) {
+            setElapsedSeconds(0);
+            setDismissedOverrun(false);
+            return;
+        }
+
+        const start = new Date(active.consultation_start).getTime();
+        const updateElapsed = () => {
+            const now = Date.now();
+            const diff = Math.max(0, Math.floor((now - start) / 1000));
+            setElapsedSeconds(diff);
+        };
+        
+        updateElapsed();
+        const timer = setInterval(updateElapsed, 1000);
+        return () => clearInterval(timer);
+    }, [queue]);
+
+    const propagateAutoDelay = async () => {
+        if (!user?.id) return;
+        try {
+            await apiClient.post(`/api/doctors/${user.id}/delay`, {
+                delayMins: 10,
+                reason: 'Consultation overrun'
+            });
+            setDelayInfo({ isDelayed: true, delayMins: 10, reason: 'Consultation overrun' });
+            setDismissedOverrun(true);
+        } catch (err) {
+            console.error('Failed to propagate auto-delay:', err);
+        }
+    };
+
     const fetchData = async () => {
         if (!user?.id) return;
         try {
@@ -721,60 +758,101 @@ const DoctorDashboard = () => {
                                 <p className="text-slate-500 font-bold">No clinical sessions queued for today.</p>
                             </div>
                         ) : (
-                            queue.map(item => (
-                                <div key={item.queue_id} className="glass-card p-6 flex items-center justify-between group hover:border-primary/20 transition-all duration-300">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-600/10 text-primary flex flex-col items-center justify-center border border-indigo-600/20 group-hover:scale-105 transition-transform shadow-inner">
-                                            <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">Pos</span>
-                                            <span className="text-2xl font-black">{item.queue_number}</span>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-xl font-black text-[var(--text-base)] tracking-tight">{item.first_name} {item.last_name}</h4>
-                                            <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                                                <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
-                                                    <Clock size={14} className="text-primary" /> {item.time_slot}
-                                                </p>
-                                                <span className={`px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest ${STATUS_COLORS[item.queue_status]}`}>
-                                                    {item.queue_status?.replace('_', ' ')}
-                                                </span>
-                                                
-                                                {/* Check-in Progress Badges */}
-                                                {item.virtual_checkin_status === 'CHECKED_IN' && (
-                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-indigo-500/10 text-indigo-500 border-indigo-500/25 shadow-sm shadow-indigo-500/5">
-                                                        📡 Remote Checked-In
-                                                    </span>
+                            queue.map(item => {
+                                const elapsedMins = Math.floor(elapsedSeconds / 60);
+                                const elapsedSecs = elapsedSeconds % 60;
+                                const timeStr = `${String(elapsedMins).padStart(2, '0')}:${String(elapsedSecs).padStart(2, '0')}`;
+                                const isOverrun = elapsedMins >= 15;
+
+                                return (
+                                    <div key={item.queue_id} className={`glass-card p-6 flex flex-col gap-4 group transition-all duration-300 hover:border-primary/20 ${item.queue_status === 'IN_PROGRESS' && isOverrun && !dismissedOverrun ? 'border-amber-500/30' : ''}`}>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div className="flex items-center gap-6">
+                                                <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-600/10 text-primary flex flex-col items-center justify-center border border-indigo-600/20 group-hover:scale-105 transition-transform shadow-inner">
+                                                    <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">Pos</span>
+                                                    <span className="text-2xl font-black">{item.queue_number}</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-xl font-black text-[var(--text-base)] tracking-tight">{item.first_name} {item.last_name}</h4>
+                                                    <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                                                        <p className="text-sm font-bold text-slate-500 flex items-center gap-1.5">
+                                                            <Clock size={14} className="text-primary" /> {item.time_slot}
+                                                        </p>
+                                                        <span className={`px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest ${STATUS_COLORS[item.queue_status]}`}>
+                                                            {item.queue_status?.replace('_', ' ')}
+                                                        </span>
+                                                        
+                                                        {item.queue_status === 'IN_PROGRESS' && (
+                                                            <span className={`px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest ${isOverrun ? 'bg-rose-500/10 text-rose-500 border-rose-500/25 animate-pulse' : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/25'}`}>
+                                                                ⏱️ Session: {timeStr} {isOverrun ? '(Overrun)' : ''}
+                                                            </span>
+                                                        )}
+
+                                                        {/* Check-in Progress Badges */}
+                                                        {item.virtual_checkin_status === 'CHECKED_IN' && (
+                                                            <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-indigo-500/10 text-indigo-500 border-indigo-500/25 shadow-sm shadow-indigo-500/5">
+                                                                📡 Remote Checked-In
+                                                            </span>
+                                                        )}
+                                                        {item.virtual_checkin_status === 'EN_ROUTE' && (
+                                                            <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-amber-500/10 text-amber-500 border-amber-500/25 shadow-sm shadow-amber-500/5">
+                                                                🚗 En Route • {item.patient_eta_minutes || 15}m ETA
+                                                            </span>
+                                                        )}
+                                                        {item.virtual_checkin_status === 'ARRIVED' && (
+                                                            <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border-emerald-500/25 shadow-sm shadow-amber-500/5 animate-pulse">
+                                                                🏥 Arrived at Clinic
+                                                            </span>
+                                                        )}
+                                                        {(!item.virtual_checkin_status || item.virtual_checkin_status === 'NOT_CHECKED_IN') && (
+                                                            <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-slate-500/5 text-slate-400 border-slate-500/10">
+                                                                👤 Standard Check-In
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {item.queue_status === 'WAITING' && (
+                                                    <button onClick={() => updateQueueStatus(item.queue_id, 'IN_PROGRESS')} className="btn-primary py-2.5 shadow-lg shadow-indigo-500/20">Initiate Session</button>
                                                 )}
-                                                {item.virtual_checkin_status === 'EN_ROUTE' && (
-                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-amber-500/10 text-amber-500 border-amber-500/25 shadow-sm shadow-amber-500/5">
-                                                        🚗 En Route • {item.patient_eta_minutes || 15}m ETA
-                                                    </span>
+                                                {item.queue_status === 'IN_PROGRESS' && (
+                                                    <button onClick={() => setNotesModal({ queueId: item.queue_id, item })} className="btn-primary py-2.5 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20">Complete Analysis</button>
                                                 )}
-                                                {item.virtual_checkin_status === 'ARRIVED' && (
-                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border-emerald-500/25 shadow-sm shadow-emerald-500/5 animate-pulse">
-                                                        🏥 Arrived at Clinic
-                                                    </span>
-                                                )}
-                                                {(!item.virtual_checkin_status || item.virtual_checkin_status === 'NOT_CHECKED_IN') && (
-                                                    <span className="px-3 py-0.5 text-[9px] font-black rounded-lg border uppercase tracking-widest bg-slate-500/5 text-slate-400 border-slate-500/10">
-                                                        👤 Standard Check-In
-                                                    </span>
+                                                {item.queue_status === 'WAITING' && (
+                                                    <button onClick={() => updateQueueStatus(item.queue_id, 'MISSED')} className="btn-secondary py-2.5 border-rose-500/20 text-rose-500 hover:bg-rose-500/10">Missed</button>
                                                 )}
                                             </div>
                                         </div>
+
+                                        {item.queue_status === 'IN_PROGRESS' && isOverrun && !dismissedOverrun && (
+                                            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top-2 duration-300 w-full shrink-0">
+                                                <div className="flex items-center gap-3">
+                                                    <AlertTriangle className="text-amber-500 shrink-0" size={18} />
+                                                    <div className="text-left">
+                                                        <p className="text-xs font-black text-amber-500 uppercase tracking-wider">Consultation Running Late</p>
+                                                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Would you like to propagate a 10-minute delay to subsequent patients?</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 w-full md:w-auto">
+                                                    <button
+                                                        onClick={propagateAutoDelay}
+                                                        className="flex-1 md:flex-none px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors shadow-lg shadow-amber-500/10"
+                                                    >
+                                                        Yes, Propagate
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setDismissedOverrun(true)}
+                                                        className="flex-1 md:flex-none px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                                                    >
+                                                        Dismiss
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        {item.queue_status === 'WAITING' && (
-                                            <button onClick={() => updateQueueStatus(item.queue_id, 'IN_PROGRESS')} className="btn-primary py-2.5 shadow-lg shadow-indigo-500/20">Initiate Session</button>
-                                        )}
-                                        {item.queue_status === 'IN_PROGRESS' && (
-                                            <button onClick={() => setNotesModal({ queueId: item.queue_id, item })} className="btn-primary py-2.5 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20">Complete Analysis</button>
-                                        )}
-                                        {item.queue_status === 'WAITING' && (
-                                            <button onClick={() => updateQueueStatus(item.queue_id, 'MISSED')} className="btn-secondary py-2.5 border-rose-500/20 text-rose-500 hover:bg-rose-500/10">Missed</button>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 ) : (
