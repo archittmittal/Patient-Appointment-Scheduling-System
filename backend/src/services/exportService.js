@@ -48,12 +48,16 @@ class ExportService {
 
         // Fetch Recent Vitals
         const [vitals] = await db.query(`
-            SELECT v.*, a.appointment_date 
-            FROM vitals v 
-            JOIN live_queue lq ON v.queue_id = lq.id
-            JOIN appointments a ON lq.appointment_id = a.id
-            WHERE a.patient_id = ?
-            ORDER BY a.appointment_date DESC LIMIT 5
+            SELECT 
+                CONCAT(blood_pressure_sys, '/', blood_pressure_dia) AS blood_pressure,
+                heart_rate,
+                temperature_c AS temperature,
+                spo2,
+                weight_kg,
+                recorded_at AS appointment_date
+            FROM patient_vitals
+            WHERE patient_id = ?
+            ORDER BY recorded_at DESC LIMIT 5
         `, [patientId]);
 
         const doc = new PDFDocument({ margin: 50 });
@@ -99,14 +103,17 @@ class ExportService {
     async exportVitalsCSV(patientId, res) {
         const [rows] = await db.query(`
             SELECT 
-                v.blood_pressure, v.heart_rate, v.temperature, v.spo2, v.weight_kg,
-                lq.status AS queue_status,
-                a.appointment_date, a.time_slot
-            FROM vitals v
-            JOIN live_queue lq ON v.queue_id = lq.id
-            JOIN appointments a ON lq.appointment_id = a.id
-            WHERE a.patient_id = ?
-            ORDER BY a.appointment_date DESC
+                CONCAT(pv.blood_pressure_sys, '/', pv.blood_pressure_dia) AS blood_pressure,
+                pv.heart_rate,
+                pv.temperature_c AS temperature,
+                pv.spo2,
+                pv.weight_kg,
+                'COMPLETED' AS queue_status,
+                DATE_FORMAT(pv.recorded_at, '%Y-%m-%d') AS appointment_date,
+                DATE_FORMAT(pv.recorded_at, '%h:%i %p') AS time_slot
+            FROM patient_vitals pv
+            WHERE pv.patient_id = ?
+            ORDER BY pv.recorded_at DESC
         `, [patientId]);
 
         const fields = [
@@ -139,6 +146,7 @@ class ExportService {
                 a.diagnosis,
                 a.notes,
                 a.follow_up_date,
+                a.symptoms,
                 p.id AS patient_id,
                 p.first_name AS patient_first,
                 p.last_name AS patient_last,
@@ -151,16 +159,16 @@ class ExportService {
                 d.last_name AS doctor_last,
                 d.specialty AS doctor_specialty,
                 d.location_room,
-                v.blood_pressure,
-                v.heart_rate,
-                v.temperature,
-                v.spo2,
-                v.weight_kg
+                CONCAT(pv.blood_pressure_sys, '/', pv.blood_pressure_dia) AS blood_pressure,
+                pv.heart_rate,
+                pv.temperature_c AS temperature,
+                pv.spo2,
+                pv.weight_kg
             FROM appointments a
             JOIN patients p ON a.patient_id = p.id
             JOIN doctors d ON a.doctor_id = d.id
-            LEFT JOIN live_queue lq ON a.id = lq.appointment_id
-            LEFT JOIN vitals v ON lq.id = v.queue_id
+            LEFT JOIN patient_vitals pv ON pv.patient_id = a.patient_id
+                AND DATE(pv.recorded_at) = a.appointment_date
             WHERE a.id = ?
         `;
         const [rows] = await db.query(query, [appointmentId]);
