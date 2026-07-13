@@ -3,6 +3,7 @@
  */
 
 const whatsappService = require('./whatsappService');
+const emailService = require('./emailService');
 const logger = require('../config/logger');
 
 // Web Push
@@ -96,9 +97,14 @@ class TransportService {
      * Send email notification
      */
     async sendEmail(email, subject, htmlBody) {
-        // Placeholder for nodemailer/SendGrid integration
-        logger.info('[Email Notification LOG]', { to: email, subject, body: htmlBody.substring(0, 100) + '...' });
-        return false;
+        try {
+            await emailService.sendEmail(email, subject, htmlBody);
+            logger.info('Email notification sent successfully', { to: email, subject });
+            return true;
+        } catch (error) {
+            logger.error('Email notification error:', error);
+            return false;
+        }
     }
 
     /**
