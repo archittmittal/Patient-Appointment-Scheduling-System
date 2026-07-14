@@ -58,32 +58,32 @@ class DelayPropagationService {
      */
     async propagateDelayToQueue(doctorId, appointmentDate, delayMins) {
         try {
-            // Get all waiting/checked-in patients for the day
-            const [waitingAppointments] = await db.query(`
-                SELECT id, patient_id, time_slot, estimated_start_time, status
-                FROM appointments
-                WHERE doctor_id = ? AND appointment_date = ? AND status IN ('PENDING', 'CHECKED_IN', 'IN_PROGRESS')
-                ORDER BY queue_position ASC, time_slot ASC
+            // Get all waiting/checked-in patients for the day from live_queue
+            const [waitingQueueEntries] = await db.query(`
+                SELECT lq.id AS queue_id, a.id AS appointment_id, a.patient_id, a.time_slot, lq.estimated_time, lq.status
+                FROM live_queue lq
+                JOIN appointments a ON lq.appointment_id = a.id
+                WHERE a.doctor_id = ? AND a.appointment_date = ? AND lq.status IN ('WAITING', 'IN_PROGRESS')
+                ORDER BY lq.queue_number ASC
             `, [doctorId, appointmentDate]);
 
             const affectedPatients = [];
 
-            for (const appt of waitingAppointments) {
-                // If the appointment is PENDING or CHECKED_IN, we shift the estimated start time
-                if (appt.status !== 'IN_PROGRESS') {
-                    const currentEst = new Date(appt.estimated_start_time);
-                    const newEst = new Date(currentEst.getTime() + delayMins * 60000);
+            for (const entry of waitingQueueEntries) {
+                // If the queue entry is WAITING, we shift the estimated wait time
+                if (entry.status !== 'IN_PROGRESS') {
+                    const newEstTime = (entry.estimated_time || 0) + delayMins;
 
                     await db.query(`
-                        UPDATE appointments
-                        SET estimated_start_time = ?
+                        UPDATE live_queue
+                        SET estimated_time = ?
                         WHERE id = ?
-                    `, [newEst, appt.id]);
+                    `, [newEstTime, entry.queue_id]);
 
                     affectedPatients.push({
-                        appointmentId: appt.id,
-                        patientId: appt.patient_id,
-                        newEta: newEst
+                        appointmentId: entry.appointment_id,
+                        patientId: entry.patient_id,
+                        newWaitMins: newEstTime
                     });
                 }
             }
