@@ -46,16 +46,21 @@ class PredictionService {
             }
 
             // 2. Historical No-Show Factor
-            const [historyRows] = await db.query(
-                `SELECT 
-                    COUNT(*) as total_appts,
-                    SUM(CASE WHEN release_type = 'NO_SHOW' THEN 1 ELSE 0 END) as no_shows
-                 FROM slot_release_log srl
-                 JOIN appointments a ON srl.appointment_id = a.id
-                 WHERE a.patient_id = ?`,
-                [appointment.patient_id]
-            );
-            const history = historyRows[0];
+            let history = null;
+            try {
+                const [historyRows] = await db.query(
+                    `SELECT 
+                        COUNT(*) as total_appts,
+                        SUM(CASE WHEN release_type = 'NO_SHOW' THEN 1 ELSE 0 END) as no_shows
+                     FROM slot_release_log srl
+                     JOIN appointments a ON srl.appointment_id = a.id
+                     WHERE a.patient_id = ?`,
+                    [appointment.patient_id]
+                );
+                history = historyRows[0];
+            } catch (err) {
+                logger.warn('Failed to query slot_release_log history:', err.message);
+            }
 
             if (history && history.total_appts > 2) {
                 const noShowRate = history.no_shows / history.total_appts;
@@ -75,9 +80,23 @@ class PredictionService {
             }
 
             // 4. Time of Day Factor (Late afternoon appointments often have higher no-shows)
-            const hour = parseInt(appointment.time_slot.split(':')[0]);
-            const isPM = appointment.time_slot.includes('PM');
-            if (isPM && hour >= 3 && hour < 6) {
+            let parsedHour = 9; // default fallback
+            try {
+                const timePart = (appointment.time_slot || '').split(/[\s–\-]/)[0]; // e.g. "03:00"
+                const [hStr] = timePart.split(':');
+                let h = parseInt(hStr, 10);
+                const isPM = /PM/i.test(appointment.time_slot);
+                if (isPM && h !== 12) {
+                    h += 12;
+                } else if (!isPM && h === 12) {
+                    h = 0;
+                }
+                parsedHour = h;
+            } catch (err) {
+                logger.warn('Failed to parse time_slot format:', appointment.time_slot);
+            }
+
+            if (parsedHour >= 15 && parsedHour < 18) {
                 score += 0.15;
                 factors.push('Peak no-show time slot (Late afternoon)');
             }
