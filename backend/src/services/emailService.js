@@ -28,6 +28,7 @@ class EmailService {
         // Ensure methods are bound to this instance
         this.sendOTP = this.sendOTP.bind(this);
         this.sendPaymentReceipt = this.sendPaymentReceipt.bind(this);
+        this.sendEmail = this.sendEmail.bind(this);
     }
 
     /**
@@ -83,6 +84,20 @@ class EmailService {
                     <p style="font-size: 12px; color: #86868b; text-align: center;">&copy; ${new Date().getFullYear()} HealthSync Patient Portal. All rights reserved.</p>
                 </div>
             `,
+        };
+
+        return this.transporter.sendMail(mailOptions);
+    }
+
+    /**
+     * Send general email notification
+     */
+    async sendEmail(to, subject, html) {
+        const mailOptions = {
+            from: `"HealthSync Support" <${process.env.SMTP_FROM || process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            html,
         };
 
         return this.transporter.sendMail(mailOptions);

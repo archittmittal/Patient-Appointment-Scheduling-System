@@ -5,21 +5,21 @@ const db = require('../src/config/db');
 async function applyMigrations() {
     const migrationsDir = __dirname;
     const migrationFiles = [
-        'migration_week4_billing.sql',
-        'migration_week4_messaging.sql',
-        'migration_sprint2_schema_hardening.sql',
-        'migrations/migration_sprint3_consultation_fee.sql',
-        'migrations/migration_sprint4_otp_hardening.sql',
-        'migrations/migration_sprint8_indexes_fk.sql',
-        'migrations/migration_sprint10_uppercase_status.sql',
-        'migrations/migration_sprint11_symptom_checker.sql',
-        'migrations/migration_sprint11_departments.sql',
-        'migrations/migration_sprint12_consent_logs.sql',
-        'migrations/migration_sprint13_abha_support.sql',
-        'migration_advanced_portal.sql',
-        'migration_issue144_medical_data.sql',
-        'migrations/migration_sprint14_capacity_booking.sql',
-        'migrations/migration_sprint15_refresh_tokens.sql'
+        'migration_stripe_payment_billing.sql',
+        'migration_patient_doctor_messaging_threads.sql',
+        'migration_security_and_schema_hardening.sql',
+        'migrations/migration_sprint3_doctor_consultation_fee.sql',
+        'migrations/migration_sprint4_secure_otp_hardening.sql',
+        'migrations/migration_sprint8_indexes_and_foreign_keys.sql',
+        'migrations/migration_sprint10_standardize_uppercase_status.sql',
+        'migrations/migration_sprint11_symptom_checker_triage.sql',
+        'migrations/migration_sprint11_clinical_departments.sql',
+        'migrations/migration_sprint12_dpdp_consent_logs.sql',
+        'migrations/migration_sprint13_abha_id_support.sql',
+        'migration_advanced_clinical_prescriptions.sql',
+        'migration_vitals_spo2_and_drug_interactions.sql',
+        'migrations/migration_sprint14_booking_slot_capacity.sql',
+        'migrations/migration_sprint15_secure_refresh_tokens.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');
