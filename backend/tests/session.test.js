@@ -168,4 +168,22 @@ describe('JWT Refresh Tokens & Session Revocation Tests (PR #12)', () => {
             expect(deleteCall[1]).toEqual([mockRefreshToken]);
         });
     });
+
+    describe('Session Logout (POST /api/auth/logout)', () => {
+        it('should delete the refresh token from the database upon logout', async () => {
+            const mockRefreshToken = 'active_refresh_token_string';
+            db.query.mockResolvedValue([{ affectedRows: 1 }, []]);
+
+            const res = await request(app)
+                .post('/api/auth/logout')
+                .send({ refreshToken: mockRefreshToken });
+
+            expect(res.statusCode).toBe(200);
+            expect(res.body).toHaveProperty('message', 'Token revoked successfully');
+
+            const deleteCall = db.query.mock.calls.find(c => c[0] && c[0].toUpperCase().includes('DELETE FROM REFRESH_TOKENS'));
+            expect(deleteCall).toBeDefined();
+            expect(deleteCall[1]).toEqual([mockRefreshToken]);
+        });
+    });
 });

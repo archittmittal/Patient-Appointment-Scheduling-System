@@ -74,7 +74,7 @@ export const authService = {
     logout() {
         const refreshToken = localStorage.getItem('hs_refresh_token');
         if (refreshToken) {
-            apiClient.post('/api/auth/revoke', { refreshToken }).catch(e => {
+            apiClient.post('/api/auth/logout', { refreshToken }).catch(e => {
                 console.error('Failed to revoke token on logout:', e);
             });
         }
