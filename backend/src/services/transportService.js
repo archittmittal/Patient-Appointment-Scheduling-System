@@ -46,7 +46,7 @@ class TransportService {
      */
     async sendPush(subscription, title, body, data = {}) {
         if (!webpush || !subscription) {
-            console.log('[Push Notification LOG]', { title, body, data });
+            logger.info('[Push Notification LOG]', { title, body, data });
             return false;
         }
         
