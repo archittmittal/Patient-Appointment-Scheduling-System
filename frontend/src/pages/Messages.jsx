@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, User, MessageSquare, Search, ArrowLeft, MoreVertical, Paperclip, Smile, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/apiClient';
+import { sseService } from '../services/sseService';
 
 const Messages = () => {
     const { user } = useAuth();
@@ -10,11 +11,17 @@ const Messages = () => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
+    const [isSseActive, setIsSseActive] = useState(false);
     const messagesEndRef = useRef(null);
+    const selectedUserRef = useRef(selectedUser);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
+
+    useEffect(() => {
+        selectedUserRef.current = selectedUser;
+    }, [selectedUser]);
 
     useEffect(() => {
         scrollToBottom();
@@ -25,12 +32,41 @@ const Messages = () => {
     }, []);
 
     useEffect(() => {
+        sseService.connectMessages(
+            (data) => {
+                if (data && data.sender_id) {
+                    fetchConversations();
+                    
+                    const currentSelected = selectedUserRef.current;
+                    if (currentSelected && (data.sender_id === currentSelected.other_user_id || data.receiver_id === currentSelected.other_user_id)) {
+                        setMessages(prev => {
+                            if (prev.some(m => m.id === data.id)) return prev;
+                            const filtered = prev.filter(m => !m.is_optimistic || m.content !== data.content);
+                            return [...filtered, data];
+                        });
+                    }
+                }
+            },
+            () => {
+                setIsSseActive(false);
+            }
+        );
+        setIsSseActive(true);
+
+        return () => {
+            sseService.disconnect();
+        };
+    }, []);
+
+    useEffect(() => {
         if (selectedUser) {
             fetchHistory(selectedUser.other_user_id);
-            const interval = setInterval(() => fetchHistory(selectedUser.other_user_id), 5000);
-            return () => clearInterval(interval);
+            if (!isSseActive) {
+                const interval = setInterval(() => fetchHistory(selectedUser.other_user_id), 5000);
+                return () => clearInterval(interval);
+            }
         }
-    }, [selectedUser]);
+    }, [selectedUser, isSseActive]);
 
     const fetchConversations = async () => {
         try {

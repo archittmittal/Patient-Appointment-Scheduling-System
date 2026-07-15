@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
-const { authenticate } = require('../middleware/authenticate');
+const { authenticate, authenticateSse } = require('../middleware/authenticate');
+const sseManager = require('../services/sseManager');
+const logger = require('../config/logger');
 
 /**
  * @swagger
@@ -75,9 +77,39 @@ router.post('/', authenticate, async (req, res, next) => {
             [senderId, receiverId, content, appointmentId || null]
         );
 
-        res.status(201).json({ id: result.insertId, sender_id: senderId, receiver_id: receiverId, content });
+        const messagePayload = {
+            id: result.insertId,
+            sender_id: senderId,
+            receiver_id: receiverId,
+            content,
+            appointment_id: appointmentId || null,
+            created_at: new Date().toISOString()
+        };
+
+        // Broadcast to recipient
+        sseManager.broadcastToUser(receiverId, 'message', messagePayload);
+
+        res.status(201).json(messagePayload);
     } catch (error) {
         next(error);
+    }
+});
+
+/**
+ * @swagger
+ * /api/messages/stream:
+ *   get:
+ *     summary: Establish message SSE stream for real-time notifications
+ *     tags: [Messages]
+ */
+router.get('/stream', authenticateSse, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const connectionId = `message-user-${userId}-${Date.now()}`;
+        sseManager.addClient(connectionId, res, { userId });
+    } catch (error) {
+        logger.error('Message SSE Error:', error);
+        if (!res.headersSent) res.status(500).json({ message: 'SSE Connection Failed' });
     }
 });
 

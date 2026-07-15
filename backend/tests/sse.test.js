@@ -15,6 +15,7 @@ describe('SSEManager Service Unit Tests', () => {
         sseManager.connections.clear();
         sseManager.appointmentSubscriptions.clear();
         sseManager.doctorSubscriptions.clear();
+        sseManager.userSubscriptions.clear();
     });
 
     describe('addClient() and removeClient()', () => {
@@ -33,6 +34,18 @@ describe('SSEManager Service Unit Tests', () => {
             // Check subscriptions are populated
             expect(sseManager.appointmentSubscriptions.get('101').has(connectionId)).toBe(true);
             expect(sseManager.doctorSubscriptions.get('5').has(connectionId)).toBe(true);
+        });
+
+        it('should successfully add a client with userId and set up user subscriptions', () => {
+            const connectionId = 'test-client-2';
+            sseManager.addClient(connectionId, mockRes, { userId: 42 });
+
+            expect(sseManager.getActiveConnectionsCount()).toBe(1);
+            expect(sseManager.userSubscriptions.get('42').has(connectionId)).toBe(true);
+
+            sseManager.removeClient(connectionId, { userId: 42 });
+            expect(sseManager.getActiveConnectionsCount()).toBe(0);
+            expect(sseManager.userSubscriptions.has('42')).toBe(false);
         });
 
         it('should successfully remove a client and clean up subscriptions', () => {
@@ -87,6 +100,24 @@ describe('SSEManager Service Unit Tests', () => {
             setImmediate(() => {
                 try {
                     expect(mockRes.write).toHaveBeenCalledWith(expect.stringContaining('activePosition'));
+                    done();
+                } catch (error) {
+                    done(error);
+                }
+            });
+        });
+    });
+
+    describe('broadcastToUser()', () => {
+        it('should broadcast message to users', (done) => {
+            const connectionId = 'test-client-msg';
+            sseManager.addClient(connectionId, mockRes, { userId: 99 });
+
+            sseManager.broadcastToUser(99, 'message', { content: 'hello' });
+
+            setImmediate(() => {
+                try {
+                    expect(mockRes.write).toHaveBeenCalledWith(expect.stringContaining('hello'));
                     done();
                 } catch (error) {
                     done(error);
