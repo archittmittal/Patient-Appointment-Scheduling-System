@@ -407,6 +407,7 @@ const DoctorDashboard = () => {
 
     const [dismissedOverrun, setDismissedOverrun] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [doctorAvailability, setDoctorAvailability] = useState(null);
 
     useEffect(() => {
         const active = queue.find(item => item.queue_status === 'IN_PROGRESS');
@@ -445,10 +446,11 @@ const DoctorDashboard = () => {
     const fetchData = async () => {
         if (!user?.id) return;
         try {
-            const [patientsData, queueData, delayData] = await Promise.all([
+            const [patientsData, queueData, delayData, doctorProfile] = await Promise.all([
                 apiClient.get(`/api/doctors/${user.id}/patients`),
                 apiClient.get(`/api/doctors/${user.id}/queue`),
-                apiClient.get(`/api/doctors/${user.id}/delay-status`)
+                apiClient.get(`/api/doctors/${user.id}/delay-status`),
+                apiClient.get(`/api/doctors/${user.id}`).catch(() => null)
             ]);
             setPatients(patientsData?.data || patientsData || []);
             setQueue(queueData);
@@ -461,11 +463,45 @@ const DoctorDashboard = () => {
                     reason: delayData.reason || ''
                 });
             }
+
+            if (doctorProfile && doctorProfile.availability) {
+                try {
+                    const av = typeof doctorProfile.availability === 'string'
+                        ? JSON.parse(doctorProfile.availability)
+                        : doctorProfile.availability;
+                    setDoctorAvailability(av);
+                } catch (e) {
+                    console.error('Error parsing doctor availability:', e);
+                }
+            }
         } catch (err) {
             console.error('Doctor dashboard error:', err);
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const getCurrentDayAvailabilityString = () => {
+        if (!doctorAvailability) return '08:00 AM — 05:00 PM'; // Fallback default
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const currentDay = dayNames[new Date().getDay()];
+        const dayAvail = doctorAvailability[currentDay];
+        if (!dayAvail || !dayAvail.open || !dayAvail.from || !dayAvail.to) {
+            return 'Closed today';
+        }
+        
+        const formatTime12 = (timeStr) => {
+            if (!timeStr) return '';
+            const [hourStr, minStr] = timeStr.split(':');
+            let hour = parseInt(hourStr, 10);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            hour = hour % 12;
+            hour = hour ? hour : 12;
+            const hourFormatted = String(hour).padStart(2, '0');
+            return `${hourFormatted}:${minStr} ${ampm}`;
+        };
+
+        return `${formatTime12(dayAvail.from)} — ${formatTime12(dayAvail.to)}`;
     };
 
     const handleSetDelay = async () => {
@@ -685,7 +721,7 @@ const DoctorDashboard = () => {
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Schedule</p>
-                            <p className="text-base font-black text-[var(--text-base)]">08:00 AM — 05:00 PM</p>
+                            <p className="text-base font-black text-[var(--text-base)]">{getCurrentDayAvailabilityString()}</p>
                         </div>
                     </div>
                 </div>
