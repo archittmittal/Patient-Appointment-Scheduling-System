@@ -16,6 +16,12 @@ class InsuranceService {
         this._realVerify = this._realVerify.bind(this);
         this.getAllPolicies = this.getAllPolicies.bind(this);
         this.getAdminStats = this.getAdminStats.bind(this);
+        this.createClaim = this.createClaim.bind(this);
+        this.getPatientClaims = this.getPatientClaims.bind(this);
+        this.getAllClaims = this.getAllClaims.bind(this);
+        this.getClaimById = this.getClaimById.bind(this);
+        this.updateClaim = this.updateClaim.bind(this);
+        this.deleteClaim = this.deleteClaim.bind(this);
     }
 
     /**
@@ -225,6 +231,115 @@ class InsuranceService {
             byStatus: statusStats,
             recentVerifications
         };
+    }
+
+    /**
+     * Create a new insurance claim
+     */
+    async createClaim(claimData) {
+        const { patientInsuranceId, amountBilled } = claimData;
+        if (!patientInsuranceId || !amountBilled) {
+            throw new Error('patientInsuranceId and amountBilled are required');
+        }
+
+        const [result] = await db.query(
+            `INSERT INTO insurance_claims (patient_insurance_id, amount_billed, status)
+             VALUES (?, ?, 'SUBMITTED')`,
+            [patientInsuranceId, amountBilled]
+        );
+
+        return { id: result.insertId, patientInsuranceId, amountBilled, status: 'SUBMITTED' };
+    }
+
+    /**
+     * Get claims for a patient
+     */
+    async getPatientClaims(patientId) {
+        const [claims] = await db.query(
+            `SELECT ic.*, pi.member_id, pi.group_id, ip.name as provider_name
+             FROM insurance_claims ic
+             JOIN patient_insurance pi ON ic.patient_insurance_id = pi.id
+             JOIN insurance_providers ip ON pi.provider_id = ip.id
+             WHERE pi.patient_id = ?
+             ORDER BY ic.submitted_at DESC`,
+            [patientId]
+        );
+        return claims;
+    }
+
+    /**
+     * Get all claims (Admin only)
+     */
+    async getAllClaims() {
+        const [claims] = await db.query(
+            `SELECT ic.*, pi.member_id, pi.group_id, ip.name as provider_name,
+                    CONCAT(p.first_name, ' ', p.last_name) as patient_name, pi.patient_id
+             FROM insurance_claims ic
+             JOIN patient_insurance pi ON ic.patient_insurance_id = pi.id
+             JOIN insurance_providers ip ON pi.provider_id = ip.id
+             JOIN patients p ON pi.patient_id = p.id
+             ORDER BY ic.submitted_at DESC`
+        );
+        return claims;
+    }
+
+    /**
+     * Get a specific claim by ID
+     */
+    async getClaimById(claimId) {
+        const [claims] = await db.query(
+            `SELECT ic.*, pi.patient_id, pi.member_id, pi.group_id, ip.name as provider_name
+             FROM insurance_claims ic
+             JOIN patient_insurance pi ON ic.patient_insurance_id = pi.id
+             JOIN insurance_providers ip ON pi.provider_id = ip.id
+             WHERE ic.id = ?`,
+            [claimId]
+        );
+        return claims.length > 0 ? claims[0] : null;
+    }
+
+    /**
+     * Update claim details (Admin/Staff only)
+     */
+    async updateClaim(claimId, updateData) {
+        const { amountCovered, status } = updateData;
+        const validStatuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'PENDING'];
+        
+        let query = 'UPDATE insurance_claims SET ';
+        const params = [];
+        
+        if (amountCovered !== undefined) {
+            query += 'amount_covered = ?, ';
+            params.push(amountCovered);
+        }
+        
+        if (status !== undefined) {
+            if (!validStatuses.includes(status)) {
+                throw new Error('Invalid claim status');
+            }
+            query += 'status = ?, ';
+            params.push(status);
+            
+            if (status === 'APPROVED' || status === 'REJECTED') {
+                query += 'resolved_at = NOW(), ';
+            }
+        }
+        
+        // Remove trailing comma and space
+        query = query.slice(0, -2);
+        query += ' WHERE id = ?';
+        params.push(claimId);
+
+        await db.query(query, params);
+        return this.getClaimById(claimId);
+    }
+
+    /**
+     * Delete a claim (Admin only)
+     */
+    async deleteClaim(claimId) {
+        await db.query('DELETE FROM insurance_claims WHERE id = ?', [claimId]);
+        return { success: true };
     }
 }
 

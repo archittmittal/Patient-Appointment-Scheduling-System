@@ -19,7 +19,10 @@ async function applyMigrations() {
         'migration_advanced_clinical_prescriptions.sql',
         'migration_vitals_spo2_and_drug_interactions.sql',
         'migrations/migration_sprint14_booking_slot_capacity.sql',
-        'migrations/migration_sprint15_secure_refresh_tokens.sql'
+        'migrations/migration_sprint15_secure_refresh_tokens.sql',
+        'migration_insurance_providers_and_eligibility.sql',
+        'seed_insurance_providers.sql',
+        'migration_insurance_phase2_claims_audit.sql'
     ];
 
     console.log('--- Starting Migration Verification ---');

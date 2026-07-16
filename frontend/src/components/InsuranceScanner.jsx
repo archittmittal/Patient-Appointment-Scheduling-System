@@ -9,8 +9,9 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
+    const [scanMode, setScanMode] = useState('ocr'); // 'ocr' or 'barcode'
 
-    // Pre-process image for better OCR
+    // Pre-process image for better OCR/Barcode scanning
     const preprocessImage = (imageSrc) => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -57,32 +58,70 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
         try {
             const processedImage = await preprocessImage(imageSrc);
 
-            // Dynamic import — tesseract.js (~4 MB) is only fetched when
-            // the user actually initiates a scan, not on initial page load.
-            const { createWorker } = await import('tesseract.js');
-            const worker = await createWorker('eng', 1, {
-                logger: m => {
-                    if (m.status === 'recognizing text') {
-                        setProgress(Math.round(m.progress * 100));
+            if (scanMode === 'barcode') {
+                const { Html5Qrcode } = await import('html5-qrcode');
+                const dataURLtoFile = (dataurl, filename) => {
+                    let arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                        bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+                    while(n--){
+                        u8arr[n] = bstr.charCodeAt(n);
                     }
+                    return new File([u8arr], filename, {type:mime});
+                };
+
+                const imageFile = dataURLtoFile(processedImage, 'capture.jpg');
+                
+                // Create a temporary hidden container if it doesn't exist
+                let readerEl = document.getElementById('qr-reader');
+                if (!readerEl) {
+                    readerEl = document.createElement('div');
+                    readerEl.id = 'qr-reader';
+                    readerEl.style.display = 'none';
+                    document.body.appendChild(readerEl);
                 }
-            });
 
-            const { data: { text, confidence } } = await worker.recognize(processedImage);
-            await worker.terminate();
+                const html5Qrcode = new Html5Qrcode("qr-reader");
+                try {
+                    const decodedText = await html5Qrcode.scanFile(imageFile, false);
+                    const result = parseBarcodeText(decodedText);
+                    setIsScanning(false);
+                    setCapturedImage(null);
+                    onScanComplete(result);
+                } catch (err) {
+                    console.warn('[Barcode Scanner] Failed to find barcode in captured frame:', err);
+                    setError("Failed to detect barcode. Please ensure it is well-lit, holds the barcode inside the frame, or enter details manually.");
+                    setIsScanning(false);
+                } finally {
+                    try {
+                        html5Qrcode.clear();
+                    } catch (e) {}
+                }
+            } else {
+                // OCR Mode
+                const { createWorker } = await import('tesseract.js');
+                const worker = await createWorker('eng', 1, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            setProgress(Math.round(m.progress * 100));
+                        }
+                    }
+                });
 
-            // Simple parsing logic (can be improved with regex)
-            const result = parseOCRText(text, confidence / 100);
-            
-            setIsScanning(false);
-            setCapturedImage(null); // Clear PHI from memory
-            onScanComplete(result);
+                const { data: { text, confidence } } = await worker.recognize(processedImage);
+                await worker.terminate();
+
+                const result = parseOCRText(text, confidence / 100);
+                
+                setIsScanning(false);
+                setCapturedImage(null); // Clear PHI from memory
+                onScanComplete(result);
+            }
         } catch (err) {
             console.error(err);
             setError("Failed to read card. Please try again or enter manually.");
             setIsScanning(false);
         }
-    }, [webcamRef, onScanComplete]);
+    }, [webcamRef, scanMode, onScanComplete]);
 
     const handleClose = useCallback(() => {
         if (webcamRef.current && webcamRef.current.video && webcamRef.current.video.srcObject) {
@@ -124,6 +163,45 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
         };
     };
 
+    const parseBarcodeText = (text) => {
+        let memberId = "";
+        let groupId = "";
+        let provider = "";
+
+        try {
+            const obj = JSON.parse(text);
+            memberId = obj.memberId || obj.member_id || obj.id || "";
+            groupId = obj.groupId || obj.group_id || obj.group || "";
+            provider = obj.provider || obj.providerName || "";
+        } catch (e) {
+            if (text.includes('=') || text.includes(';')) {
+                const pairs = text.split(/[;&]/);
+                pairs.forEach(pair => {
+                    const [key, val] = pair.split('=').map(s => s.trim());
+                    if (key && val) {
+                        const k = key.toUpperCase();
+                        if (k.includes('ID') || k.includes('MEMBER')) {
+                            memberId = val;
+                        } else if (k.includes('GROUP') || k.includes('GRP')) {
+                            groupId = val;
+                        }
+                    }
+                });
+            }
+            if (!memberId) {
+                memberId = text.trim();
+            }
+        }
+
+        return {
+            rawText: text,
+            memberId,
+            groupId,
+            provider,
+            confidence: 1.0
+        };
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-md p-4">
             <motion.div 
@@ -150,6 +228,24 @@ const InsuranceScanner = ({ onScanComplete, onClose }) => {
                             <h3 className="text-2xl font-black tracking-tight dark:text-white">Smart Scan</h3>
                             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Position card within the frame</p>
                         </div>
+                    </div>
+
+                    {/* Mode Selector Toggle */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl mb-6 border border-slate-200/50">
+                        <button
+                            type="button"
+                            onClick={() => setScanMode('ocr')}
+                            className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all duration-300 ${scanMode === 'ocr' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md shadow-slate-200/30' : 'text-slate-500'}`}
+                        >
+                            OCR (Front of Card)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScanMode('barcode')}
+                            className={`flex-1 py-2.5 text-xs font-black rounded-xl transition-all duration-300 ${scanMode === 'barcode' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-md shadow-slate-200/30' : 'text-slate-500'}`}
+                        >
+                            Barcode (Back of Card)
+                        </button>
                     </div>
 
                     <div className="relative aspect-[1.58/1] bg-gray-900 rounded-[2rem] overflow-hidden mb-8 shadow-inner group">
