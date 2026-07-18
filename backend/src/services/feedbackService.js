@@ -4,6 +4,7 @@
  */
 
 const db = require('../config/db');
+const logger = require('../config/logger');
 
 class FeedbackService {
     /**
@@ -105,7 +106,7 @@ class FeedbackService {
             };
         } catch (err) {
             await conn.rollback();
-            console.log('Feedback save note:', err.message);
+            logger.error('Feedback save note:', { error: err });
             return { success: true, message: 'Feedback recorded', weightedScore };
         } finally {
             conn.release();
@@ -169,7 +170,7 @@ class FeedbackService {
                 ]);
             }
         } catch (err) {
-            console.log('Rating update note:', err.message);
+            logger.error('Rating update note:', { error: err });
         }
     }
 
@@ -272,7 +273,7 @@ class FeedbackService {
                 topImprovements
             };
         } catch (err) {
-            console.log('Analytics error:', err.message);
+            logger.error('Analytics error:', { error: err });
             return {
                 overall: { avgScore: 0, totalReviews: 0, avgSentiment: 0.5, recommendRate: 0 },
                 categoryBreakdown: [],
@@ -409,7 +410,7 @@ class FeedbackService {
                 topImprovementAreas
             };
         } catch (err) {
-            console.log('System analytics error:', err.message);
+            logger.error('System analytics error:', { error: err });
             return {
                 overall: { avgScore: 0, totalReviews: 0, avgSentiment: 0.5, recommendRate: 0 },
                 topDoctors: [],
@@ -446,7 +447,7 @@ class FeedbackService {
 
             return appointments;
         } catch (err) {
-            console.log('Pending feedback error:', err.message);
+            logger.error('Pending feedback error:', { error: err });
             return [];
         }
     }
@@ -487,7 +488,7 @@ class FeedbackService {
                 improvements: fb.improvements ? JSON.parse(fb.improvements) : []
             }));
         } catch (err) {
-            console.log('Feedback history error:', err.message);
+            logger.error('Feedback history error:', { error: err });
             return [];
         }
     }
