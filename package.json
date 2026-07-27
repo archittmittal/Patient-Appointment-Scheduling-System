@@ -12,7 +12,7 @@
     "load-test:full": "k6 run load-tests/k6/full-profile.js"
   },
   "devDependencies": {
-    "lint-staged": "^17.0.8"
+    "lint-staged": "^17.2.0"
   },
   "lint-staged": {
     "backend/src/**/*.js": [
