@@ -226,6 +226,11 @@ router.post('/claims', authenticate, logPhiAccess('SUBMIT_CLAIM', 'insurance_cla
             return res.status(400).json({ message: 'patientInsuranceId and amountBilled are required' });
         }
 
+        const parsedBilled = parseFloat(amountBilled);
+        if (isNaN(parsedBilled) || !isFinite(parsedBilled) || parsedBilled <= 0) {
+            return res.status(400).json({ message: 'amountBilled must be a positive finite number' });
+        }
+
         // Verify patient owns this insurance policy or is admin
         const [policy] = await db.query('SELECT patient_id FROM patient_insurance WHERE id = ?', [patientInsuranceId]);
         if (policy.length === 0) {
@@ -236,10 +241,22 @@ router.post('/claims', authenticate, logPhiAccess('SUBMIT_CLAIM', 'insurance_cla
             return res.status(403).json({ message: 'Forbidden' });
         }
 
-        const claim = await insuranceService.createClaim(req.body);
+        // Verify duplicate combination
+        const [existingClaim] = await db.query(
+            'SELECT id FROM insurance_claims WHERE patient_insurance_id = ? AND amount_billed = ?',
+            [patientInsuranceId, parsedBilled]
+        );
+        if (existingClaim.length > 0) {
+            return res.status(409).json({ message: 'A claim with this policy and billed amount already exists.' });
+        }
+
+        const claim = await insuranceService.createClaim({ patientInsuranceId, amountBilled: parsedBilled });
         res.status(201).json(claim);
     } catch (error) {
         logger.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error submitting claim' });
     }
 });
@@ -354,6 +371,9 @@ router.patch('/claims/:id', authenticate, requireRole('ADMIN'), logPhiAccess('UP
         res.json(updated);
     } catch (error) {
         logger.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error updating claim' });
     }
 });

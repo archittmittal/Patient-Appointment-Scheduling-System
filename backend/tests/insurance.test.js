@@ -242,6 +242,9 @@ describe('Insurance & Claims System Tests', () => {
           if (sql.includes('SELECT ic.*, pi.patient_id')) {
             return Promise.resolve([[mockClaim]]);
           }
+          if (sql.includes('SELECT amount_billed FROM insurance_claims')) {
+            return Promise.resolve([[{ amount_billed: 250.00 }]]);
+          }
           return Promise.resolve([[]]);
         });
 
@@ -253,6 +256,23 @@ describe('Insurance & Claims System Tests', () => {
         expect(res.status).toBe(200);
         expect(res.body.status).toBe('APPROVED');
         expect(res.body.amount_covered).toBe(200.00);
+      });
+
+      it('should reject patch if amountCovered exceeds billed amount', async () => {
+        db.query.mockImplementation((sql, params) => {
+          if (sql.includes('SELECT amount_billed FROM insurance_claims')) {
+            return Promise.resolve([[{ amount_billed: 150.00 }]]);
+          }
+          return Promise.resolve([[]]);
+        });
+
+        const res = await request(app)
+          .patch('/api/insurance/claims/50')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ amountCovered: 200.00, status: 'APPROVED' });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain('exceed');
       });
     });
 
@@ -269,6 +289,38 @@ describe('Insurance & Claims System Tests', () => {
           expect.stringContaining('DELETE FROM insurance_claims'),
           [50]
         );
+      });
+    });
+
+    describe('Duplicate and boundary claim submission validation', () => {
+      it('should reject claim creation if amountBilled is invalid', async () => {
+        const res = await request(app)
+          .post('/api/insurance/claims')
+          .set('Authorization', `Bearer ${patientToken}`)
+          .send({ patientInsuranceId: 5, amountBilled: -20 });
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain('positive');
+      });
+
+      it('should reject claim creation if a duplicate combination exists', async () => {
+        db.query.mockImplementation((sql, params) => {
+          if (sql.includes('SELECT patient_id FROM patient_insurance WHERE id = ?')) {
+            return Promise.resolve([[{ patient_id: 1 }]]);
+          }
+          if (sql.includes('SELECT id FROM insurance_claims WHERE patient_insurance_id = ? AND amount_billed = ?')) {
+            return Promise.resolve([[{ id: 1 }]]);
+          }
+          return Promise.resolve([[]]);
+        });
+
+        const res = await request(app)
+          .post('/api/insurance/claims')
+          .set('Authorization', `Bearer ${patientToken}`)
+          .send({ patientInsuranceId: 5, amountBilled: 250.00 });
+
+        expect(res.status).toBe(409);
+        expect(res.body.message).toContain('already exists');
       });
     });
   });

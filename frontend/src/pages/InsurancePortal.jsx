@@ -97,9 +97,17 @@ const InsurancePortal = () => {
     const handleAssessClaimSubmit = async (e) => {
         e.preventDefault();
         if (!selectedClaim) return;
+
+        const covered = parseFloat(assessmentForm.amountCovered);
+        const billed = parseFloat(selectedClaim.amount_billed);
+        if (isNaN(covered) || !isFinite(covered) || covered < 0 || covered > billed) {
+            alert('Covered amount must be a positive finite number and cannot exceed the billed amount');
+            return;
+        }
+
         try {
             const res = await apiClient.patch(`/api/insurance/claims/${selectedClaim.id}`, {
-                amountCovered: parseFloat(assessmentForm.amountCovered),
+                amountCovered: covered,
                 status: assessmentForm.status
             });
             if (res && !res.error) {
@@ -107,11 +115,11 @@ const InsurancePortal = () => {
                 setSelectedClaim(null);
                 setAssessmentForm({ amountCovered: '', status: 'APPROVED' });
             } else {
-                alert(res?.message || 'Failed to update claim');
+                alert(res?.message || res?.error || 'Failed to update claim');
             }
         } catch (err) {
             console.error(err);
-            alert('Failed to update claim');
+            alert(err.message || 'Failed to update claim');
         }
     };
 
@@ -123,9 +131,10 @@ const InsurancePortal = () => {
                 amountCovered: 0
             });
             if (res && !res.error) fetchClaims();
-            else alert(res?.message || 'Failed to reject claim');
+            else alert(res?.message || res?.error || 'Failed to reject claim');
         } catch (err) {
             console.error(err);
+            alert(err.message || 'Failed to reject claim');
         }
     };
 
@@ -134,9 +143,10 @@ const InsurancePortal = () => {
         try {
             const res = await apiClient.delete(`/api/insurance/claims/${id}`);
             if (res && !res.error) fetchClaims();
-            else alert(res?.message || 'Failed to delete claim');
+            else alert(res?.message || res?.error || 'Failed to delete claim');
         } catch (err) {
             console.error(err);
+            alert(err.message || 'Failed to delete claim');
         }
     };
 
@@ -505,6 +515,8 @@ const InsurancePortal = () => {
                                     <input
                                         type="number"
                                         step="0.01"
+                                        min="0"
+                                        max={selectedClaim?.amount_billed || ""}
                                         value={assessmentForm.amountCovered}
                                         onChange={(e) => setAssessmentForm({...assessmentForm, amountCovered: e.target.value})}
                                         className="w-full p-4 bg-gray-50 dark:bg-gray-805 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none font-bold dark:text-white font-mono"

@@ -23,6 +23,7 @@ const PatientInsurance = () => {
         patientInsuranceId: '',
         amountBilled: ''
     });
+    const [submittingClaim, setSubmittingClaim] = useState(false);
 
     const fetchInsurance = async () => {
         try {
@@ -72,21 +73,31 @@ const PatientInsurance = () => {
     const handleClaimSubmit = async (e) => {
         e.preventDefault();
         if (!claimFormData.patientInsuranceId || !claimFormData.amountBilled) return;
+
+        const billed = parseFloat(claimFormData.amountBilled);
+        if (isNaN(billed) || !isFinite(billed) || billed <= 0) {
+            alert('Billed amount must be a positive number');
+            return;
+        }
+
+        setSubmittingClaim(true);
         try {
             const res = await apiClient.post('/api/insurance/claims', {
                 patientInsuranceId: parseInt(claimFormData.patientInsuranceId),
-                amountBilled: parseFloat(claimFormData.amountBilled)
+                amountBilled: billed
             });
             if (res && !res.error) {
                 fetchClaims();
                 setShowClaimForm(false);
                 setClaimFormData({ patientInsuranceId: '', amountBilled: '' });
             } else {
-                alert(res?.message || 'Failed to submit claim');
+                alert(res?.message || res?.error || 'Failed to submit claim');
             }
         } catch (err) {
             console.error(err);
-            alert('Failed to submit claim');
+            alert(err.message || 'Failed to submit claim');
+        } finally {
+            setSubmittingClaim(false);
         }
     };
 
@@ -240,9 +251,10 @@ const PatientInsurance = () => {
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-1 active:scale-95"
+                                    disabled={submittingClaim}
+                                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    SUBMIT CLAIM REQUEST
+                                    {submittingClaim ? 'SUBMITTING...' : 'SUBMIT CLAIM REQUEST'}
                                 </button>
                             </form>
                         </motion.div>
