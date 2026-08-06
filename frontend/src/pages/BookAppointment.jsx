@@ -1,10 +1,10 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
     Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, 
-    CheckCircle2, Users, Bell, ArrowRight, Sparkles, AlertCircle,
-    Activity, ShieldCheck, Zap, Compass, MapPin, Search, FileText,
-    Stethoscope, User, CalendarDays
+    CheckCircle2, Users, ArrowRight, AlertCircle,
+    Activity, ShieldCheck, Zap, MapPin, FileText,
+    Stethoscope, CalendarDays
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../services/apiClient';
@@ -23,6 +23,31 @@ const stripePromise = stripePublicKey ? loadStripe(stripePublicKey) : null;
 if (!stripePublicKey) {
     console.error('Missing VITE_STRIPE_PUBLIC_KEY. Stripe checkout is disabled.');
 }
+
+const parseSlotTime = (slotLabel) => {
+    if (!slotLabel) return null;
+    try {
+        const cleanLabel = slotLabel.split(/[–\-—]/)[0].trim().toUpperCase();
+        const ampmMatch = cleanLabel.match(/(\d{1,2}):(\d{1,2})\s*(AM|PM)/i);
+        if (ampmMatch) {
+            let hours = parseInt(ampmMatch[1], 10);
+            const minutes = parseInt(ampmMatch[2], 10);
+            const ampm = ampmMatch[3].toUpperCase();
+            if (ampm === 'PM' && hours < 12) hours += 12;
+            if (ampm === 'AM' && hours === 12) hours = 0;
+            return { hours, minutes };
+        }
+        const simpleMatch = cleanLabel.match(/(\d{1,2}):(\d{1,2})/);
+        if (simpleMatch) {
+            const hours = parseInt(simpleMatch[1], 10);
+            const minutes = parseInt(simpleMatch[2], 10);
+            return { hours, minutes };
+        }
+        return null;
+    } catch {
+        return null;
+    }
+};
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -573,13 +598,38 @@ const BookAppointment = () => {
                                         const booked = slotCounts[s.label] || 0;
                                         const isFull = booked >= capacity;
                                         
-                                        // Disable if today and slot start hour is in the past or current hour
+                                        // Disable if today and slot start time is in the past
                                         let isPast = false;
-                                        const localToday = new Date();
-                                        const localTodayStr = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, '0')}-${String(localToday.getDate()).padStart(2, '0')}`;
-                                        if (selectedDate === localTodayStr) {
-                                            if (localToday.getHours() >= s.hour) {
-                                                isPast = true;
+                                        if (selectedDate) {
+                                            const localToday = new Date();
+                                            let selYear, selMonth, selDay;
+                                            if (selectedDate.includes('-')) {
+                                                const parts = selectedDate.split('T')[0].split('-');
+                                                selYear = parseInt(parts[0], 10);
+                                                selMonth = parseInt(parts[1], 10) - 1;
+                                                selDay = parseInt(parts[2], 10);
+                                            } else {
+                                                const selD = new Date(selectedDate);
+                                                selYear = selD.getFullYear();
+                                                selMonth = selD.getMonth();
+                                                selDay = selD.getDate();
+                                            }
+
+                                            const isToday = selYear === localToday.getFullYear() &&
+                                                            selMonth === localToday.getMonth() &&
+                                                            selDay === localToday.getDate();
+
+                                            if (isToday) {
+                                                const slotTime = parseSlotTime(s.label);
+                                                if (slotTime) {
+                                                    const currentMinutes = localToday.getHours() * 60 + localToday.getMinutes();
+                                                    const slotMinutes = slotTime.hours * 60 + slotTime.minutes;
+                                                    if (currentMinutes >= slotMinutes) {
+                                                        isPast = true;
+                                                    }
+                                                } else if (localToday.getHours() >= s.hour) {
+                                                    isPast = true;
+                                                }
                                             }
                                         }
 
