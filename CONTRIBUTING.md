@@ -1,18 +1,3 @@
-### By Contribution Fit
-
-| Label | Color | Best For | Typical Effort |
-|-------|-------|----------|----------------|
-| `good first issue` | 🟢 Green | New contributors, small fixes, docs | 30min-4h |
-| `help wanted` | 🔵 Blue | Community contributions with guidance | 2-10h |
-| `needs triage` | 🟡 Yellow | Issues that need more detail or verification | Varies |
-
-**Difficulty Labels for Contributors:**
-3. Look for issues labeled `good first issue`
-4. Start with a small bug fix or documentation issue before tackling larger security or architecture work
-
-2. Pick from the `help wanted` issues that match your skill set
-3. Set up React Testing Library for frontend
-4. Aim for 80%+ coverage across the core flows
 # 🤝 Contributing to HealthSync Premium
 
 Thank you for your interest in contributing to HealthSync Premium! We're excited to have you join our community. This guide will help you understand how to contribute effectively.
