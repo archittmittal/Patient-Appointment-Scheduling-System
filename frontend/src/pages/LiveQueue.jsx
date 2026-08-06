@@ -3,12 +3,11 @@
  * Throughput Telemetry Stream for real-time clinical monitoring.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
-    Clock, Users, Activity, CheckCircle2, AlertCircle, RefreshCw, 
-    AlertTriangle, MapPin, Navigation, Sparkles, ChevronRight, 
-    Activity as PulseIcon, Target, Zap, ShieldCheck, Timer,
-    Radio, Info, Compass
+    Users, Activity, CheckCircle2, RefreshCw, 
+    AlertTriangle, Navigation, Sparkles, 
+    Activity as PulseIcon, Compass, Timer, Target, ShieldCheck, MapPin
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../services/apiClient';
@@ -167,7 +166,7 @@ const LiveQueue = () => {
         }
     };
 
-    const fetchQueue = useCallback(async () => {
+        const fetchQueue = useCallback(async () => {
         if (!user?.id) return;
         try {
             // Get today's appointments for this patient
@@ -180,7 +179,8 @@ const LiveQueue = () => {
                 return;
             }
 
-            const todayStr = new Date().toISOString().split('T')[0];
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             const todayApt = apps.find(a => {
                 const d = a.appointment_date?.split('T')[0] || a.appointment_date;
                 return d === todayStr;
@@ -192,10 +192,10 @@ const LiveQueue = () => {
                 return; 
             }
 
-            // Get queue details for this today's appointment
+            // Get queue details for today's appointment
             const data = await apiClient.get(`/api/appointments/queue/${todayApt.id}`);
             
-            if (data && data.queue_number !== undefined) {
+            if (data && !data.error && data.queue_number !== undefined) {
                 setQueueInfo({ 
                     currentToken: data.currentToken || 0, 
                     yourToken: data.queue_number, 
@@ -223,6 +223,22 @@ const LiveQueue = () => {
                 // Get smart arrival if available
                 const sData = await apiClient.get(`/api/appointments/${todayApt.id}/smart-arrival`, null);
                 if (sData) setSmartArrival(sData);
+            } else if (data && data.status === 404) {
+                // If it is 404, it means the queue record is not created yet (i.e. patient is not checked in)
+                // We should display the virtual check-in page!
+                setQueueInfo({ 
+                    currentToken: 0, 
+                    yourToken: 0, 
+                    estimatedWaitTime: 0, 
+                    patientsAhead: 0, 
+                    predictedDuration: 15, 
+                    doctorId: todayApt.doctor_id,
+                    appointmentId: todayApt.id,
+                    virtualCheckinStatus: 'NOT_CHECKED_IN'
+                });
+                setQueueData([]);
+                setNoQueue(false);
+                setLastUpdated(new Date());
             } else {
                 setNoQueue(true);
             }
