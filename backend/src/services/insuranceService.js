@@ -239,16 +239,25 @@ class InsuranceService {
     async createClaim(claimData) {
         const { patientInsuranceId, amountBilled } = claimData;
         if (!patientInsuranceId || !amountBilled) {
-            throw new Error('patientInsuranceId and amountBilled are required');
+            const err = new Error('patientInsuranceId and amountBilled are required');
+            err.status = 400;
+            throw err;
+        }
+
+        const parsedBilled = parseFloat(amountBilled);
+        if (isNaN(parsedBilled) || !isFinite(parsedBilled) || parsedBilled <= 0) {
+            const err = new Error('amountBilled must be a positive finite number');
+            err.status = 400;
+            throw err;
         }
 
         const [result] = await db.query(
             `INSERT INTO insurance_claims (patient_insurance_id, amount_billed, status)
              VALUES (?, ?, 'SUBMITTED')`,
-            [patientInsuranceId, amountBilled]
+            [patientInsuranceId, parsedBilled]
         );
 
-        return { id: result.insertId, patientInsuranceId, amountBilled, status: 'SUBMITTED' };
+        return { id: result.insertId, patientInsuranceId, amountBilled: parsedBilled, status: 'SUBMITTED' };
     }
 
     /**
@@ -305,6 +314,26 @@ class InsuranceService {
         const { amountCovered, status } = updateData;
         const validStatuses = ['SUBMITTED', 'APPROVED', 'REJECTED', 'PENDING'];
         
+        const [claimRows] = await db.query(
+            'SELECT amount_billed FROM insurance_claims WHERE id = ?',
+            [claimId]
+        );
+        if (claimRows.length === 0) {
+            const err = new Error('Claim not found');
+            err.status = 404;
+            throw err;
+        }
+        const persistedBilledAmount = parseFloat(claimRows[0].amount_billed);
+
+        if (amountCovered !== undefined && amountCovered !== null) {
+            const parsedCovered = parseFloat(amountCovered);
+            if (isNaN(parsedCovered) || !isFinite(parsedCovered) || parsedCovered < 0 || parsedCovered > persistedBilledAmount) {
+                const err = new Error('Covered amount must be a positive finite number and cannot exceed the billed amount');
+                err.status = 400;
+                throw err;
+            }
+        }
+
         let query = 'UPDATE insurance_claims SET ';
         const params = [];
         
@@ -315,7 +344,9 @@ class InsuranceService {
         
         if (status !== undefined) {
             if (!validStatuses.includes(status)) {
-                throw new Error('Invalid claim status');
+                const err = new Error('Invalid claim status');
+                err.status = 400;
+                throw err;
             }
             query += 'status = ?, ';
             params.push(status);
