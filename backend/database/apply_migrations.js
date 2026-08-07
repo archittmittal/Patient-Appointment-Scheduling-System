@@ -67,6 +67,7 @@ async function applyMigrations() {
                     console.error(`  [Error] Failed to execute: ${statement.substring(0, 50)}...`);
                     console.error(`  [Reason] Code: ${error.code}, Message: ${error.message}`);
                     console.error(error);
+                    throw error;
                 }
             }
         }
@@ -74,10 +75,16 @@ async function applyMigrations() {
     }
 
     console.log('--- Migration Verification Complete ---');
-    process.exit(0);
 }
 
-applyMigrations().catch(err => {
-    console.error('Migration failed:', err);
-    process.exit(1);
-});
+// Only auto-run if this file is run directly (not required/imported)
+if (require.main === module) {
+    applyMigrations().catch(err => {
+        console.error('Migration failed:', err);
+        process.exit(1);
+    });
+}
+
+module.exports = applyMigrations;
+module.exports.applyMigrations = applyMigrations;
+module.exports.runMigrations = applyMigrations;

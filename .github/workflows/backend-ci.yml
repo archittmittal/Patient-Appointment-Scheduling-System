@@ -36,6 +36,12 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Setup Database and Run Migrations
+      run: |
+        mysql -h 127.0.0.1 -u root -ppassword -e "CREATE DATABASE IF NOT EXISTS hospital_system;"
+        mysql -h 127.0.0.1 -u root -ppassword hospital_system < backend/database/schema.sql
+        DB_HOST=127.0.0.1 DB_USER=root DB_PASSWORD=password DB_NAME=hospital_system node backend/database/apply_migrations.js
+
     - name: Security Audit
       run: |
         npm audit --audit-level=high --workspace=backend || echo "Advisory Warning: Security audit detected vulnerabilities but is non-blocking."
@@ -48,4 +54,4 @@ jobs:
         DB_HOST: 127.0.0.1
         DB_USER: root
         DB_PASSWORD: password
-        DB_NAME: hospital_db
+        DB_NAME: hospital_system
