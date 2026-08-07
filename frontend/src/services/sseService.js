@@ -70,6 +70,24 @@ class SSEService {
     }
 
     /**
+     * Connect to a user-specific messages SSE stream
+     */
+    connectMessages(onMessage, onError) {
+        if (this.eventSource?.readyState !== EventSource.CLOSED && this.eventSource?.url?.includes('/api/messages/stream')) {
+            return;
+        }
+
+        this.disconnect();
+        
+        const token = localStorage.getItem('hs_token');
+        const url = `${API}/api/messages/stream?token=${token}`;
+        
+        this._initConnection(url, onMessage, onError, () => {
+            this.connectMessages(onMessage, onError);
+        });
+    }
+
+    /**
      * Unified connection initializer
      */
     _initConnection(url, onMessage, onError, reconnectFn) {
@@ -94,6 +112,7 @@ class SSEService {
             this.eventSource.addEventListener('queue_update', handleEvent);
             this.eventSource.addEventListener('doctor_queue_update', handleEvent);
             this.eventSource.addEventListener('status_update', handleEvent);
+            this.eventSource.addEventListener('message', handleEvent);
 
             this.eventSource.onerror = (err) => {
                 console.warn('[SSE] Connection lost. Attempting reconnect...', err);

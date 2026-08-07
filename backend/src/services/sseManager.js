@@ -14,6 +14,8 @@ class SSEManager {
         this.appointmentSubscriptions = new Map();
         // Map of doctorId -> Set of connectionIds
         this.doctorSubscriptions = new Map();
+        // Map of userId -> Set of connectionIds
+        this.userSubscriptions = new Map();
 
         // Ensure methods are bound to this instance
         this.addClient = this.addClient.bind(this);
@@ -21,6 +23,7 @@ class SSEManager {
         this.sendToClient = this.sendToClient.bind(this);
         this.broadcastToAppointment = this.broadcastToAppointment.bind(this);
         this.broadcastToDoctor = this.broadcastToDoctor.bind(this);
+        this.broadcastToUser = this.broadcastToUser.bind(this);
         this.broadcastQueueUpdate = this.broadcastQueueUpdate.bind(this);
         this.getActiveConnectionsCount = this.getActiveConnectionsCount.bind(this);
         this.setupPubSub = this.setupPubSub.bind(this);
@@ -60,7 +63,7 @@ class SSEManager {
      * Add a new SSE client
      * @param {string} connectionId 
      * @param {object} res 
-     * @param {object} metadata { appointmentId, doctorId }
+     * @param {object} metadata { appointmentId, doctorId, userId }
      */
     addClient(connectionId, res, metadata = {}) {
         const maxConnections = parseInt(process.env.MAX_SSE_CONNECTIONS, 10) || 1000;
@@ -74,12 +77,15 @@ class SSEManager {
             return;
         }
 
-        let { appointmentId, doctorId } = metadata;
+        let { appointmentId, doctorId, userId } = metadata;
         if (appointmentId !== undefined && appointmentId !== null) {
             appointmentId = String(appointmentId);
         }
         if (doctorId !== undefined && doctorId !== null) {
             doctorId = String(doctorId);
+        }
+        if (userId !== undefined && userId !== null) {
+            userId = String(userId);
         }
 
         // Set proper headers for SSE
@@ -108,6 +114,14 @@ class SSEManager {
             this.doctorSubscriptions.get(doctorId).add(connectionId);
         }
 
+        // Add to user subscriptions
+        if (userId) {
+            if (!this.userSubscriptions.has(userId)) {
+                this.userSubscriptions.set(userId, new Set());
+            }
+            this.userSubscriptions.get(userId).add(connectionId);
+        }
+
         // Send initial connection event
         this.sendToClient(connectionId, 'connected', { status: 'Neural Link Established' });
 
@@ -127,13 +141,16 @@ class SSEManager {
         if (!client && !metadata) return;
 
         const actualMetadata = metadata || (client ? client.metadata : {});
-        let { appointmentId, doctorId } = actualMetadata;
+        let { appointmentId, doctorId, userId } = actualMetadata;
 
         if (appointmentId !== undefined && appointmentId !== null) {
             appointmentId = String(appointmentId);
         }
         if (doctorId !== undefined && doctorId !== null) {
             doctorId = String(doctorId);
+        }
+        if (userId !== undefined && userId !== null) {
+            userId = String(userId);
         }
 
         this.connections.delete(connectionId);
@@ -148,6 +165,12 @@ class SSEManager {
             const subs = this.doctorSubscriptions.get(doctorId);
             subs.delete(connectionId);
             if (subs.size === 0) this.doctorSubscriptions.delete(doctorId);
+        }
+
+        if (userId && this.userSubscriptions.has(userId)) {
+            const subs = this.userSubscriptions.get(userId);
+            subs.delete(connectionId);
+            if (subs.size === 0) this.userSubscriptions.delete(userId);
         }
     }
 
@@ -215,6 +238,13 @@ class SSEManager {
                     this.sendToClient(connectionId, event, data);
                 });
             }
+        } else if (type === 'user') {
+            const subs = this.userSubscriptions.get(formattedId);
+            if (subs) {
+                subs.forEach(connectionId => {
+                    this.sendToClient(connectionId, event, data);
+                });
+            }
         }
     }
 
@@ -226,7 +256,9 @@ class SSEManager {
             const formattedId = id !== undefined && id !== null ? String(id) : '';
             const subs = type === 'appointment'
                 ? this.appointmentSubscriptions.get(formattedId)
-                : this.doctorSubscriptions.get(formattedId);
+                : type === 'doctor'
+                    ? this.doctorSubscriptions.get(formattedId)
+                    : this.userSubscriptions.get(formattedId);
 
             if (subs) {
                 subs.forEach(connectionId => {
@@ -271,6 +303,25 @@ class SSEManager {
             });
         } else {
             this.broadcastLocal('doctor', doctorId, event, data);
+        }
+    }
+
+    /**
+     * Broadcast generic event to all clients of a user (for messaging)
+     */
+    broadcastToUser(userId, event, data) {
+        if (redisClient.isRedisEnabled()) {
+            redisClient.redisPub.publish('sse:broadcast', JSON.stringify({
+                type: 'user',
+                id: userId,
+                event,
+                data
+            })).catch(err => {
+                logger.error('Failed to publish sse:broadcast: ' + err.message, { error: err });
+                this.broadcastLocal('user', userId, event, data);
+            });
+        } else {
+            this.broadcastLocal('user', userId, event, data);
         }
     }
 
