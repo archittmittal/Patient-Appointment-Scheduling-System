@@ -130,6 +130,18 @@ const initCronJobs = () => {
             logger.error('[Cron Error] Proximity check failed', { error });
         }
     });
+ 
+    // 3. Purge Expired Refresh Tokens
+    // Runs every day at 3:00 AM
+    cron.schedule('0 3 * * *', async () => {
+        logger.info('[Cron] Purging expired refresh tokens...');
+        try {
+            const [result] = await db.query('DELETE FROM refresh_tokens WHERE expires_at < NOW()');
+            logger.info('[Cron] Expired refresh tokens purge complete', { purgedRows: result.affectedRows });
+        } catch (error) {
+            logger.error('[Cron Error] Failed to purge expired refresh tokens', { error });
+        }
+    });
 
     logger.info('Cron Scheduler Initialized successfully');
 };

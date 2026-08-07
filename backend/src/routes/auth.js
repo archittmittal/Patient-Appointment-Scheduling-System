@@ -95,6 +95,15 @@ router.post('/refresh', validateRequest(Joi.object({ refreshToken: Joi.string().
  */
 router.post('/revoke', validateRequest(Joi.object({ refreshToken: Joi.string().required() })), authController.revoke);
 
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout and revoke refresh token
+ *     tags: [Auth]
+ */
+router.post('/logout', validateRequest(Joi.object({ refreshToken: Joi.string().required() })), authController.logout);
+
 const abhaService = require('../services/abhaService');
 const logger = require('../config/logger');
 
