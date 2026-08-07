@@ -4,7 +4,6 @@ import {
     Search, Activity, FlaskConical, ClipboardCheck, 
     CheckCircle2, Info, Share2, Printer, ChevronRight, ShieldCheck
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 import { apiClient } from '../services/apiClient';
 
 const PatientPrescriptions = () => {
@@ -45,6 +44,7 @@ const PatientPrescriptions = () => {
         } catch (error) {
             console.error('Error downloading PDF:', error);
             // Fallback to client-side generation if backend fails
+            const { jsPDF } = await import('jspdf');
             const doc = new jsPDF();
             doc.text('Prescription Record (Client Generated)', 20, 30);
             doc.save(`Prescription_${prescription.id}_local.pdf`);
