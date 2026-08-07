@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const insuranceService = require('../services/insuranceService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const { logPhiAccess } = require('../middleware/auditLogger');
 const db = require('../config/db');
 const { safeErrorMessage } = require('../middleware/errorHandler');
 const logger = require('../config/logger');
@@ -10,7 +11,7 @@ const logger = require('../config/logger');
  * @swagger
  * tags:
  *   name: Insurance
- *   description: Patient insurance management and verification
+ *   description: Patient insurance management, claims, and verification
  */
 
 /**
@@ -21,28 +22,8 @@ const logger = require('../config/logger');
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of insurance providers retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   code:
- *                     type: string
- *                   is_active:
- *                     type: boolean
- *       500:
- *         description: Error fetching providers
  */
-router.get('/providers', authenticate, async (req, res) => {
+router.get('/providers', authenticate, logPhiAccess('VIEW_PROVIDERS', 'insurance_providers'), async (req, res) => {
     try {
         const providers = await insuranceService.getProviders();
         res.json(providers);
@@ -60,30 +41,8 @@ router.get('/providers', authenticate, async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Patient's insurance details retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 patient_id:
- *                   type: integer
- *                 provider_id:
- *                   type: integer
- *                 policy_number:
- *                   type: string
- *                 group_number:
- *                   type: string
- *                 status:
- *                   type: string
- *       500:
- *         description: Error fetching your insurance
  */
-router.get('/my', authenticate, requireRole('PATIENT'), async (req, res) => {
+router.get('/my', authenticate, requireRole('PATIENT'), logPhiAccess('VIEW_OWN_INSURANCE', 'patient_insurance'), async (req, res) => {
     try {
         const insurance = await insuranceService.getPatientInsurance(req.user.id);
         res.json(insurance);
@@ -101,40 +60,8 @@ router.get('/my', authenticate, requireRole('PATIENT'), async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - providerId
- *               - policyNumber
- *             properties:
- *               patientId:
- *                 type: integer
- *                 description: Required only if req.user.role is ADMIN
- *               providerId:
- *                 type: integer
- *               policyNumber:
- *                 type: string
- *               groupNumber:
- *                 type: string
- *               coverageDetails:
- *                 type: object
- *     responses:
- *       200:
- *         description: Insurance details updated successfully
- *       201:
- *         description: Insurance details created successfully
- *       400:
- *         description: Bad request (e.g. missing patientId for admin)
- *       403:
- *         description: Forbidden (patientId specified without ADMIN role, or unauthorized)
- *       500:
- *         description: Error saving insurance
  */
-router.post('/save', authenticate, async (req, res) => {
+router.post('/save', authenticate, logPhiAccess('SAVE_INSURANCE', 'patient_insurance'), async (req, res) => {
     try {
         let patientId = req.user.id;
         
@@ -152,7 +79,6 @@ router.post('/save', authenticate, async (req, res) => {
         res.status(result.action === 'CREATED' ? 201 : 200).json(result);
     } catch (error) {
         logger.error(error);
-        // SEC-010: Do not leak internal error detail to clients in production
         res.status(500).json({ message: safeErrorMessage(error, 'Error saving insurance') });
     }
 });
@@ -165,26 +91,8 @@ router.post('/save', authenticate, async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: The ID of the insurance record to verify
- *     responses:
- *       200:
- *         description: Insurance eligibility verified successfully
- *       400:
- *         description: Invalid ID
- *       403:
- *         description: Forbidden (You can only verify your own insurance)
- *       404:
- *         description: Insurance record not found
- *       500:
- *         description: Error verifying eligibility
  */
-router.post('/verify/:id', authenticate, async (req, res) => {
+router.post('/verify/:id', authenticate, logPhiAccess('VERIFY_ELIGIBILITY', 'patient_insurance'), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
@@ -204,7 +112,6 @@ router.post('/verify/:id', authenticate, async (req, res) => {
         res.json(result);
     } catch (error) {
         logger.error(error);
-        // SEC-010: Do not leak internal error detail to clients in production
         res.status(500).json({ message: safeErrorMessage(error, 'Error verifying eligibility') });
     }
 });
@@ -217,24 +124,8 @@ router.post('/verify/:id', authenticate, async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: The ID of the patient
- *     responses:
- *       200:
- *         description: Insurance details retrieved successfully
- *       400:
- *         description: Invalid ID
- *       403:
- *         description: Access denied (if PATIENT and requests another patient's data)
- *       500:
- *         description: Error fetching patient insurance
  */
-router.get('/patient/:id', authenticate, async (req, res) => {
+router.get('/patient/:id', authenticate, logPhiAccess('VIEW_PATIENT_INSURANCE', 'patient_insurance'), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
@@ -259,17 +150,8 @@ router.get('/patient/:id', authenticate, async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: All insurance policies retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden (Requires ADMIN role)
- *       500:
- *         description: Error fetching all policies
  */
-router.get('/all', authenticate, requireRole('ADMIN'), async (req, res) => {
+router.get('/all', authenticate, requireRole('ADMIN'), logPhiAccess('VIEW_ALL_INSURANCE', 'patient_insurance'), async (req, res) => {
     try {
         const policies = await insuranceService.getAllPolicies();
         res.json(policies);
@@ -287,17 +169,8 @@ router.get('/all', authenticate, requireRole('ADMIN'), async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Insurance analytics retrieved successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden (Requires ADMIN role)
- *       500:
- *         description: Error fetching insurance stats
  */
-router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
+router.get('/stats', authenticate, requireRole('ADMIN'), logPhiAccess('VIEW_INSURANCE_STATS', 'patient_insurance'), async (req, res) => {
     try {
         const stats = await insuranceService.getAdminStats();
         res.json(stats);
@@ -315,28 +188,8 @@ router.get('/stats', authenticate, requireRole('ADMIN'), async (req, res) => {
  *     tags: [Insurance]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: The ID of the insurance record to delete
- *     responses:
- *       200:
- *         description: Insurance record deleted successfully
- *       400:
- *         description: Invalid ID
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden (Requires ADMIN role)
- *       404:
- *         description: Insurance record not found
- *       500:
- *         description: Error deleting insurance record
  */
-router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res) => {
+router.delete('/:id', authenticate, requireRole('ADMIN'), logPhiAccess('DELETE_INSURANCE', 'patient_insurance'), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
@@ -352,6 +205,198 @@ router.delete('/:id', authenticate, requireRole('ADMIN'), async (req, res) => {
     } catch (error) {
         logger.error(error);
         res.status(500).json({ message: 'Error deleting insurance record' });
+    }
+});
+
+// --- Claims Tracking Endpoints ---
+
+/**
+ * @swagger
+ * /api/insurance/claims:
+ *   post:
+ *     summary: Submit a new insurance claim
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/claims', authenticate, logPhiAccess('SUBMIT_CLAIM', 'insurance_claims'), async (req, res) => {
+    try {
+        const { patientInsuranceId, amountBilled } = req.body;
+        if (!patientInsuranceId || !amountBilled) {
+            return res.status(400).json({ message: 'patientInsuranceId and amountBilled are required' });
+        }
+
+        const parsedBilled = parseFloat(amountBilled);
+        if (isNaN(parsedBilled) || !isFinite(parsedBilled) || parsedBilled <= 0) {
+            return res.status(400).json({ message: 'amountBilled must be a positive finite number' });
+        }
+
+        // Verify patient owns this insurance policy or is admin
+        const [policy] = await db.query('SELECT patient_id FROM patient_insurance WHERE id = ?', [patientInsuranceId]);
+        if (policy.length === 0) {
+            return res.status(404).json({ message: 'Insurance policy not found' });
+        }
+
+        if (req.user.role === 'PATIENT' && req.user.id !== policy[0].patient_id) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+
+        // Verify duplicate combination
+        const [existingClaim] = await db.query(
+            'SELECT id FROM insurance_claims WHERE patient_insurance_id = ? AND amount_billed = ?',
+            [patientInsuranceId, parsedBilled]
+        );
+        if (existingClaim.length > 0) {
+            return res.status(409).json({ message: 'A claim with this policy and billed amount already exists.' });
+        }
+
+        const claim = await insuranceService.createClaim({ patientInsuranceId, amountBilled: parsedBilled });
+        res.status(201).json(claim);
+    } catch (error) {
+        logger.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Error submitting claim' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/my:
+ *   get:
+ *     summary: Get claims history for logged in patient
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/claims/my', authenticate, requireRole('PATIENT'), logPhiAccess('VIEW_OWN_CLAIMS', 'insurance_claims'), async (req, res) => {
+    try {
+        const claims = await insuranceService.getPatientClaims(req.user.id);
+        res.json(claims);
+    } catch (error) {
+        logger.error(error);
+        res.status(500).json({ message: 'Error fetching claims' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/patient/{patientId}:
+ *   get:
+ *     summary: Get claims for a specific patient
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/claims/patient/:patientId', authenticate, logPhiAccess('VIEW_PATIENT_CLAIMS', 'insurance_claims'), async (req, res) => {
+    try {
+        const patientId = parseInt(req.params.patientId);
+        if (isNaN(patientId)) return res.status(400).json({ message: 'Invalid patient ID' });
+
+        if (req.user.role === 'PATIENT' && req.user.id !== patientId) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        const claims = await insuranceService.getPatientClaims(patientId);
+        res.json(claims);
+    } catch (error) {
+        logger.error(error);
+        res.status(500).json({ message: 'Error fetching patient claims' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/all:
+ *   get:
+ *     summary: Get all insurance claims (Admin only)
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/claims/all', authenticate, requireRole('ADMIN'), logPhiAccess('VIEW_ALL_CLAIMS', 'insurance_claims'), async (req, res) => {
+    try {
+        const claims = await insuranceService.getAllClaims();
+        res.json(claims);
+    } catch (error) {
+        logger.error(error);
+        res.status(500).json({ message: 'Error fetching all claims' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/{id}:
+ *   get:
+ *     summary: Get specific claim details
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/claims/:id', authenticate, logPhiAccess('VIEW_CLAIM_DETAILS', 'insurance_claims'), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+
+        const claim = await insuranceService.getClaimById(id);
+        if (!claim) return res.status(404).json({ message: 'Claim not found' });
+
+        if (req.user.role === 'PATIENT' && req.user.id !== claim.patient_id) {
+            return res.status(403).json({ message: 'Access denied' });
+        }
+
+        res.json(claim);
+    } catch (error) {
+        logger.error(error);
+        res.status(500).json({ message: 'Error fetching claim details' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/{id}:
+ *   patch:
+ *     summary: Update claim status or covered amount (Admin only)
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.patch('/claims/:id', authenticate, requireRole('ADMIN'), logPhiAccess('UPDATE_CLAIM', 'insurance_claims'), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+
+        const updated = await insuranceService.updateClaim(id, req.body);
+        res.json(updated);
+    } catch (error) {
+        logger.error(error);
+        if (error.status) {
+            return res.status(error.status).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Error updating claim' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/insurance/claims/{id}:
+ *   delete:
+ *     summary: Delete a claim (Admin only)
+ *     tags: [Insurance]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete('/claims/:id', authenticate, requireRole('ADMIN'), logPhiAccess('DELETE_CLAIM', 'insurance_claims'), async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        if (isNaN(id)) return res.status(400).json({ message: 'Invalid ID' });
+
+        await insuranceService.deleteClaim(id);
+        res.json({ message: 'Claim deleted successfully' });
+    } catch (error) {
+        logger.error(error);
+        res.status(500).json({ message: 'Error deleting claim' });
     }
 });
 
