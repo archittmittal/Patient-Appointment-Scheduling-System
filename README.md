@@ -1,3 +1,5 @@
+
+
 ---
 title: Backend Patient Appointment
 emoji: 🏥
@@ -238,7 +240,7 @@ npm run test
 
 ## 🤝 Contributing Guidelines
 
-We welcome pull requests from everyone! Please check out [CONTRIBUTING.md](file:///Users/architmittal/Desktop/CODE/Patient%20Appointment%20Scheduling%20System/Patient-Appointment-Scheduling-System/CONTRIBUTING.md) to understand:
+We welcome pull requests from everyone! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to understand:
 * Code Style & Commit message format guidelines
 * Test requirements (Aiming for >80% coverage)
 * HIPAA regulations & secure PHI access rules
