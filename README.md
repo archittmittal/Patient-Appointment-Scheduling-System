@@ -10,7 +10,7 @@ pinned: false
 
 # Patient Appointment Scheduling System (HealthSync Premium)
 
-A sophisticated, DSA-powered healthcare orchestration engine designed to eliminate patient wait times and optimize clinical workflows using Greedy Algorithms, Dynamic Programming, Priority Queues, Server-Sent Events, and Predictive Analytics.
+A sophisticated,DSA-powered healthcare orchestration engine designed to eliminate patient wait times and optimize clinical workflows using Greedy Algorithms, Dynamic Programming, Priority Queues, Server-Sent Events, and Predictive Analytics.
 
 ---
 
